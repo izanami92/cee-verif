@@ -144,10 +144,10 @@ IMPORTANT - PARCELLES CADASTRALES :
 - La parcelle cadastrale au milieu de l'adresse est celle du chantier et doit correspondre sur la Synthèse
 - Ne pas signaler d'erreur si la parcelle est présente dans l'adresse mais pas dans un champ séparé
 
-CHECKLIST EXHAUSTIVE — 37 POINTS OBLIGATOIRES
+CHECKLIST EXHAUSTIVE — 38 POINTS OBLIGATOIRES
 
 Tu DOIS vérifier TOUS les points suivants à CHAQUE analyse, sans exception.
-Tu dois retourner EXACTEMENT 37 checks (un par point) avec le niveau approprié (bloquant/majeur/ok/info).
+Tu dois retourner EXACTEMENT 38 checks (un par point) avec le niveau approprié (bloquant/majeur/ok/info).
 
 🔴 BLOQUANTS - AUDIT Page de garde (1-3)
 1. Nom entreprise (Audit page 1) = Nom entreprise CEE = Nom entreprise officiel gouv
@@ -197,17 +197,19 @@ Tu dois retourner EXACTEMENT 37 checks (un par point) avec le niveau approprié 
 🟡 AUDIT - Liste luminaires (30)
 30. Pce total (Audit liste luminaires) = Nombre LED Synthèse = Nombre LED CEE
 
-🔴 MENTIONS AGRICOLES - BLOQUANT (31-33)
+🔴 MENTIONS AGRICOLES - BLOQUANT (31-34)
 31. Secteur d'activité (Synthèse) ≠ "agricole/agri/agriculture"
 32. Profil d'utilisation (Audit) ≠ "agricole/agri/agriculture"
-33. Activité bâtiment (Synthèse état projeté) ≠ "agricole/agri/agriculture"
+33. Profil (Synthèse) ≠ "agricole/agri/agriculture"
+34. Activité bâtiment (Synthèse état projeté) ≠ "agricole/agri/agriculture"
 ⚠️ EXCEPTION : Le NOM de société peut contenir "agricole" - NE PAS signaler d'erreur sur le nom
+⚠️ RÈGLE GÉNÉRALE : TOUTE mention "agri"/"agricole"/"agriculteur" dans les documents (sauf nom de société) est BLOQUANTE
 
-🟡 AUTRES VÉRIFICATIONS (34-37)
-34. THD (CEE + Synthèse caractéristiques luminaires) = 3,7% (PAS dans Audit)
-35. Fiche technique LED (Synthèse page ~14) → présente + THD 3,7%
-36. Référence produit (Audit + Synthèse luminaires) = DAEWOO NES-HBL 250W (ou selon dossier)
-37. Reste à payer (Dossier CEE) = 0€ (si ≠ 0 → signaler car anormal)
+🟡 AUTRES VÉRIFICATIONS (35-38)
+35. THD (CEE + Synthèse caractéristiques luminaires) = 3,7% (PAS dans Audit)
+36. Fiche technique LED (Synthèse page ~14) → présente + THD 3,7%
+37. Référence produit (Audit + Synthèse luminaires) = DAEWOO NES-HBL 250W (ou selon dossier)
+38. Reste à payer (Dossier CEE) = 0€ (si ≠ 0 → signaler car anormal)
 
 RÉFÉRENCES DU DOSSIER À UTILISER POUR LA VÉRIFICATION
 ${references.nom ? `- Nom société cliente : ${references.nom}` : ''}
@@ -240,12 +242,12 @@ Tu dois retourner UNIQUEMENT un JSON valide (sans texte avant ou après) avec ce
 }
 \`\`\`
 
-IMPORTANT - RETOUR DE TOUS LES 36 CHECKS OBLIGATOIRES :
-- Tu DOIS retourner EXACTEMENT 36 checks (un pour chaque point de la checklist ci-dessus)
-- JAMAIS moins de 36 checks, même si tout est conforme
-- Pour chaque point numéroté (1 à 36), crée UN check avec :
-  * id: "check_01", "check_02", ..., "check_36"
-  * niveau: "bloquant" (points 1-3 et 31-33) | "majeur" (autres) | "ok" (si conforme) | "info" (si check manuel requis)
+IMPORTANT - RETOUR DE TOUS LES 38 CHECKS OBLIGATOIRES :
+- Tu DOIS retourner EXACTEMENT 38 checks (un pour chaque point de la checklist ci-dessus)
+- JAMAIS moins de 38 checks, même si tout est conforme
+- Pour chaque point numéroté (1 à 38), crée UN check avec :
+  * id: "check_01", "check_02", ..., "check_38"
+  * niveau: "bloquant" (points 1-3 et 31-34) | "majeur" (autres) | "ok" (si conforme) | "info" (si check manuel requis)
   * champ: Le nom exact du point (ex: "Nom entreprise Audit page 1")
   * localisation: Page et section EXACTE dans le document
   * valeur_attendue: Valeur de référence

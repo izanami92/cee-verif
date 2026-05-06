@@ -110,9 +110,12 @@
 |---|-------|-----------|--------------|-------|
 | 31 | Secteur d'activité | Synthèse | Toutes pages | ≠ "agricole/agri/agriculture" |
 | 32 | Profil d'utilisation | Audit | Toutes pages | ≠ "agricole/agri/agriculture" |
-| 33 | Activité bâtiment | Synthèse | État projeté | ≠ "agricole/agri/agriculture" |
+| 33 | Profil | Synthèse | Toutes pages | ≠ "agricole/agri/agriculture" |
+| 34 | Activité bâtiment | Synthèse | État projeté | ≠ "agricole/agri/agriculture" |
 
 **Note** : Le NOM de société peut contenir "agricole" (c'est le vrai nom du client) - NE PAS signaler d'erreur.
+
+**Règle générale** : TOUTE mention "agri"/"agricole"/"agriculteur" dans les documents (sauf nom de société) est BLOQUANTE.
 
 ---
 
@@ -120,12 +123,13 @@
 
 | # | Point | Documents | Localisation | Règle |
 |---|-------|-----------|--------------|-------|
-| 34 | THD | CEE + Synthèse | Caractéristiques luminaires | = 3,7% (PAS dans Audit) |
-| 35 | Fiche technique LED | Synthèse | Page ~14 | Présente + THD 3,7% |
-| 36 | Référence produit | Audit + Synthèse | Luminaires | = DAEWOO NES-HBL 250W (ou selon dossier) |
+| 35 | THD | CEE + Synthèse | Caractéristiques luminaires | = 3,7% (PAS dans Audit) |
+| 36 | Fiche technique LED | Synthèse | Page ~14 | Présente + THD 3,7% |
+| 37 | Référence produit | Audit + Synthèse | Luminaires | = DAEWOO NES-HBL 250W (ou selon dossier) |
+| 38 | Reste à payer | Dossier CEE | Informations financières | = 0€ (si ≠ 0 → signaler car anormal) |
 
 ---
 
-**TOTAL : 36 points de contrôle obligatoires**
+**TOTAL : 38 points de contrôle obligatoires**
 
-Chaque analyse doit retourner **36 checks minimum** (un par point ci-dessus).
+Chaque analyse doit retourner **38 checks minimum** (un par point ci-dessus).
