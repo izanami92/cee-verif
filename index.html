@@ -1,0 +1,1829 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CEE Vérif — Vérification des dossiers CEE LED</title>
+
+  <!-- Polices Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300;1,400;1,500&family=Syne:wght@400..800&display=swap" rel="stylesheet">
+
+  <!-- pdf.js depuis CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+
+  <style>
+    /* ========== VARIABLES CSS ========== */
+    :root {
+      --color-bg: #fafafa;
+      --color-sidebar: #1a3a2e;
+      --color-sidebar-light: #2d5a4a;
+      --color-text: #1a1a1a;
+      --color-text-light: #666;
+      --color-border: #e0e0e0;
+      --color-white: #ffffff;
+
+      --color-bloquant: #dc2626;
+      --color-majeur: #f59e0b;
+      --color-conforme: #16a34a;
+      --color-info: #64748b;
+
+      --font-sans: 'DM Sans', sans-serif;
+      --font-display: 'Syne', sans-serif;
+      --font-mono: 'DM Mono', monospace;
+
+      --spacing-xs: 0.25rem;
+      --spacing-sm: 0.5rem;
+      --spacing-md: 1rem;
+      --spacing-lg: 1.5rem;
+      --spacing-xl: 2rem;
+
+      --radius-sm: 0.375rem;
+      --radius-md: 0.5rem;
+      --radius-lg: 0.75rem;
+
+      --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+      --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+      --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+    }
+
+    /* ========== RESET & BASE ========== */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: var(--font-sans);
+      background: var(--color-bg);
+      color: var(--color-text);
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    h1, h2, h3, h4 {
+      font-family: var(--font-display);
+      font-weight: 700;
+      line-height: 1.2;
+    }
+
+    button {
+      font-family: var(--font-sans);
+      cursor: pointer;
+      border: none;
+      background: none;
+    }
+
+    input, textarea {
+      font-family: var(--font-sans);
+    }
+
+    /* ========== ÉCRAN DE LOGIN ========== */
+    #loginScreen {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, var(--color-sidebar) 0%, var(--color-sidebar-light) 100%);
+    }
+
+    .login-card {
+      background: var(--color-white);
+      padding: var(--spacing-xl);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-lg);
+      width: 100%;
+      max-width: 400px;
+      margin: var(--spacing-md);
+    }
+
+    .login-card h1 {
+      color: var(--color-sidebar);
+      margin-bottom: var(--spacing-sm);
+      font-size: 1.75rem;
+    }
+
+    .login-card p {
+      color: var(--color-text-light);
+      margin-bottom: var(--spacing-lg);
+      font-size: 0.875rem;
+    }
+
+    .form-group {
+      margin-bottom: var(--spacing-md);
+    }
+
+    .form-group label {
+      display: block;
+      margin-bottom: var(--spacing-sm);
+      font-weight: 500;
+      font-size: 0.875rem;
+      color: var(--color-text);
+    }
+
+    .form-group input {
+      width: 100%;
+      padding: 0.75rem var(--spacing-md);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      font-size: 1rem;
+      transition: border-color 0.2s;
+    }
+
+    .form-group input:focus {
+      outline: none;
+      border-color: var(--color-sidebar);
+    }
+
+    .btn-primary {
+      width: 100%;
+      padding: 0.75rem var(--spacing-md);
+      background: var(--color-sidebar);
+      color: var(--color-white);
+      border-radius: var(--radius-md);
+      font-weight: 600;
+      font-size: 1rem;
+      transition: background 0.2s;
+    }
+
+    .btn-primary:hover {
+      background: var(--color-sidebar-light);
+    }
+
+    .btn-primary:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .error-message {
+      margin-top: var(--spacing-md);
+      padding: var(--spacing-md);
+      background: #fee;
+      border: 1px solid var(--color-bloquant);
+      border-radius: var(--radius-md);
+      color: var(--color-bloquant);
+      font-size: 0.875rem;
+      display: none;
+    }
+
+    .error-message.show {
+      display: block;
+    }
+
+    /* ========== LAYOUT PRINCIPAL ========== */
+    #appScreen {
+      display: none;
+      min-height: 100vh;
+    }
+
+    #appScreen.show {
+      display: grid;
+      grid-template-columns: 380px 1fr;
+    }
+
+    /* ========== SIDEBAR ========== */
+    .sidebar {
+      background: var(--color-sidebar);
+      color: var(--color-white);
+      padding: var(--spacing-xl);
+      overflow-y: auto;
+      max-height: 100vh;
+    }
+
+    .sidebar h2 {
+      font-size: 1.5rem;
+      margin-bottom: var(--spacing-lg);
+      color: var(--color-white);
+    }
+
+    .section {
+      margin-bottom: var(--spacing-xl);
+    }
+
+    .section-title {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: rgba(255, 255, 255, 0.6);
+      margin-bottom: var(--spacing-md);
+      font-weight: 600;
+    }
+
+    /* Recherche SIRET */
+    .search-box {
+      position: relative;
+      margin-bottom: var(--spacing-md);
+    }
+
+    .search-box input {
+      width: 100%;
+      padding: 0.75rem var(--spacing-md);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      background: rgba(255, 255, 255, 0.1);
+      color: var(--color-white);
+      border-radius: var(--radius-md);
+      font-size: 0.875rem;
+    }
+
+    .search-box input::placeholder {
+      color: rgba(255, 255, 255, 0.5);
+    }
+
+    .search-box input:focus {
+      outline: none;
+      border-color: rgba(255, 255, 255, 0.4);
+      background: rgba(255, 255, 255, 0.15);
+    }
+
+    .search-results {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      margin-top: var(--spacing-xs);
+      background: var(--color-white);
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-lg);
+      max-height: 300px;
+      overflow-y: auto;
+      z-index: 10;
+      display: none;
+    }
+
+    .search-results.show {
+      display: block;
+    }
+
+    .search-result-item {
+      padding: var(--spacing-md);
+      cursor: pointer;
+      border-bottom: 1px solid var(--color-border);
+      transition: background 0.2s;
+    }
+
+    .search-result-item:hover {
+      background: var(--color-bg);
+    }
+
+    .search-result-item:last-child {
+      border-bottom: none;
+    }
+
+    .search-result-name {
+      font-weight: 600;
+      color: var(--color-text);
+      margin-bottom: var(--spacing-xs);
+      font-size: 0.875rem;
+    }
+
+    .search-result-siret {
+      font-family: var(--font-mono);
+      color: var(--color-text-light);
+      font-size: 0.75rem;
+    }
+
+    /* Champs de référence */
+    .ref-input {
+      margin-bottom: var(--spacing-md);
+    }
+
+    .ref-input label {
+      display: block;
+      margin-bottom: var(--spacing-xs);
+      font-size: 0.75rem;
+      color: rgba(255, 255, 255, 0.7);
+    }
+
+    .ref-input input,
+    .ref-input select {
+      width: 100%;
+      padding: 0.625rem var(--spacing-sm);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      background: rgba(255, 255, 255, 0.1);
+      color: var(--color-white);
+      border-radius: var(--radius-sm);
+      font-size: 0.875rem;
+    }
+
+    .ref-input input::placeholder {
+      color: rgba(255, 255, 255, 0.4);
+    }
+
+    .ref-input input:focus,
+    .ref-input select:focus {
+      outline: none;
+      border-color: rgba(255, 255, 255, 0.4);
+      background: rgba(255, 255, 255, 0.15);
+    }
+
+    .ref-input input.auto-filled {
+      background: rgba(34, 197, 94, 0.2);
+      border-color: rgba(34, 197, 94, 0.4);
+    }
+
+    /* Zones d'import PDF */
+    .upload-zone {
+      border: 2px dashed rgba(255, 255, 255, 0.3);
+      border-radius: var(--radius-md);
+      padding: var(--spacing-lg);
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+      margin-bottom: var(--spacing-md);
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .upload-zone:hover {
+      border-color: rgba(255, 255, 255, 0.5);
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    .upload-zone.drag-over {
+      border-color: var(--color-conforme);
+      background: rgba(34, 197, 94, 0.1);
+    }
+
+    .upload-zone.loaded {
+      border-color: var(--color-conforme);
+      border-style: solid;
+      background: rgba(34, 197, 94, 0.15);
+    }
+
+    .upload-zone-title {
+      font-weight: 600;
+      font-size: 0.875rem;
+      margin-bottom: var(--spacing-xs);
+      color: var(--color-white);
+    }
+
+    .upload-zone-required {
+      color: var(--color-majeur);
+      font-size: 0.75rem;
+    }
+
+    .upload-zone-optional {
+      color: rgba(255, 255, 255, 0.5);
+      font-size: 0.75rem;
+    }
+
+    .upload-zone-filename {
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      color: var(--color-conforme);
+      margin-top: var(--spacing-sm);
+      display: none;
+    }
+
+    .upload-zone.loaded .upload-zone-filename {
+      display: block;
+    }
+
+    .upload-zone input[type="file"] {
+      display: none;
+    }
+
+    /* Bouton Analyser */
+    .btn-analyze {
+      width: 100%;
+      padding: var(--spacing-md);
+      background: var(--color-conforme);
+      color: var(--color-white);
+      border-radius: var(--radius-md);
+      font-weight: 600;
+      font-size: 1rem;
+      margin-top: var(--spacing-lg);
+      transition: background 0.2s;
+    }
+
+    .btn-analyze:hover:not(:disabled) {
+      background: #15803d;
+    }
+
+    .btn-analyze:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    /* ========== ZONE PRINCIPALE ========== */
+    .main-content {
+      padding: var(--spacing-xl);
+      overflow-y: auto;
+      max-height: 100vh;
+    }
+
+    /* État initial */
+    .empty-state {
+      text-align: center;
+      padding: var(--spacing-xl) var(--spacing-md);
+      color: var(--color-text-light);
+    }
+
+    .empty-state h3 {
+      color: var(--color-text);
+      margin-bottom: var(--spacing-md);
+      font-size: 1.25rem;
+    }
+
+    /* Barre de progression */
+    .progress-container {
+      display: none;
+      margin-bottom: var(--spacing-xl);
+    }
+
+    .progress-container.show {
+      display: block;
+    }
+
+    .progress-bar {
+      width: 100%;
+      height: 8px;
+      background: var(--color-border);
+      border-radius: 999px;
+      overflow: hidden;
+      margin-bottom: var(--spacing-sm);
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: var(--color-conforme);
+      transition: width 0.3s;
+      width: 0%;
+    }
+
+    .progress-text {
+      font-size: 0.875rem;
+      color: var(--color-text-light);
+      text-align: center;
+    }
+
+    /* Résultats */
+    .results-container {
+      display: none;
+    }
+
+    .results-container.show {
+      display: block;
+    }
+
+    /* Bannière page de garde */
+    .page-garde-banner {
+      padding: var(--spacing-lg);
+      border-radius: var(--radius-lg);
+      margin-bottom: var(--spacing-xl);
+      font-weight: 600;
+      text-align: center;
+      font-size: 1.125rem;
+    }
+
+    .page-garde-banner.ok {
+      background: #dcfce7;
+      color: #166534;
+      border: 2px solid var(--color-conforme);
+    }
+
+    .page-garde-banner.ko {
+      background: #fee;
+      color: #991b1b;
+      border: 2px solid var(--color-bloquant);
+    }
+
+    /* Compteurs */
+    .counters {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: var(--spacing-md);
+      margin-bottom: var(--spacing-xl);
+    }
+
+    .counter {
+      background: var(--color-white);
+      padding: var(--spacing-md);
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-sm);
+      text-align: center;
+    }
+
+    .counter-value {
+      font-size: 2rem;
+      font-weight: 700;
+      font-family: var(--font-display);
+      line-height: 1;
+      margin-bottom: var(--spacing-xs);
+    }
+
+    .counter-label {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      font-weight: 600;
+      color: var(--color-text-light);
+    }
+
+    .counter.bloquant .counter-value { color: var(--color-bloquant); }
+    .counter.majeur .counter-value { color: var(--color-majeur); }
+    .counter.conforme .counter-value { color: var(--color-conforme); }
+
+    /* Checklist manuelle */
+    .manual-checklist {
+      background: var(--color-white);
+      padding: var(--spacing-lg);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-sm);
+      margin-bottom: var(--spacing-xl);
+      border-left: 4px solid var(--color-sidebar);
+    }
+
+    .manual-checklist-header {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-sm);
+      margin-bottom: var(--spacing-md);
+    }
+
+    .manual-checklist-title {
+      font-weight: 700;
+      font-size: 1rem;
+      color: var(--color-text);
+      font-family: var(--font-display);
+    }
+
+    .manual-checklist-subtitle {
+      font-size: 0.75rem;
+      color: var(--color-text-light);
+      margin-bottom: var(--spacing-md);
+    }
+
+    .checklist-items {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: var(--spacing-sm);
+    }
+
+    .checklist-item {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-sm);
+      padding: var(--spacing-sm);
+      border-radius: var(--radius-sm);
+      transition: background 0.2s;
+      cursor: pointer;
+    }
+
+    .checklist-item:hover {
+      background: var(--color-bg);
+    }
+
+    .checklist-item input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+      cursor: pointer;
+      accent-color: var(--color-conforme);
+    }
+
+    .checklist-item label {
+      font-size: 0.875rem;
+      color: var(--color-text);
+      cursor: pointer;
+      flex: 1;
+    }
+
+    .checklist-item.checked label {
+      color: var(--color-text-light);
+      text-decoration: line-through;
+    }
+
+    .checklist-progress {
+      margin-top: var(--spacing-md);
+      padding-top: var(--spacing-md);
+      border-top: 1px solid var(--color-border);
+      font-size: 0.875rem;
+      color: var(--color-text-light);
+      text-align: center;
+    }
+
+    .checklist-progress-bar {
+      width: 100%;
+      height: 6px;
+      background: var(--color-border);
+      border-radius: 999px;
+      overflow: hidden;
+      margin-top: var(--spacing-sm);
+    }
+
+    .checklist-progress-fill {
+      height: 100%;
+      background: var(--color-conforme);
+      transition: width 0.3s;
+      width: 0%;
+    }
+
+    /* Onglets */
+    .tabs {
+      display: flex;
+      gap: var(--spacing-sm);
+      margin-bottom: var(--spacing-lg);
+      border-bottom: 2px solid var(--color-border);
+      overflow-x: auto;
+    }
+
+    .tab {
+      padding: var(--spacing-md) var(--spacing-lg);
+      background: none;
+      border: none;
+      font-weight: 600;
+      font-size: 0.875rem;
+      color: var(--color-text-light);
+      cursor: pointer;
+      white-space: nowrap;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -2px;
+      transition: all 0.2s;
+    }
+
+    .tab:hover {
+      color: var(--color-text);
+    }
+
+    .tab.active {
+      color: var(--color-sidebar);
+      border-bottom-color: var(--color-sidebar);
+    }
+
+    /* Panneaux d'onglets */
+    .tab-panel {
+      display: none;
+    }
+
+    .tab-panel.active {
+      display: block;
+    }
+
+    /* Cartes de vérification */
+    .checks-list {
+      display: flex;
+      flex-direction: column;
+      gap: var(--spacing-md);
+    }
+
+    .check-card {
+      background: var(--color-white);
+      padding: var(--spacing-lg);
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-sm);
+      border-left: 4px solid var(--color-info);
+    }
+
+    .check-card.bloquant { border-left-color: var(--color-bloquant); }
+    .check-card.majeur { border-left-color: var(--color-majeur); }
+    .check-card.ok { border-left-color: var(--color-conforme); }
+    .check-card.info { border-left-color: var(--color-info); }
+
+    .check-header {
+      display: flex;
+      align-items: flex-start;
+      gap: var(--spacing-md);
+      margin-bottom: var(--spacing-md);
+    }
+
+    .check-badge {
+      padding: var(--spacing-xs) var(--spacing-sm);
+      border-radius: var(--radius-sm);
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      white-space: nowrap;
+    }
+
+    .check-badge.bloquant { background: #fee; color: var(--color-bloquant); }
+    .check-badge.majeur { background: #fef3c7; color: #92400e; }
+    .check-badge.ok { background: #dcfce7; color: #166534; }
+    .check-badge.info { background: #f1f5f9; color: var(--color-info); }
+
+    .check-field {
+      font-weight: 600;
+      font-size: 1rem;
+      color: var(--color-text);
+      flex: 1;
+    }
+
+    .check-detail {
+      color: var(--color-text-light);
+      font-size: 0.875rem;
+      line-height: 1.6;
+      margin-bottom: var(--spacing-md);
+    }
+
+    .check-values {
+      display: flex;
+      gap: var(--spacing-md);
+      flex-wrap: wrap;
+    }
+
+    .check-chip {
+      padding: var(--spacing-xs) var(--spacing-sm);
+      border-radius: var(--radius-sm);
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      font-weight: 500;
+    }
+
+    .check-chip.expected {
+      background: #dbeafe;
+      color: #1e40af;
+    }
+
+    .check-chip.found {
+      background: #fee;
+      color: var(--color-bloquant);
+    }
+
+    .check-chip.conforme {
+      background: #dcfce7;
+      color: #166534;
+    }
+
+    /* Message auditeur */
+    .message-container {
+      background: var(--color-white);
+      padding: var(--spacing-lg);
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .message-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: var(--spacing-md);
+    }
+
+    .message-title {
+      font-weight: 600;
+      font-size: 1rem;
+      color: var(--color-text);
+    }
+
+    .btn-copy {
+      padding: var(--spacing-sm) var(--spacing-md);
+      background: var(--color-sidebar);
+      color: var(--color-white);
+      border-radius: var(--radius-sm);
+      font-size: 0.875rem;
+      font-weight: 600;
+      transition: background 0.2s;
+    }
+
+    .btn-copy:hover {
+      background: var(--color-sidebar-light);
+    }
+
+    .message-content {
+      background: var(--color-bg);
+      padding: var(--spacing-md);
+      border-radius: var(--radius-sm);
+      font-family: var(--font-mono);
+      font-size: 0.875rem;
+      line-height: 1.6;
+      white-space: pre-wrap;
+      color: var(--color-text);
+      max-height: 500px;
+      overflow-y: auto;
+    }
+
+    /* Responsive */
+    @media (max-width: 1024px) {
+      #appScreen.show {
+        grid-template-columns: 1fr;
+      }
+
+      .sidebar {
+        max-height: none;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ========== ÉCRAN DE LOGIN ========== -->
+  <div id="loginScreen">
+    <div class="login-card">
+      <h1>CEE Vérif</h1>
+      <p>Vérification des dossiers CEE LED — BAT-EQ-127</p>
+
+      <form id="loginForm">
+        <div class="form-group">
+          <label for="passwordInput">Mot de passe</label>
+          <input
+            type="password"
+            id="passwordInput"
+            placeholder="Entrez le mot de passe"
+            autocomplete="current-password"
+          >
+        </div>
+
+        <button type="submit" class="btn-primary">
+          Se connecter
+        </button>
+
+        <div id="loginError" class="error-message"></div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ========== ÉCRAN PRINCIPAL ========== -->
+  <div id="appScreen">
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+      <h2>CEE Vérif</h2>
+
+      <!-- Recherche SIRET -->
+      <section class="section">
+        <div class="section-title">Recherche société</div>
+        <div class="search-box">
+          <input
+            type="text"
+            id="siretSearch"
+            placeholder="Nom ou SIRET..."
+          >
+          <div id="searchResults" class="search-results"></div>
+        </div>
+      </section>
+
+      <!-- Références du dossier -->
+      <section class="section">
+        <div class="section-title">Références du dossier</div>
+
+        <div class="ref-input">
+          <label for="refNom">Nom de la société</label>
+          <input type="text" id="refNom" placeholder="Nom complet">
+        </div>
+
+        <div class="ref-input">
+          <label for="refSiret">SIRET (14 chiffres)</label>
+          <input type="text" id="refSiret" placeholder="12345678901234" maxlength="14">
+        </div>
+
+        <div class="ref-input">
+          <label for="refAdresse">Adresse(s) du chantier</label>
+          <textarea id="refAdresse" placeholder="Une adresse par ligne si plusieurs chantiers..." rows="2" style="resize: vertical;"></textarea>
+          <small style="font-size: 0.65rem; color: rgba(255, 255, 255, 0.5); display: block; margin-top: 0.25rem;">Si plusieurs chantiers, saisissez une adresse par ligne</small>
+        </div>
+
+        <div class="ref-input">
+          <label for="refDateDevis">Date d'envoi du devis</label>
+          <input type="date" id="refDateDevis">
+        </div>
+
+        <div class="ref-input">
+          <label for="refTotalLed">Nombre total de LED</label>
+          <input type="number" id="refTotalLed" placeholder="Ex: 120">
+        </div>
+
+        <div class="ref-input">
+          <label for="refTypeLocal">Type de local</label>
+          <select id="refTypeLocal">
+            <option value="Entrepôt">Entrepôt</option>
+            <option value="Logistique">Logistique</option>
+          </select>
+        </div>
+
+        <div class="ref-input">
+          <label for="refParcelles">Parcelles cadastrales</label>
+          <textarea id="refParcelles" placeholder="000/0B/0001, 000/0B/0002..." rows="2" style="resize: vertical;"></textarea>
+        </div>
+
+        <button id="btnExtractFromCEE" class="btn-extract" style="width: 100%; padding: 0.75rem; background: rgba(255, 255, 255, 0.15); color: var(--color-white); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: var(--radius-md); font-size: 0.875rem; font-weight: 600; margin-top: var(--spacing-md); cursor: pointer; transition: all 0.2s;" disabled>
+          📋 Extraire depuis le Dossier CEE
+        </button>
+      </section>
+
+      <!-- Import des documents -->
+      <section class="section">
+        <div class="section-title">Documents à importer</div>
+
+        <!-- Capture Betool -->
+        <div class="upload-zone" id="uploadBetool">
+          <div class="upload-zone-title">📸 Capture Betool</div>
+          <div class="upload-zone-optional">Optionnel - Auto-remplit les références</div>
+          <div class="upload-zone-filename"></div>
+          <input type="file" accept="image/png,image/jpeg,image/jpg" id="fileBetool">
+        </div>
+
+        <!-- Audits (plusieurs possibles) -->
+        <div class="upload-zone" id="uploadAudit">
+          <div class="upload-zone-title">Audit(s) Dialux</div>
+          <div class="upload-zone-required">Requis - Plusieurs fichiers possibles</div>
+          <div class="upload-zone-filename"></div>
+          <input type="file" accept=".pdf" id="fileAudit" multiple>
+        </div>
+
+        <!-- Synthèses (plusieurs possibles) -->
+        <div class="upload-zone" id="uploadSynthese">
+          <div class="upload-zone-title">Synthèse(s)</div>
+          <div class="upload-zone-required">Requis - Plusieurs fichiers possibles</div>
+          <div class="upload-zone-filename"></div>
+          <input type="file" accept=".pdf" id="fileSynthese" multiple>
+        </div>
+
+        <!-- Dossier CEE (1 seul) -->
+        <div class="upload-zone" id="uploadDossier">
+          <div class="upload-zone-title">Dossier CEE</div>
+          <div class="upload-zone-optional">Optionnel - Contient toutes les adresses</div>
+          <div class="upload-zone-filename"></div>
+          <input type="file" accept=".pdf" id="fileDossier">
+        </div>
+
+        <!-- Fiches techniques (plusieurs possibles) -->
+        <div class="upload-zone" id="uploadFiche">
+          <div class="upload-zone-title">Fiche(s) technique</div>
+          <div class="upload-zone-optional">Optionnel - Plusieurs fichiers possibles</div>
+          <div class="upload-zone-filename"></div>
+          <input type="file" accept=".pdf" id="fileFiche" multiple>
+        </div>
+
+        <button id="btnAnalyze" class="btn-analyze" disabled>
+          Analyser les documents
+        </button>
+      </section>
+    </aside>
+
+    <!-- CONTENU PRINCIPAL -->
+    <main class="main-content">
+
+      <!-- État initial -->
+      <div id="emptyState" class="empty-state">
+        <h3>Aucune analyse en cours</h3>
+        <p>Importez au moins un document (Audit ou Synthèse) et cliquez sur "Analyser"</p>
+      </div>
+
+      <!-- Barre de progression -->
+      <div id="progressContainer" class="progress-container">
+        <div class="progress-bar">
+          <div id="progressFill" class="progress-fill"></div>
+        </div>
+        <div id="progressText" class="progress-text">Préparation...</div>
+      </div>
+
+      <!-- Résultats -->
+      <div id="resultsContainer" class="results-container">
+
+        <!-- Bannière page de garde -->
+        <div id="pageGardeBanner" class="page-garde-banner"></div>
+
+        <!-- Checklist manuelle -->
+        <div class="manual-checklist">
+          <div class="manual-checklist-header">
+            <span style="font-size: 1.5rem;">✓</span>
+            <div>
+              <div class="manual-checklist-title">Checklist de vérification manuelle</div>
+              <div class="manual-checklist-subtitle">Ces vérifications doivent être faites par vous (pas par l'IA)</div>
+            </div>
+          </div>
+
+          <div class="checklist-items">
+            <div class="checklist-item">
+              <input type="checkbox" id="check-parcelles">
+              <label for="check-parcelles">Parcelles cadastrales vérifiées sur Géoportail</label>
+            </div>
+            <div class="checklist-item">
+              <input type="checkbox" id="check-adresses">
+              <label for="check-adresses">Adresses de chantier validées (existence réelle)</label>
+            </div>
+            <div class="checklist-item">
+              <input type="checkbox" id="check-siege">
+              <label for="check-siege">Siège social vérifié sur Infogreffe</label>
+            </div>
+            <div class="checklist-item">
+              <input type="checkbox" id="check-siret">
+              <label for="check-siret">SIRET actif (non radié)</label>
+            </div>
+            <div class="checklist-item">
+              <input type="checkbox" id="check-prime">
+              <label for="check-prime">Prime CEE cohérente avec le nombre de LED</label>
+            </div>
+            <div class="checklist-item">
+              <input type="checkbox" id="check-repartition">
+              <label for="check-repartition">Répartition LED conforme à Betool</label>
+            </div>
+            <div class="checklist-item">
+              <input type="checkbox" id="check-superficies">
+              <label for="check-superficies">Superficies par bâtiment conformes à Betool</label>
+            </div>
+            <div class="checklist-item">
+              <input type="checkbox" id="check-contact">
+              <label for="check-contact">Coordonnées contact client validées</label>
+            </div>
+          </div>
+
+          <div class="checklist-progress">
+            <div id="checklistProgressText">0/8 vérifications effectuées</div>
+            <div class="checklist-progress-bar">
+              <div id="checklistProgressFill" class="checklist-progress-fill"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Compteurs -->
+        <div class="counters">
+          <div class="counter bloquant">
+            <div class="counter-value" id="counterBloquant">0</div>
+            <div class="counter-label">Bloquants</div>
+          </div>
+          <div class="counter majeur">
+            <div class="counter-value" id="counterMajeur">0</div>
+            <div class="counter-label">Majeurs</div>
+          </div>
+          <div class="counter conforme">
+            <div class="counter-value" id="counterConforme">0</div>
+            <div class="counter-label">Conformes</div>
+          </div>
+        </div>
+
+        <!-- Onglets -->
+        <div class="tabs">
+          <button class="tab active" data-tab="tous">Tous les points</button>
+          <button class="tab" data-tab="garde">Page de garde</button>
+          <button class="tab" data-tab="synthese">Synthèse</button>
+          <button class="tab" data-tab="audit">Audit</button>
+          <button class="tab" data-tab="message">Message auditeur</button>
+        </div>
+
+        <!-- Panneaux -->
+        <div id="tabTous" class="tab-panel active">
+          <div id="checksListTous" class="checks-list"></div>
+        </div>
+
+        <div id="tabGarde" class="tab-panel">
+          <div id="checksListGarde" class="checks-list"></div>
+        </div>
+
+        <div id="tabSynthese" class="tab-panel">
+          <div id="checksListSynthese" class="checks-list"></div>
+        </div>
+
+        <div id="tabAudit" class="tab-panel">
+          <div id="checksListAudit" class="checks-list"></div>
+        </div>
+
+        <div id="tabMessage" class="tab-panel">
+          <div class="message-container">
+            <div class="message-header">
+              <div class="message-title">Message pour l'auditeur</div>
+              <button id="btnCopyMessage" class="btn-copy">Copier</button>
+            </div>
+            <div id="messageContent" class="message-content"></div>
+          </div>
+        </div>
+
+      </div>
+
+    </main>
+
+  </div>
+
+  <script>
+    // ========== CONFIGURATION PDF.JS ==========
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+    // ========== ÉTAT DE L'APPLICATION ==========
+    const state = {
+      password: null,
+      files: {
+        betool: null,        // Capture Betool (image)
+        audits: [],          // Tableau d'Audits
+        syntheses: [],       // Tableau de Synthèses
+        dossier: null,       // 1 seul Dossier CEE
+        fiches: []           // Tableau de Fiches techniques
+      },
+      extractedTexts: {
+        audits: [],          // Tableau de textes extraits
+        syntheses: [],
+        dossier: '',
+        fiches: []
+      },
+      betoolImage: null,     // Image Betool encodée en base64
+      analysisResult: null
+    };
+
+    // ========== ÉLÉMENTS DOM ==========
+    const elements = {
+      loginScreen: document.getElementById('loginScreen'),
+      appScreen: document.getElementById('appScreen'),
+      loginForm: document.getElementById('loginForm'),
+      passwordInput: document.getElementById('passwordInput'),
+      loginError: document.getElementById('loginError'),
+
+      siretSearch: document.getElementById('siretSearch'),
+      searchResults: document.getElementById('searchResults'),
+
+      refNom: document.getElementById('refNom'),
+      refSiret: document.getElementById('refSiret'),
+      refAdresse: document.getElementById('refAdresse'),
+      refDateDevis: document.getElementById('refDateDevis'),
+      refTotalLed: document.getElementById('refTotalLed'),
+      refTypeLocal: document.getElementById('refTypeLocal'),
+      refParcelles: document.getElementById('refParcelles'),
+
+      btnExtractFromCEE: document.getElementById('btnExtractFromCEE'),
+
+      uploadBetool: document.getElementById('uploadBetool'),
+      uploadAudit: document.getElementById('uploadAudit'),
+      uploadSynthese: document.getElementById('uploadSynthese'),
+      uploadDossier: document.getElementById('uploadDossier'),
+      uploadFiche: document.getElementById('uploadFiche'),
+
+      fileBetool: document.getElementById('fileBetool'),
+      fileAudit: document.getElementById('fileAudit'),
+      fileSynthese: document.getElementById('fileSynthese'),
+      fileDossier: document.getElementById('fileDossier'),
+      fileFiche: document.getElementById('fileFiche'),
+
+      btnAnalyze: document.getElementById('btnAnalyze'),
+
+      emptyState: document.getElementById('emptyState'),
+      progressContainer: document.getElementById('progressContainer'),
+      progressFill: document.getElementById('progressFill'),
+      progressText: document.getElementById('progressText'),
+      resultsContainer: document.getElementById('resultsContainer'),
+
+      pageGardeBanner: document.getElementById('pageGardeBanner'),
+      counterBloquant: document.getElementById('counterBloquant'),
+      counterMajeur: document.getElementById('counterMajeur'),
+      counterConforme: document.getElementById('counterConforme'),
+
+      tabs: document.querySelectorAll('.tab'),
+      tabPanels: document.querySelectorAll('.tab-panel'),
+
+      checksListTous: document.getElementById('checksListTous'),
+      checksListGarde: document.getElementById('checksListGarde'),
+      checksListSynthese: document.getElementById('checksListSynthese'),
+      checksListAudit: document.getElementById('checksListAudit'),
+
+      messageContent: document.getElementById('messageContent'),
+      btnCopyMessage: document.getElementById('btnCopyMessage')
+    };
+
+    // ========== LOGIN ==========
+    elements.loginForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const password = elements.passwordInput.value.trim();
+
+      if (!password) {
+        showLoginError('Veuillez entrer un mot de passe');
+        return;
+      }
+
+      // Tester le mot de passe en faisant un appel API de test
+      try {
+        const response = await fetch('/api/analyze', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            password: password,
+            messages: [{ role: 'user', content: 'test' }],
+            system: 'Réponds juste "OK"'
+          })
+        });
+
+        if (response.status === 401) {
+          showLoginError('Mot de passe incorrect');
+          return;
+        }
+
+        if (!response.ok) {
+          showLoginError('Erreur de connexion. Réessayez.');
+          return;
+        }
+
+        // Mot de passe OK
+        state.password = password;
+        sessionStorage.setItem('app_password', password);
+        showApp();
+
+      } catch (error) {
+        console.error('Erreur login:', error);
+        showLoginError('Erreur de connexion. Vérifiez votre connexion internet.');
+      }
+    });
+
+    function showLoginError(message) {
+      elements.loginError.textContent = message;
+      elements.loginError.classList.add('show');
+    }
+
+    function showApp() {
+      elements.loginScreen.style.display = 'none';
+      elements.appScreen.classList.add('show');
+    }
+
+    // Vérifier si déjà connecté
+    const savedPassword = sessionStorage.getItem('app_password');
+    if (savedPassword) {
+      state.password = savedPassword;
+      showApp();
+    }
+
+    // ========== RECHERCHE SIRET ==========
+    let searchTimeout;
+    elements.siretSearch.addEventListener('input', (e) => {
+      clearTimeout(searchTimeout);
+      const query = e.target.value.trim();
+
+      if (query.length < 3) {
+        elements.searchResults.classList.remove('show');
+        return;
+      }
+
+      searchTimeout = setTimeout(() => searchSiret(query), 500);
+    });
+
+    async function searchSiret(query) {
+      try {
+        const response = await fetch(`/api/search?q=${encodeURIComponent(query)}&password=${state.password}`);
+
+        if (!response.ok) {
+          console.error('Erreur recherche SIRET');
+          return;
+        }
+
+        const data = await response.json();
+        displaySearchResults(data.results || []);
+
+      } catch (error) {
+        console.error('Erreur recherche SIRET:', error);
+      }
+    }
+
+    function displaySearchResults(results) {
+      if (results.length === 0) {
+        elements.searchResults.classList.remove('show');
+        return;
+      }
+
+      elements.searchResults.innerHTML = results.map(result => `
+        <div class="search-result-item" data-nom="${result.nom}" data-siret="${result.siret}" data-adresse="${result.adresse}">
+          <div class="search-result-name">${result.nom}</div>
+          <div class="search-result-siret">SIRET: ${result.siret}</div>
+        </div>
+      `).join('');
+
+      elements.searchResults.classList.add('show');
+
+      // Gérer les clics sur les résultats
+      elements.searchResults.querySelectorAll('.search-result-item').forEach(item => {
+        item.addEventListener('click', () => {
+          elements.refNom.value = item.dataset.nom;
+          elements.refSiret.value = item.dataset.siret;
+          elements.refAdresse.value = item.dataset.adresse;
+
+          elements.refNom.classList.add('auto-filled');
+          elements.refSiret.classList.add('auto-filled');
+          elements.refAdresse.classList.add('auto-filled');
+
+          elements.searchResults.classList.remove('show');
+          elements.siretSearch.value = '';
+        });
+      });
+    }
+
+    // Fermer les résultats si clic ailleurs
+    document.addEventListener('click', (e) => {
+      if (!elements.searchResults.contains(e.target) && e.target !== elements.siretSearch) {
+        elements.searchResults.classList.remove('show');
+      }
+    });
+
+    // ========== UPLOAD DE FICHIERS ==========
+    function setupUploadZone(zoneElement, inputElement, fileKey, isMultiple = false) {
+      // Clic sur la zone
+      zoneElement.addEventListener('click', () => {
+        inputElement.click();
+      });
+
+      // Sélection de fichier(s)
+      inputElement.addEventListener('change', (e) => {
+        const files = Array.from(e.target.files);
+        if (files.length > 0) {
+          handleFileUpload(files, zoneElement, fileKey, isMultiple);
+        }
+      });
+
+      // Drag & drop
+      zoneElement.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        zoneElement.classList.add('drag-over');
+      });
+
+      zoneElement.addEventListener('dragleave', () => {
+        zoneElement.classList.remove('drag-over');
+      });
+
+      zoneElement.addEventListener('drop', (e) => {
+        e.preventDefault();
+        zoneElement.classList.remove('drag-over');
+
+        const files = Array.from(e.dataTransfer.files).filter(f =>
+          f.type === 'application/pdf' || f.type.startsWith('image/')
+        );
+
+        if (files.length > 0) {
+          handleFileUpload(files, zoneElement, fileKey, isMultiple);
+        }
+      });
+    }
+
+    function handleFileUpload(files, zoneElement, fileKey, isMultiple) {
+      const filenameElement = zoneElement.querySelector('.upload-zone-filename');
+
+      if (isMultiple) {
+        // Fichiers multiples : ajouter au tableau
+        state.files[fileKey] = state.files[fileKey] || [];
+        state.files[fileKey].push(...files);
+
+        // Afficher la liste des fichiers
+        const fileNames = state.files[fileKey].map(f => f.name).join('\n');
+        filenameElement.textContent = `${state.files[fileKey].length} fichier(s) :\n${fileNames}`;
+        filenameElement.style.whiteSpace = 'pre-line';
+        filenameElement.style.fontSize = '0.7rem';
+      } else {
+        // Fichier unique
+        state.files[fileKey] = files[0];
+        filenameElement.textContent = files[0].name;
+      }
+
+      zoneElement.classList.add('loaded');
+      checkAnalyzeButton();
+      checkExtractButton();
+    }
+
+    function checkAnalyzeButton() {
+      const hasAtLeastOne = (state.files.audits && state.files.audits.length > 0) ||
+                           (state.files.syntheses && state.files.syntheses.length > 0);
+      elements.btnAnalyze.disabled = !hasAtLeastOne;
+    }
+
+    function checkExtractButton() {
+      // Activer le bouton "Extraire" si le Dossier CEE est chargé
+      elements.btnExtractFromCEE.disabled = !state.files.dossier;
+      if (state.files.dossier) {
+        elements.btnExtractFromCEE.style.background = 'rgba(34, 197, 94, 0.2)';
+        elements.btnExtractFromCEE.style.borderColor = 'rgba(34, 197, 94, 0.4)';
+      } else {
+        elements.btnExtractFromCEE.style.background = 'rgba(255, 255, 255, 0.15)';
+        elements.btnExtractFromCEE.style.borderColor = 'rgba(255, 255, 255, 0.3)';
+      }
+    }
+
+    // Initialiser toutes les zones d'upload
+    setupUploadZone(elements.uploadBetool, elements.fileBetool, 'betool', false);      // 1 seule image
+    setupUploadZone(elements.uploadAudit, elements.fileAudit, 'audits', true);         // Multiple
+    setupUploadZone(elements.uploadSynthese, elements.fileSynthese, 'syntheses', true); // Multiple
+    setupUploadZone(elements.uploadDossier, elements.fileDossier, 'dossier', false);   // 1 seul
+    setupUploadZone(elements.uploadFiche, elements.fileFiche, 'fiches', true);         // Multiple
+
+    // ========== EXTRACTION PDF ==========
+    async function extractTextFromPDF(file) {
+      try {
+        const arrayBuffer = await file.arrayBuffer();
+        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+
+        let fullText = '';
+
+        for (let i = 1; i <= pdf.numPages; i++) {
+          const page = await pdf.getPage(i);
+          const textContent = await page.getTextContent();
+          const pageText = textContent.items.map(item => item.str).join(' ');
+          fullText += pageText + '\n\n';
+        }
+
+        return fullText;
+      } catch (error) {
+        console.error('Erreur extraction PDF:', error);
+        throw error;
+      }
+    }
+
+    // ========== EXTRACTION DES RÉFÉRENCES DEPUIS DOSSIER CEE ==========
+    elements.btnExtractFromCEE.addEventListener('click', async () => {
+      if (!state.files.dossier) return;
+
+      try {
+        // Désactiver le bouton pendant l'extraction
+        elements.btnExtractFromCEE.disabled = true;
+        elements.btnExtractFromCEE.textContent = '⏳ Extraction en cours...';
+
+        // Extraire le texte du Dossier CEE
+        const ceeText = await extractTextFromPDF(state.files.dossier);
+
+        // Appeler l'API pour extraire les références
+        const response = await fetch('/api/analyze', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            password: state.password,
+            messages: [
+              {
+                role: 'user',
+                content: `Voici le contenu du Dossier CEE. Extrait les informations suivantes et retourne-les en JSON:\n\n${ceeText}`
+              }
+            ],
+            system: `Tu es un assistant qui extrait des informations structurées depuis un Dossier CEE.
+
+Extrait les informations suivantes du document et retourne-les en JSON :
+- nom : nom complet de la société bénéficiaire
+- siret : numéro SIRET (14 chiffres)
+- adresses : TOUTES les adresses de chantier mentionnées (peut y en avoir plusieurs pour un même dossier)
+- parcelles : liste des parcelles cadastrales (format 000/0B/XXXX)
+- totalLed : nombre total de LED installées
+- dateDevis : date d'envoi du devis (si présente)
+
+Format de réponse attendu (JSON uniquement) :
+\`\`\`json
+{
+  "nom": "...",
+  "siret": "...",
+  "adresses": ["adresse 1", "adresse 2", ...],
+  "parcelles": ["...", "..."],
+  "totalLed": 0,
+  "dateDevis": "YYYY-MM-DD"
+}
+\`\`\`
+
+Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, sans texte avant ou après.`
+          })
+        });
+
+        if (!response.ok) {
+          throw new Error('Erreur lors de l\'extraction');
+        }
+
+        const result = await response.json();
+
+        // Parser le résultat
+        let extracted;
+        if (result.raw_response) {
+          // Chercher le JSON dans la réponse
+          const jsonMatch = result.raw_response.match(/```json\s*([\s\S]*?)\s*```/) ||
+                           result.raw_response.match(/({[\s\S]*})/);
+          if (jsonMatch) {
+            extracted = JSON.parse(jsonMatch[1]);
+          }
+        } else {
+          extracted = result;
+        }
+
+        // Pré-remplir les champs
+        if (extracted) {
+          if (extracted.nom) {
+            elements.refNom.value = extracted.nom;
+            elements.refNom.classList.add('auto-filled');
+          }
+          if (extracted.siret) {
+            elements.refSiret.value = extracted.siret;
+            elements.refSiret.classList.add('auto-filled');
+          }
+          if (extracted.adresses && Array.isArray(extracted.adresses)) {
+            elements.refAdresse.value = extracted.adresses.join('\n');
+            elements.refAdresse.classList.add('auto-filled');
+          } else if (extracted.adresse) {
+            // Compatibilité avec l'ancien format (string simple)
+            elements.refAdresse.value = extracted.adresse;
+            elements.refAdresse.classList.add('auto-filled');
+          }
+          if (extracted.parcelles && Array.isArray(extracted.parcelles)) {
+            elements.refParcelles.value = extracted.parcelles.join(', ');
+            elements.refParcelles.classList.add('auto-filled');
+          }
+          if (extracted.totalLed) {
+            elements.refTotalLed.value = extracted.totalLed;
+            elements.refTotalLed.classList.add('auto-filled');
+          }
+          if (extracted.dateDevis) {
+            elements.refDateDevis.value = extracted.dateDevis;
+            elements.refDateDevis.classList.add('auto-filled');
+          }
+
+          alert('✅ Références extraites avec succès du Dossier CEE !');
+        }
+
+        // Réactiver le bouton
+        elements.btnExtractFromCEE.disabled = false;
+        elements.btnExtractFromCEE.textContent = '📋 Extraire depuis le Dossier CEE';
+
+      } catch (error) {
+        console.error('Erreur extraction références:', error);
+        alert('Erreur lors de l\'extraction. Vérifiez la console.');
+        elements.btnExtractFromCEE.disabled = false;
+        elements.btnExtractFromCEE.textContent = '📋 Extraire depuis le Dossier CEE';
+      }
+    });
+
+    // ========== ANALYSE ==========
+    elements.btnAnalyze.addEventListener('click', async () => {
+      try {
+        // Masquer l'état vide, afficher la progression
+        elements.emptyState.style.display = 'none';
+        elements.resultsContainer.classList.remove('show');
+        elements.progressContainer.classList.add('show');
+
+        updateProgress(10, 'Extraction des PDFs en cours...');
+
+        // Extraire le texte de tous les PDFs chargés
+        const extractionPromises = [];
+
+        // Audits (plusieurs possibles)
+        if (state.files.audits && state.files.audits.length > 0) {
+          state.extractedTexts.audits = [];
+          state.files.audits.forEach((file, index) => {
+            extractionPromises.push(
+              extractTextFromPDF(file).then(text => {
+                state.extractedTexts.audits[index] = { filename: file.name, text };
+              })
+            );
+          });
+        }
+
+        // Synthèses (plusieurs possibles)
+        if (state.files.syntheses && state.files.syntheses.length > 0) {
+          state.extractedTexts.syntheses = [];
+          state.files.syntheses.forEach((file, index) => {
+            extractionPromises.push(
+              extractTextFromPDF(file).then(text => {
+                state.extractedTexts.syntheses[index] = { filename: file.name, text };
+              })
+            );
+          });
+        }
+
+        // Dossier CEE (1 seul)
+        if (state.files.dossier) {
+          extractionPromises.push(
+            extractTextFromPDF(state.files.dossier).then(text => {
+              state.extractedTexts.dossier = text;
+            })
+          );
+        }
+
+        // Fiches techniques (plusieurs possibles)
+        if (state.files.fiches && state.files.fiches.length > 0) {
+          state.extractedTexts.fiches = [];
+          state.files.fiches.forEach((file, index) => {
+            extractionPromises.push(
+              extractTextFromPDF(file).then(text => {
+                state.extractedTexts.fiches[index] = { filename: file.name, text };
+              })
+            );
+          });
+        }
+
+        await Promise.all(extractionPromises);
+
+        updateProgress(50, 'Analyse en cours avec Claude...');
+
+        // Préparer les références
+        const references = {
+          nom: elements.refNom.value.trim(),
+          siret: elements.refSiret.value.trim(),
+          adresse: elements.refAdresse.value.trim(),
+          dateDevis: elements.refDateDevis.value,
+          totalLed: elements.refTotalLed.value,
+          typeLocal: elements.refTypeLocal.value,
+          parcelles: elements.refParcelles.value.trim()
+        };
+
+        // Construire le message pour Claude
+        let userMessage = 'Voici les documents à analyser:\n\n';
+
+        // Audits (plusieurs possibles)
+        if (state.extractedTexts.audits && state.extractedTexts.audits.length > 0) {
+          state.extractedTexts.audits.forEach((audit, index) => {
+            userMessage += `=== AUDIT DIALUX #${index + 1} (${audit.filename}) ===\n${audit.text}\n\n`;
+          });
+        }
+
+        // Synthèses (plusieurs possibles)
+        if (state.extractedTexts.syntheses && state.extractedTexts.syntheses.length > 0) {
+          state.extractedTexts.syntheses.forEach((synthese, index) => {
+            userMessage += `=== SYNTHÈSE #${index + 1} (${synthese.filename}) ===\n${synthese.text}\n\n`;
+          });
+        }
+
+        // Dossier CEE (1 seul)
+        if (state.extractedTexts.dossier) {
+          userMessage += `=== DOSSIER CEE ===\n${state.extractedTexts.dossier}\n\n`;
+        }
+
+        // Fiches techniques (plusieurs possibles)
+        if (state.extractedTexts.fiches && state.extractedTexts.fiches.length > 0) {
+          state.extractedTexts.fiches.forEach((fiche, index) => {
+            userMessage += `=== FICHE TECHNIQUE #${index + 1} (${fiche.filename}) ===\n${fiche.text}\n\n`;
+          });
+        }
+
+        // Appeler l'API d'analyse
+        const response = await fetch('/api/analyze', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            password: state.password,
+            messages: [
+              { role: 'user', content: userMessage }
+            ],
+            references: references
+          })
+        });
+
+        if (!response.ok) {
+          throw new Error(`Erreur API: ${response.status}`);
+        }
+
+        const result = await response.json();
+
+        updateProgress(100, 'Analyse terminée !');
+
+        // Afficher les résultats
+        setTimeout(() => {
+          displayResults(result);
+        }, 500);
+
+      } catch (error) {
+        console.error('Erreur lors de l\'analyse:', error);
+        updateProgress(0, 'Erreur: ' + error.message);
+        alert('Une erreur est survenue lors de l\'analyse. Consultez la console pour plus de détails.');
+      }
+    });
+
+    function updateProgress(percent, text) {
+      elements.progressFill.style.width = percent + '%';
+      elements.progressText.textContent = text;
+    }
+
+    // ========== AFFICHAGE DES RÉSULTATS ==========
+    function displayResults(result) {
+      state.analysisResult = result;
+
+      // Masquer la progression, afficher les résultats
+      elements.progressContainer.classList.remove('show');
+      elements.resultsContainer.classList.add('show');
+
+      // Bannière page de garde
+      if (result.page_garde_ok) {
+        elements.pageGardeBanner.className = 'page-garde-banner ok';
+        elements.pageGardeBanner.textContent = '✓ Page de garde OK — Envoi immédiat possible';
+      } else {
+        elements.pageGardeBanner.className = 'page-garde-banner ko';
+        elements.pageGardeBanner.textContent = '✗ Page de garde à corriger avant envoi client';
+      }
+
+      // Compter par niveau
+      const checks = result.checks || [];
+      const bloquants = checks.filter(c => c.niveau === 'bloquant').length;
+      const majeurs = checks.filter(c => c.niveau === 'majeur').length;
+      const conformes = checks.filter(c => c.niveau === 'ok').length;
+
+      elements.counterBloquant.textContent = bloquants;
+      elements.counterMajeur.textContent = majeurs;
+      elements.counterConforme.textContent = conformes;
+
+      // Trier les checks par gravité
+      const sortedChecks = [...checks].sort((a, b) => {
+        const order = { bloquant: 0, majeur: 1, ok: 2, info: 3 };
+        return order[a.niveau] - order[b.niveau];
+      });
+
+      // Afficher toutes les cartes
+      elements.checksListTous.innerHTML = sortedChecks.map(check => createCheckCard(check)).join('');
+
+      // Afficher par catégorie
+      const gardeChecks = checks.filter(c => c.categorie === 'garde');
+      const syntheseChecks = checks.filter(c => c.categorie === 'synthese');
+      const auditChecks = checks.filter(c => c.categorie === 'audit');
+
+      elements.checksListGarde.innerHTML = gardeChecks.length > 0
+        ? gardeChecks.map(check => createCheckCard(check)).join('')
+        : '<p style="color: #666; text-align: center; padding: 2rem;">Aucune vérification dans cette catégorie</p>';
+
+      elements.checksListSynthese.innerHTML = syntheseChecks.length > 0
+        ? syntheseChecks.map(check => createCheckCard(check)).join('')
+        : '<p style="color: #666; text-align: center; padding: 2rem;">Aucune vérification dans cette catégorie</p>';
+
+      elements.checksListAudit.innerHTML = auditChecks.length > 0
+        ? auditChecks.map(check => createCheckCard(check)).join('')
+        : '<p style="color: #666; text-align: center; padding: 2rem;">Aucune vérification dans cette catégorie</p>';
+
+      // Message auditeur
+      elements.messageContent.textContent = result.message_auditeur || 'Aucun message généré.';
+    }
+
+    function createCheckCard(check) {
+      const badgeText = {
+        bloquant: 'Bloquant',
+        majeur: 'Majeur',
+        ok: 'Conforme',
+        info: 'Info'
+      }[check.niveau] || 'Info';
+
+      let valuesHTML = '';
+
+      if (check.niveau === 'ok') {
+        valuesHTML = `<span class="check-chip conforme">✓ ${check.valeur_trouvee || check.valeur_attendue}</span>`;
+      } else {
+        if (check.valeur_attendue) {
+          valuesHTML += `<span class="check-chip expected">Attendu: ${check.valeur_attendue}</span>`;
+        }
+        if (check.valeur_trouvee) {
+          valuesHTML += `<span class="check-chip found">Trouvé: ${check.valeur_trouvee}</span>`;
+        }
+      }
+
+      return `
+        <div class="check-card ${check.niveau}">
+          <div class="check-header">
+            <span class="check-badge ${check.niveau}">${badgeText}</span>
+            <div class="check-field">${check.champ}</div>
+          </div>
+          ${check.localisation ? `<div style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--color-text-light); margin-bottom: 0.5rem; padding-left: 0.25rem; border-left: 2px solid var(--color-border);">📍 ${check.localisation}</div>` : ''}
+          <div class="check-detail">${check.detail}</div>
+          ${valuesHTML ? `<div class="check-values">${valuesHTML}</div>` : ''}
+        </div>
+      `;
+    }
+
+    // ========== ONGLETS ==========
+    elements.tabs.forEach(tab => {
+      tab.addEventListener('click', () => {
+        const targetTab = tab.dataset.tab;
+
+        // Désactiver tous les onglets et panneaux
+        elements.tabs.forEach(t => t.classList.remove('active'));
+        elements.tabPanels.forEach(p => p.classList.remove('active'));
+
+        // Activer l'onglet et le panneau cliqués
+        tab.classList.add('active');
+        document.getElementById('tab' + targetTab.charAt(0).toUpperCase() + targetTab.slice(1)).classList.add('active');
+      });
+    });
+
+    // ========== COPIER MESSAGE ==========
+    elements.btnCopyMessage.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(elements.messageContent.textContent);
+
+        const originalText = elements.btnCopyMessage.textContent;
+        elements.btnCopyMessage.textContent = '✓ Copié !';
+
+        setTimeout(() => {
+          elements.btnCopyMessage.textContent = originalText;
+        }, 2000);
+
+      } catch (error) {
+        console.error('Erreur copie:', error);
+        alert('Erreur lors de la copie. Utilisez Ctrl+C manuellement.');
+      }
+    });
+
+    // ========== CHECKLIST MANUELLE ==========
+    const checklistCheckboxes = document.querySelectorAll('.checklist-item input[type="checkbox"]');
+    const checklistProgressText = document.getElementById('checklistProgressText');
+    const checklistProgressFill = document.getElementById('checklistProgressFill');
+
+    function updateChecklistProgress() {
+      const totalChecks = checklistCheckboxes.length;
+      const completedChecks = Array.from(checklistCheckboxes).filter(cb => cb.checked).length;
+
+      // Mettre à jour le texte
+      checklistProgressText.textContent = `${completedChecks}/${totalChecks} vérifications effectuées`;
+
+      // Mettre à jour la barre de progression
+      const percentage = (completedChecks / totalChecks) * 100;
+      checklistProgressFill.style.width = `${percentage}%`;
+
+      // Effet visuel sur les labels (barré si coché)
+      checklistCheckboxes.forEach(checkbox => {
+        const label = checkbox.parentElement.querySelector('label');
+        if (checkbox.checked) {
+          label.style.textDecoration = 'line-through';
+          label.style.opacity = '0.6';
+        } else {
+          label.style.textDecoration = 'none';
+          label.style.opacity = '1';
+        }
+      });
+    }
+
+    // Écouter les changements sur chaque checkbox
+    checklistCheckboxes.forEach(checkbox => {
+      checkbox.addEventListener('change', updateChecklistProgress);
+    });
+
+    // Initialiser l'état au chargement
+    updateChecklistProgress();
+
+  </script>
+
+</body>
+</html>
