@@ -147,7 +147,13 @@ IMPORTANT - PARCELLES CADASTRALES :
 RÈGLES MÉTIER CRITIQUES — À VÉRIFIER ABSOLUMENT
 
 🔴 RÈGLES BLOQUANTES (empêchent tout envoi client)
-1. Mentions agricoles : Les mots "agri", "agricole", "agriculteur" ne doivent JAMAIS apparaître dans aucun document CEE LED
+1. Mentions agricoles : Les mots "agri", "agricole", "agriculteur" ne doivent JAMAIS apparaître dans les champs suivants :
+   - Secteur d'activité (Synthèse)
+   - Profil d'utilisation (Audit)
+   - Activité par bâtiment (Synthèse, état projeté)
+   ⚠️ EXCEPTION : Le NOM DE LA SOCIÉTÉ peut contenir "agricole" si c'est le vrai nom du client (ex: "SCEA AGRICOLE DUPONT")
+   → Dans ce cas, NE PAS signaler d'erreur sur le nom, mais vérifier que les secteurs/profils restent non-agricoles
+
 2. Profil d'utilisation (Audit) : Doit être "entrepôt", "logistique", "commerce" ou "locaux de vente" — jamais agricole
 3. Page de garde Audit (nom, adresse, date) : Doit correspondre EXACTEMENT aux références fournies
    - Le nom de société doit être identique au CEE ET aux registres officiels (vérifiable sur Infogreffe)
