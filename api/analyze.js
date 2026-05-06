@@ -52,7 +52,7 @@ export default async function handler(req, res) {
         'X-Title': 'CEE Verif App', // Optionnel mais recommandé
       },
       body: JSON.stringify({
-        model: 'anthropic/claude-haiku-3.5', // Modèle Claude Haiku (plus économique)
+        model: 'anthropic/claude-3.5-haiku', // Modèle Claude Haiku (plus économique)
         messages: formattedMessages,
         max_tokens: 4096,
         temperature: 0.3, // Moins de créativité = plus de précision
