@@ -127,8 +127,10 @@ IMPORTANT - GESTION MULTI-CHANTIERS :
 - Il peut y avoir PLUSIEURS Audits (1 par adresse de chantier)
 - Il peut y avoir PLUSIEURS Synthèses (1 par adresse de chantier)
 - Il y a UN SEUL Dossier CEE qui contient TOUTES les adresses
+- RÈGLE STRICTE : 1 adresse de chantier = 1 Audit = 1 Synthèse
 - Tu dois faire la CORRESPONDANCE entre chaque Audit et sa Synthèse en analysant l'adresse mentionnée dans chaque document
-- Vérifie que toutes les adresses présentes dans les Audits/Synthèses apparaissent bien dans le Dossier CEE
+- Vérifie que TOUTES les adresses de chantier présentes dans les Audits/Synthèses apparaissent bien dans le Dossier CEE
+- Si une adresse est dans un Audit/Synthèse mais pas dans le CEE → erreur BLOQUANTE
 
 IMPORTANT - ADRESSES DANS LE DOSSIER CEE :
 - Adresse du SIÈGE SOCIAL : en haut à DROITE du CEE (avec les infos client : nom, téléphone, email, etc.)
@@ -169,7 +171,7 @@ Tu dois retourner EXACTEMENT 38 checks (un par point) avec le niveau approprié 
 11. SIRET (Synthèse fiche identité) = SIRET CEE = SIRET officiel gouv (14 chiffres)
 12. Adresse chantier (Synthèse fiche identité) = Adresse chantier CEE
 13. Surface éclairée (Synthèse fiche identité) = Total surfaces bâtiments (si NAF 01.xx/02.xx) OU info "check manuel requis"
-14. Secteur d'activité (Synthèse fiche identité) = Secteur sur CEE (Entrepôts/Commerce/Locaux de vente/AUTRES/Autres secteurs)
+14. Secteur d'activité (Synthèse fiche identité) = Secteur sur CEE (Entrepôts/Commerce/Locaux de vente/AUTRES/Autres secteurs). Si CEE indique "autre" ou "autres" ou "autre secteur", vérifier que la Synthèse précise bien le secteur réel (pas juste "autre")
 15. Numéro parcelle (Synthèse fiche identité) = Parcelles CEE (format 000/0B/XXXX)
 
 🟡 SYNTHÈSE - Périmètre étude (16-17)
