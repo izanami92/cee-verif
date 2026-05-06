@@ -54,8 +54,8 @@ export default async function handler(req, res) {
       body: JSON.stringify({
         model: 'anthropic/claude-sonnet-4', // Claude Sonnet 4 (version originale qui marchait)
         messages: formattedMessages,
-        max_tokens: 8000, // Plus de tokens pour tous les checks
-        temperature: 0.2, // Très précis
+        max_tokens: 16000, // Maximum pour tous les checks
+        temperature: 0, // Déterministe = résultats identiques à chaque fois
       }),
     });
 
@@ -144,36 +144,70 @@ IMPORTANT - PARCELLES CADASTRALES :
 - La parcelle cadastrale au milieu de l'adresse est celle du chantier et doit correspondre sur la Synthèse
 - Ne pas signaler d'erreur si la parcelle est présente dans l'adresse mais pas dans un champ séparé
 
-RÈGLES MÉTIER CRITIQUES — À VÉRIFIER ABSOLUMENT
+CHECKLIST EXHAUSTIVE — 37 POINTS OBLIGATOIRES
 
-🔴 RÈGLES BLOQUANTES (empêchent tout envoi client)
-1. Mentions agricoles : Les mots "agri", "agricole", "agriculteur" ne doivent JAMAIS apparaître dans les champs suivants :
-   - Secteur d'activité (Synthèse)
-   - Profil d'utilisation (Audit)
-   - Activité par bâtiment (Synthèse, état projeté)
-   ⚠️ EXCEPTION : Le NOM DE LA SOCIÉTÉ peut contenir "agricole" si c'est le vrai nom du client (ex: "SCEA AGRICOLE DUPONT")
-   → Dans ce cas, NE PAS signaler d'erreur sur le nom, mais vérifier que les secteurs/profils restent non-agricoles
+Tu DOIS vérifier TOUS les points suivants à CHAQUE analyse, sans exception.
+Tu dois retourner EXACTEMENT 37 checks (un par point) avec le niveau approprié (bloquant/majeur/ok/info).
 
-2. Profil d'utilisation (Audit) : Doit être "entrepôt", "logistique", "commerce" ou "locaux de vente" — jamais agricole
-3. Page de garde Audit (nom, adresse, date) : Doit correspondre EXACTEMENT aux références fournies
-   - Le nom de société doit être identique au CEE ET aux registres officiels (vérifiable sur Infogreffe)
-   - Si plusieurs adresses de chantier sont fournies en référence, TOUTES doivent apparaître dans les documents (Audit ET Synthèse)
-   - Vérifier que chaque adresse fournie est bien présente quelque part dans les documents
-4. Secteur d'activité (Synthèse) : Doit être "Entrepôts", "Commerce", "Locaux de vente" ou "AUTRES" — jamais agricole
-   - IMPORTANT : Si le Dossier CEE mentionne le secteur "AUTRES", vérifier que cette information se retranscrit bien dans la Synthèse
-5. Activité par bâtiment (Synthèse, état projeté) : Doit être "Entrepôt", "Commerce" ou "Locaux de vente" — jamais agricole
+🔴 BLOQUANTS - AUDIT Page de garde (1-3)
+1. Nom entreprise (Audit page 1) = Nom entreprise CEE = Nom entreprise officiel gouv
+2. Adresse chantier (Audit page 1) = Adresse chantier CEE (numéro + rue + CP + ville) EXACTEMENT
+3. Date audit (Audit page 1) = Date proposition = Date prévisite CEE
 
-🟡 RÈGLES MAJEURES (à corriger avant envoi complet)
-1. Taux de distorsion harmonique (THD) : Exactement 3,7% dans le CEE et la Synthèse (PAS dans l'Audit)
-2. Fiche technique LED : TOUJOURS présente dans la Synthèse (généralement page 14), les données doivent correspondre au THD 3,7%
-3. SIRET : 14 chiffres numériques, cohérent entre tous les documents (CEE, Synthèse, Audit)
-4. Parcelles cadastrales : Format 000/0B/XXXX, doivent être présentes et cohérentes entre CEE et Synthèse
-4b. Cohérence secteur d'activité : Si le CEE indique secteur "AUTRES", vérifier que cette information se retranscrit correctement dans le secteur d'activité de la Synthèse
-5. Répartition LED : Cohérente entre audit, synthèse et dossier CEE (total et par bâtiment/cellule)
-6. Référence produit : DAEWOO NES-HBL 250W (ou selon le dossier)
-7. Date d'audit : Doit être égale à la date d'envoi du devis
-8. Contact client : Nom, Prénom, Poste, Téléphone, Email doivent être cohérents entre CEE, Synthèse et Betool
-9. Superficie totale du chantier : Si mentionnée sur la Synthèse, doit correspondre à la somme des superficies par bâtiment
+🟡 SYNTHÈSE - Page de garde (4-8)
+4. Nom entreprise (Synthèse page 1) = Nom entreprise CEE = Nom entreprise officiel gouv
+5. Date (Synthèse page 1) = Date proposition = Date prévisite CEE
+6. Adresse mail (Synthèse page 1) = Adresse mail du CEE
+7. Téléphone (Synthèse page 1) = Téléphone du dossier CEE
+8. Contact nom/prénom (Synthèse page 1) = Représenté par sur le CEE
+
+🟡 SYNTHÈSE - Inventaire projet (9)
+9. TOTAL luminaires (Synthèse inventaire projet) = Nombre LED chantier CEE
+
+🟡 SYNTHÈSE - Fiche identité site (10-15)
+10. Client (Synthèse fiche identité) = Nom entreprise CEE = Nom entreprise officiel gouv
+11. SIRET (Synthèse fiche identité) = SIRET CEE = SIRET officiel gouv (14 chiffres)
+12. Adresse chantier (Synthèse fiche identité) = Adresse chantier CEE
+13. Surface éclairée (Synthèse fiche identité) = Total surfaces bâtiments (si NAF 01.xx/02.xx) OU info "check manuel requis"
+14. Secteur d'activité (Synthèse fiche identité) = Secteur sur CEE (Entrepôts/Commerce/Locaux de vente/AUTRES/Autres secteurs)
+15. Numéro parcelle (Synthèse fiche identité) = Parcelles CEE (format 000/0B/XXXX)
+
+🟡 SYNTHÈSE - Périmètre étude (16-17)
+16. Nom du site (Synthèse périmètre) = Nom entreprise CEE = Nom entreprise officiel gouv
+17. Nombre de bâtiments (Synthèse périmètre) → info "check manuel requis"
+
+🟡 SYNTHÈSE - État initial (18-20)
+18. Répartition LED (Synthèse état initial) → info "check manuel requis"
+19. TOTAL LED état initial (Synthèse état initial) = Nombre LED chantier CEE
+20. Secteur étude (Synthèse indicateurs initial) = Secteur sur CEE
+
+🟡 SYNTHÈSE - État projeté (21-23)
+21. TOTAL LED état projeté (Synthèse état projeté) = Nombre LED chantier CEE
+22. Répartition LED projeté (Synthèse état projeté) → info "check manuel requis"
+23. Activité 2e tableau (Synthèse état projeté) = Secteur sur CEE
+
+🟡 AUDIT - Description (24-29)
+24. Site (Audit description) = Client = Nom entreprise CEE = Nom entreprise officiel gouv
+25. Adresse (Audit description) = Adresse chantier CEE
+26. SIRET (Audit description) = SIRET CEE = SIRET officiel gouv
+27. Surface (Audit description) = Surface éclairée Synthèse fiche identité
+28. État initial nombre (Audit description) = Nombre LED chantier CEE
+29. État projeté nombre (Audit description) = État initial = Nombre LED chantier CEE
+
+🟡 AUDIT - Liste luminaires (30)
+30. Pce total (Audit liste luminaires) = Nombre LED Synthèse = Nombre LED CEE
+
+🔴 MENTIONS AGRICOLES - BLOQUANT (31-33)
+31. Secteur d'activité (Synthèse) ≠ "agricole/agri/agriculture"
+32. Profil d'utilisation (Audit) ≠ "agricole/agri/agriculture"
+33. Activité bâtiment (Synthèse état projeté) ≠ "agricole/agri/agriculture"
+⚠️ EXCEPTION : Le NOM de société peut contenir "agricole" - NE PAS signaler d'erreur sur le nom
+
+🟡 AUTRES VÉRIFICATIONS (34-37)
+34. THD (CEE + Synthèse caractéristiques luminaires) = 3,7% (PAS dans Audit)
+35. Fiche technique LED (Synthèse page ~14) → présente + THD 3,7%
+36. Référence produit (Audit + Synthèse luminaires) = DAEWOO NES-HBL 250W (ou selon dossier)
+37. Reste à payer (Dossier CEE) = 0€ (si ≠ 0 → signaler car anormal)
 
 RÉFÉRENCES DU DOSSIER À UTILISER POUR LA VÉRIFICATION
 ${references.nom ? `- Nom société cliente : ${references.nom}` : ''}
@@ -206,15 +240,19 @@ Tu dois retourner UNIQUEMENT un JSON valide (sans texte avant ou après) avec ce
 }
 \`\`\`
 
-IMPORTANT - RETOUR DE TOUS LES CHECKS :
-- Tu dois retourner TOUS les points de contrôle vérifiés, PAS SEULEMENT les erreurs
-- Pour chaque point vérifié, crée un check avec le niveau approprié :
-  * niveau: "bloquant" → erreur critique (page de garde, mentions agricoles, etc.)
-  * niveau: "majeur" → erreur à corriger avant envoi complet (THD, SIRET, etc.)
-  * niveau: "ok" → point vérifié et conforme
-  * niveau: "info" → information ou suggestion
-- Ne marque JAMAIS un check comme "bloquant" ou "majeur" si la valeur attendue et la valeur trouvée sont IDENTIQUES
-- Si valeur_attendue === valeur_trouvee → niveau DOIT être "ok"
+IMPORTANT - RETOUR DE TOUS LES 36 CHECKS OBLIGATOIRES :
+- Tu DOIS retourner EXACTEMENT 36 checks (un pour chaque point de la checklist ci-dessus)
+- JAMAIS moins de 36 checks, même si tout est conforme
+- Pour chaque point numéroté (1 à 36), crée UN check avec :
+  * id: "check_01", "check_02", ..., "check_36"
+  * niveau: "bloquant" (points 1-3 et 31-33) | "majeur" (autres) | "ok" (si conforme) | "info" (si check manuel requis)
+  * champ: Le nom exact du point (ex: "Nom entreprise Audit page 1")
+  * localisation: Page et section EXACTE dans le document
+  * valeur_attendue: Valeur de référence
+  * valeur_trouvee: Valeur EXACTE dans le document
+- Ne marque JAMAIS "bloquant" ou "majeur" si valeur_attendue === valeur_trouvee
+- Si valeur_attendue === valeur_trouvee → niveau = "ok"
+- Si check manuel requis (points 13, 17, 18, 22) → niveau = "info", detail = "Vérification manuelle requise"
 
 IMPORTANT - LOCALISATION PRÉCISE DES ERREURS :
 - Pour chaque check, tu DOIS indiquer où il se trouve exactement dans le document
