@@ -130,6 +130,20 @@ IMPORTANT - GESTION MULTI-CHANTIERS :
 - Tu dois faire la CORRESPONDANCE entre chaque Audit et sa Synthèse en analysant l'adresse mentionnée dans chaque document
 - Vérifie que toutes les adresses présentes dans les Audits/Synthèses apparaissent bien dans le Dossier CEE
 
+IMPORTANT - ADRESSES DANS LE DOSSIER CEE :
+- Adresse du SIÈGE SOCIAL : en haut à DROITE du CEE (avec les infos client : nom, téléphone, email, etc.)
+- Adresse du CHANTIER :
+  * Si UN SEUL chantier : en haut à GAUCHE du CEE
+  * Si PLUSIEURS chantiers : les adresses sont directement dans la FACTURE (pas en haut à gauche)
+- Vérifier la cohérence entre l'adresse de chantier (CEE) et l'adresse sur l'Audit/Synthèse
+
+IMPORTANT - PARCELLES CADASTRALES :
+- Les parcelles cadastrales sont souvent INTÉGRÉES dans l'adresse de chantier
+- Format typique : "Adresse, Code Postal Ville, PARCELLE CADASTRALE (format 000/0B/XXXX)"
+- Vérifier que l'adresse (avec code postal + ville) correspond entre CEE et Synthèse
+- La parcelle cadastrale au milieu de l'adresse est celle du chantier et doit correspondre sur la Synthèse
+- Ne pas signaler d'erreur si la parcelle est présente dans l'adresse mais pas dans un champ séparé
+
 RÈGLES MÉTIER CRITIQUES — À VÉRIFIER ABSOLUMENT
 
 🔴 RÈGLES BLOQUANTES (empêchent tout envoi client)
@@ -186,12 +200,23 @@ Tu dois retourner UNIQUEMENT un JSON valide (sans texte avant ou après) avec ce
 }
 \`\`\`
 
+IMPORTANT - RETOUR DE TOUS LES CHECKS :
+- Tu dois retourner TOUS les points de contrôle vérifiés, PAS SEULEMENT les erreurs
+- Pour chaque point vérifié, crée un check avec le niveau approprié :
+  * niveau: "bloquant" → erreur critique (page de garde, mentions agricoles, etc.)
+  * niveau: "majeur" → erreur à corriger avant envoi complet (THD, SIRET, etc.)
+  * niveau: "ok" → point vérifié et conforme
+  * niveau: "info" → information ou suggestion
+- Ne marque JAMAIS un check comme "bloquant" ou "majeur" si la valeur attendue et la valeur trouvée sont IDENTIQUES
+- Si valeur_attendue === valeur_trouvee → niveau DOIT être "ok"
+
 IMPORTANT - LOCALISATION PRÉCISE DES ERREURS :
-- Pour chaque erreur, tu DOIS indiquer où elle se trouve exactement dans le document
+- Pour chaque check, tu DOIS indiquer où il se trouve exactement dans le document
 - Format attendu : "Nom du document + page + section si possible"
 - Exemples : "Audit page 1, en-tête" / "Synthèse page 2, tableau des LED" / "Dossier CEE page 5, informations bénéficiaire"
 - Dans "valeur_trouvee", copie EXACTEMENT le texte tel qu'il apparaît dans le PDF (même avec fautes de frappe, espaces, casse, etc.)
 - Si tu détectes une différence subtile (espace en trop, casse différente), mets le texte exact entre guillemets dans "detail"
+- ATTENTION : Si les valeurs sont identiques (même en ignorant la casse), c'est CONFORME (niveau: "ok")
 
 INSTRUCTIONS POUR LE MESSAGE AUDITEUR
 - Commencer par l'identification du dossier (nom client)
