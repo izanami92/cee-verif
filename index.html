@@ -807,8 +807,34 @@
 </head>
 <body>
 
+  <!-- ========== ÉCRAN DE LOGIN ========== -->
+  <div id="loginScreen">
+    <div class="login-card">
+      <h1>CEE Vérif</h1>
+      <p>Vérification des dossiers CEE LED — BAT-EQ-127</p>
+
+      <form id="loginForm">
+        <div class="form-group">
+          <label for="passwordInput">Mot de passe</label>
+          <input
+            type="password"
+            id="passwordInput"
+            placeholder="Entrez le mot de passe"
+            autocomplete="current-password"
+          >
+        </div>
+
+        <button type="submit" class="btn-primary">
+          Se connecter
+        </button>
+
+        <div id="loginError" class="error-message"></div>
+      </form>
+    </div>
+  </div>
+
   <!-- ========== ÉCRAN PRINCIPAL ========== -->
-  <div id="appScreen" class="show">
+  <div id="appScreen">
 
     <!-- SIDEBAR -->
     <aside class="sidebar">
@@ -1065,6 +1091,7 @@
 
     // ========== ÉTAT DE L'APPLICATION ==========
     const state = {
+      password: null,
       files: {
         betool: null,        // Capture Betool (image)
         audits: [],          // Tableau d'Audits
@@ -1084,6 +1111,12 @@
 
     // ========== ÉLÉMENTS DOM ==========
     const elements = {
+      loginScreen: document.getElementById('loginScreen'),
+      appScreen: document.getElementById('appScreen'),
+      loginForm: document.getElementById('loginForm'),
+      passwordInput: document.getElementById('passwordInput'),
+      loginError: document.getElementById('loginError'),
+
       siretSearch: document.getElementById('siretSearch'),
       searchResults: document.getElementById('searchResults'),
 
@@ -1134,6 +1167,66 @@
       btnCopyMessage: document.getElementById('btnCopyMessage')
     };
 
+    // ========== LOGIN ==========
+    elements.loginForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const password = elements.passwordInput.value.trim();
+
+      if (!password) {
+        showLoginError('Veuillez entrer un mot de passe');
+        return;
+      }
+
+      // Tester le mot de passe en faisant un appel API de test
+      try {
+        const response = await fetch('/api/analyze', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            password: password,
+            messages: [{ role: 'user', content: 'test' }],
+            system: 'Réponds juste "OK"'
+          })
+        });
+
+        if (response.status === 401) {
+          showLoginError('Mot de passe incorrect');
+          return;
+        }
+
+        if (!response.ok) {
+          showLoginError('Erreur de connexion. Réessayez.');
+          return;
+        }
+
+        // Mot de passe OK
+        state.password = password;
+        sessionStorage.setItem('app_password', password);
+        showApp();
+
+      } catch (error) {
+        console.error('Erreur login:', error);
+        showLoginError('Erreur de connexion. Vérifiez votre connexion internet.');
+      }
+    });
+
+    function showLoginError(message) {
+      elements.loginError.textContent = message;
+      elements.loginError.classList.add('show');
+    }
+
+    function showApp() {
+      elements.loginScreen.style.display = 'none';
+      elements.appScreen.classList.add('show');
+    }
+
+    // Vérifier si déjà connecté
+    const savedPassword = sessionStorage.getItem('app_password');
+    if (savedPassword) {
+      state.password = savedPassword;
+      showApp();
+    }
+
     // ========== RECHERCHE SIRET ==========
     let searchTimeout;
     elements.siretSearch.addEventListener('input', (e) => {
@@ -1150,7 +1243,7 @@
 
     async function searchSiret(query) {
       try {
-        const response = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
+        const response = await fetch(`/api/search?q=${encodeURIComponent(query)}&password=${state.password}`);
 
         if (!response.ok) {
           console.error('Erreur recherche SIRET');
@@ -1331,6 +1424,7 @@
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
+            password: state.password,
             messages: [
               {
                 role: 'user',
@@ -1535,6 +1629,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
+            password: state.password,
             messages: [
               { role: 'user', content: userMessage }
             ],

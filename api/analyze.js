@@ -17,7 +17,12 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { messages, system, references } = req.body;
+    const { password, messages, system, references } = req.body;
+
+    // SÉCURITÉ : Vérifier le mot de passe EN PREMIER
+    if (!password || password !== process.env.APP_PASSWORD) {
+      return res.status(401).json({ error: 'Mot de passe incorrect' });
+    }
 
     // Vérifier que la clé API OpenRouter est configurée
     if (!process.env.OPENROUTER_API_KEY) {
