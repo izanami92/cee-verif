@@ -17,12 +17,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { password, messages, system, references } = req.body;
-
-    // SÉCURITÉ : Vérifier le mot de passe EN PREMIER
-    if (!password || password !== process.env.APP_PASSWORD) {
-      return res.status(401).json({ error: 'Mot de passe incorrect' });
-    }
+    const { messages, system, references } = req.body;
 
     // Vérifier que la clé API OpenRouter est configurée
     if (!process.env.OPENROUTER_API_KEY) {
@@ -57,7 +52,7 @@ export default async function handler(req, res) {
         'X-Title': 'CEE Verif App', // Optionnel mais recommandé
       },
       body: JSON.stringify({
-        model: 'anthropic/claude-sonnet-4', // Modèle Claude via OpenRouter
+        model: 'anthropic/claude-haiku-3.5', // Modèle Claude Haiku (plus économique)
         messages: formattedMessages,
         max_tokens: 4096,
         temperature: 0.3, // Moins de créativité = plus de précision

@@ -13,12 +13,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { q, password } = req.query;
-
-    // SÉCURITÉ : Vérifier le mot de passe EN PREMIER
-    if (!password || password !== process.env.APP_PASSWORD) {
-      return res.status(401).json({ error: 'Mot de passe incorrect' });
-    }
+    const { q } = req.query;
 
     // Vérifier que le paramètre de recherche est présent
     if (!q || q.trim().length === 0) {
