@@ -1355,9 +1355,11 @@ Extrait les informations suivantes du document et retourne-les en JSON :
 - nom : nom complet de la société bénéficiaire
 - siret : numéro SIRET (14 chiffres)
 - adresses : TOUTES les adresses de chantier mentionnées (peut y en avoir plusieurs pour un même dossier)
+- adresseSiege : adresse du SIÈGE SOCIAL (en haut à DROITE du CEE, avec les coordonnées du client)
 - parcelles : liste des parcelles cadastrales (format 000/0B/XXXX)
 - totalLed : nombre total de LED installées
 - dateDevis : date d'envoi du devis (si présente)
+- dateSignature : date de signature / date d'engagement de l'opération / date d'acceptation du devis (si présente)
 
 Format de réponse attendu (JSON uniquement) :
 \`\`\`json
@@ -1365,9 +1367,11 @@ Format de réponse attendu (JSON uniquement) :
   "nom": "...",
   "siret": "...",
   "adresses": ["adresse 1", "adresse 2", ...],
+  "adresseSiege": "...",
   "parcelles": ["...", "..."],
   "totalLed": 0,
-  "dateDevis": "YYYY-MM-DD"
+  "dateDevis": "YYYY-MM-DD",
+  "dateSignature": "YYYY-MM-DD"
 }
 \`\`\`
 
@@ -1423,6 +1427,14 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
           if (extracted.dateDevis) {
             elements.refDateDevis.value = extracted.dateDevis;
             elements.refDateDevis.classList.add('auto-filled');
+          }
+          if (extracted.dateSignature) {
+            elements.refDateSignature.value = extracted.dateSignature;
+            elements.refDateSignature.classList.add('auto-filled');
+          }
+          if (extracted.adresseSiege) {
+            elements.refAdresseSiege.value = extracted.adresseSiege;
+            elements.refAdresseSiege.classList.add('auto-filled');
           }
 
           alert('✅ Références extraites avec succès du Dossier CEE !');
