@@ -205,11 +205,13 @@ Tu dois retourner EXACTEMENT 38 checks (un par point) avec le niveau approprié 
 ⚠️ EXCEPTION : Le NOM de société peut contenir "agricole" - NE PAS signaler d'erreur sur le nom
 ⚠️ RÈGLE GÉNÉRALE : TOUTE mention "agri"/"agricole"/"agriculteur" dans les documents (sauf nom de société) est BLOQUANTE
 
-🟡 AUTRES VÉRIFICATIONS (35-38)
+🟡 AUTRES VÉRIFICATIONS MAJEURES (35-37)
 35. THD (CEE + Synthèse caractéristiques luminaires) = 3,7% (PAS dans Audit)
 36. Fiche technique LED (Synthèse page ~14) → présente + THD 3,7%
 37. Référence produit (Audit + Synthèse luminaires) = DAEWOO NES-HBL 250W (ou selon dossier)
-38. Reste à payer (Dossier CEE) = 0€ (si ≠ 0 → signaler car anormal)
+
+🔴 AUTRE VÉRIFICATION BLOQUANTE (38)
+38. Reste à payer / Reste à charge (Dossier CEE) = 0€ (si ≠ 0 → BLOQUANT car anormal)
 
 RÉFÉRENCES DU DOSSIER À UTILISER POUR LA VÉRIFICATION
 ${references.nom ? `- Nom société cliente : ${references.nom}` : ''}
@@ -247,7 +249,7 @@ IMPORTANT - RETOUR DE TOUS LES 38 CHECKS OBLIGATOIRES :
 - JAMAIS moins de 38 checks, même si tout est conforme
 - Pour chaque point numéroté (1 à 38), crée UN check avec :
   * id: "check_01", "check_02", ..., "check_38"
-  * niveau: "bloquant" (points 1-3 et 31-34) | "majeur" (autres) | "ok" (si conforme) | "info" (si check manuel requis)
+  * niveau: "bloquant" (points 1-3, 31-34, et 38) | "majeur" (autres) | "ok" (si conforme) | "info" (si check manuel requis)
   * champ: Le nom exact du point (ex: "Nom entreprise Audit page 1")
   * localisation: Page et section EXACTE dans le document
   * valeur_attendue: Valeur de référence

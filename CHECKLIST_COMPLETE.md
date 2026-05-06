@@ -126,7 +126,14 @@
 | 35 | THD | CEE + Synthèse | Caractéristiques luminaires | = 3,7% (PAS dans Audit) |
 | 36 | Fiche technique LED | Synthèse | Page ~14 | Présente + THD 3,7% |
 | 37 | Référence produit | Audit + Synthèse | Luminaires | = DAEWOO NES-HBL 250W (ou selon dossier) |
-| 38 | Reste à payer | Dossier CEE | Informations financières | = 0€ (si ≠ 0 → signaler car anormal) |
+
+---
+
+## 🔴 AUTRE VÉRIFICATION BLOQUANTE
+
+| # | Point | Documents | Localisation | Règle |
+|---|-------|-----------|--------------|-------|
+| 38 | Reste à payer / Reste à charge | Dossier CEE | Informations financières | = 0€ (si ≠ 0 → BLOQUANT car anormal) |
 
 ---
 
