@@ -52,7 +52,7 @@ export default async function handler(req, res) {
         'X-Title': 'CEE Verif App', // Optionnel mais recommandé
       },
       body: JSON.stringify({
-        model: 'anthropic/claude-3.5-sonnet', // Modèle Claude Sonnet (meilleur pour analyses complexes)
+        model: 'anthropic/claude-sonnet-4', // Claude Sonnet 4 (version originale qui marchait)
         messages: formattedMessages,
         max_tokens: 8000, // Plus de tokens pour tous les checks
         temperature: 0.2, // Très précis
