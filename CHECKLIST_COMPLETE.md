@@ -129,14 +129,23 @@
 
 ---
 
-## 🔴 AUTRE VÉRIFICATION BLOQUANTE
+## 🔴 AUTRES VÉRIFICATIONS BLOQUANTES
 
 | # | Point | Documents | Localisation | Règle |
 |---|-------|-----------|--------------|-------|
 | 38 | Reste à payer / Reste à charge | Dossier CEE | Informations financières | = 0€ (si ≠ 0 → BLOQUANT car anormal) |
+| 39 | Adresse siège social | Dossier CEE | Haut à droite (infos client) | = Adresse officielle siège social gouv |
 
 ---
 
-**TOTAL : 38 points de contrôle obligatoires**
+## 🟡 AUTRE VÉRIFICATION MAJEURE
 
-Chaque analyse doit retourner **38 checks minimum** (un par point ci-dessus).
+| # | Point | Documents | Localisation | Règle |
+|---|-------|-----------|--------------|-------|
+| 40 | Date de signature / Date d'engagement | Dossier CEE | Informations engagement | = Date d'acceptation du devis |
+
+---
+
+**TOTAL : 40 points de contrôle obligatoires**
+
+Chaque analyse doit retourner **40 checks minimum** (un par point ci-dessus).

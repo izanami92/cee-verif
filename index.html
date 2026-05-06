@@ -853,6 +853,16 @@
         </div>
 
         <div class="ref-input">
+          <label for="refDateSignature">Date de signature/acceptation du devis</label>
+          <input type="date" id="refDateSignature">
+        </div>
+
+        <div class="ref-input">
+          <label for="refAdresseSiege">Adresse du siège social</label>
+          <textarea id="refAdresseSiege" placeholder="Adresse complète du siège social..." rows="2" style="resize: vertical;"></textarea>
+        </div>
+
+        <div class="ref-input">
           <label for="refTotalLed">Nombre total de LED</label>
           <input type="number" id="refTotalLed" placeholder="Ex: 120">
         </div>
@@ -1091,6 +1101,8 @@
       refSiret: document.getElementById('refSiret'),
       refAdresse: document.getElementById('refAdresse'),
       refDateDevis: document.getElementById('refDateDevis'),
+      refDateSignature: document.getElementById('refDateSignature'),
+      refAdresseSiege: document.getElementById('refAdresseSiege'),
       refTotalLed: document.getElementById('refTotalLed'),
       refTypeLocal: document.getElementById('refTypeLocal'),
       refParcelles: document.getElementById('refParcelles'),
@@ -1496,6 +1508,8 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
           siret: elements.refSiret.value.trim(),
           adresse: elements.refAdresse.value.trim(),
           dateDevis: elements.refDateDevis.value,
+          dateSignature: elements.refDateSignature.value,
+          adresseSiege: elements.refAdresseSiege.value.trim(),
           totalLed: elements.refTotalLed.value,
           typeLocal: elements.refTypeLocal.value,
           parcelles: elements.refParcelles.value.trim()

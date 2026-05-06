@@ -146,10 +146,10 @@ IMPORTANT - PARCELLES CADASTRALES :
 - La parcelle cadastrale au milieu de l'adresse est celle du chantier et doit correspondre sur la Synthèse
 - Ne pas signaler d'erreur si la parcelle est présente dans l'adresse mais pas dans un champ séparé
 
-CHECKLIST EXHAUSTIVE — 38 POINTS OBLIGATOIRES
+CHECKLIST EXHAUSTIVE — 40 POINTS OBLIGATOIRES
 
 Tu DOIS vérifier TOUS les points suivants à CHAQUE analyse, sans exception.
-Tu dois retourner EXACTEMENT 38 checks (un par point) avec le niveau approprié (bloquant/majeur/ok/info).
+Tu dois retourner EXACTEMENT 40 checks (un par point) avec le niveau approprié (bloquant/majeur/ok/info).
 
 🔴 BLOQUANTS - AUDIT Page de garde (1-3)
 1. Nom entreprise (Audit page 1) = Nom entreprise CEE = Nom entreprise officiel gouv
@@ -212,14 +212,20 @@ Tu dois retourner EXACTEMENT 38 checks (un par point) avec le niveau approprié 
 36. Fiche technique LED (Synthèse page ~14) → présente + THD 3,7%
 37. Référence produit (Audit + Synthèse luminaires) = DAEWOO NES-HBL 250W (ou selon dossier)
 
-🔴 AUTRE VÉRIFICATION BLOQUANTE (38)
+🔴 AUTRES VÉRIFICATIONS BLOQUANTES (38-39)
 38. Reste à payer / Reste à charge (Dossier CEE) = 0€ (si ≠ 0 → BLOQUANT car anormal)
+39. Adresse siège social (Dossier CEE, haut à droite) = Adresse officielle siège social gouv
+
+🟡 AUTRE VÉRIFICATION MAJEURE (40)
+40. Date de signature / Date d'engagement de l'opération (Dossier CEE) = Date d'acceptation du devis
 
 RÉFÉRENCES DU DOSSIER À UTILISER POUR LA VÉRIFICATION
 ${references.nom ? `- Nom société cliente : ${references.nom}` : ''}
 ${references.siret ? `- SIRET : ${references.siret}` : ''}
 ${references.adresse ? `- Adresse du chantier : ${references.adresse}` : ''}
+${references.adresseSiege ? `- Adresse du siège social : ${references.adresseSiege}` : ''}
 ${references.dateDevis ? `- Date d'envoi du devis : ${references.dateDevis}` : ''}
+${references.dateSignature ? `- Date de signature/acceptation du devis : ${references.dateSignature}` : ''}
 ${references.totalLed ? `- Nombre total de LED : ${references.totalLed}` : ''}
 ${references.typeLocal ? `- Type de local : ${references.typeLocal}` : ''}
 ${references.parcelles ? `- Parcelles cadastrales : ${references.parcelles}` : ''}
@@ -246,12 +252,12 @@ Tu dois retourner UNIQUEMENT un JSON valide (sans texte avant ou après) avec ce
 }
 \`\`\`
 
-IMPORTANT - RETOUR DE TOUS LES 38 CHECKS OBLIGATOIRES :
-- Tu DOIS retourner EXACTEMENT 38 checks (un pour chaque point de la checklist ci-dessus)
-- JAMAIS moins de 38 checks, même si tout est conforme
-- Pour chaque point numéroté (1 à 38), crée UN check avec :
-  * id: "check_01", "check_02", ..., "check_38"
-  * niveau: "bloquant" (points 1-3, 31-34, et 38) | "majeur" (autres) | "ok" (si conforme) | "info" (si check manuel requis)
+IMPORTANT - RETOUR DE TOUS LES 40 CHECKS OBLIGATOIRES :
+- Tu DOIS retourner EXACTEMENT 40 checks (un pour chaque point de la checklist ci-dessus)
+- JAMAIS moins de 40 checks, même si tout est conforme
+- Pour chaque point numéroté (1 à 40), crée UN check avec :
+  * id: "check_01", "check_02", ..., "check_40"
+  * niveau: "bloquant" (points 1-3, 31-34, 38-39) | "majeur" (autres) | "ok" (si conforme) | "info" (si check manuel requis)
   * champ: Le nom exact du point (ex: "Nom entreprise Audit page 1")
   * localisation: Page et section EXACTE dans le document
   * valeur_attendue: Valeur de référence
