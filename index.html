@@ -1511,28 +1511,37 @@
             system: `Tu es un assistant qui extrait des informations structurées depuis un Dossier CEE.
 
 Extrait les informations suivantes du document et retourne-les en JSON :
-- nom : nom complet de la société bénéficiaire
-- siret : numéro SIRET (14 chiffres)
-- adresses : TOUTES les adresses de chantier mentionnées (peut y en avoir plusieurs pour un même dossier)
-- adresseSiege : adresse du SIÈGE SOCIAL (en haut à DROITE du CEE, avec les coordonnées du client)
-- parcelles : liste des parcelles cadastrales (format 000/0B/XXXX)
-- totalLed : nombre total de LED installées
-- dateDevis : date d'envoi du devis (si présente)
-- dateSignature : date de signature / date d'engagement de l'opération / date d'acceptation du devis (si présente)
+
+1. nom : nom complet de la société bénéficiaire
+2. siret : numéro SIRET (14 chiffres)
+3. adresseSiege : adresse du SIÈGE SOCIAL (en haut à DROITE du CEE, avec les coordonnées du client) - NE PAS confondre avec les adresses de chantiers
+4. adresses : TOUTES les adresses de CHANTIERS (IMPORTANT : chercher dans TOUT le document)
+   - Cherche CHAQUE "ATTESTATION SUR L'HONNEUR" → chaque attestation a UNE adresse de chantier
+   - Cherche aussi dans les factures, page 1, section "Opération"
+   - Si tu trouves 2 attestations → retourner 2 adresses
+   - Si tu trouves 3 attestations → retourner 3 adresses
+   - NE PAS s'arrêter à la première adresse trouvée
+   - NE PAS inclure l'adresse du siège social dans cette liste
+5. parcelles : liste des parcelles cadastrales (format 000/0B/XXXX)
+6. totalLed : nombre total de LED installées
+7. dateDevis : date d'envoi du devis (si présente)
+8. dateSignature : date de signature / date d'engagement de l'opération / date d'acceptation du devis (si présente)
 
 Format de réponse attendu (JSON uniquement) :
 \`\`\`json
 {
   "nom": "...",
   "siret": "...",
-  "adresses": ["adresse 1", "adresse 2", ...],
-  "adresseSiege": "...",
+  "adresses": ["adresse chantier 1 complète", "adresse chantier 2 complète", ...],
+  "adresseSiege": "adresse siège social complète",
   "parcelles": ["...", "..."],
   "totalLed": 0,
   "dateDevis": "YYYY-MM-DD",
   "dateSignature": "YYYY-MM-DD"
 }
 \`\`\`
+
+IMPORTANT : Si tu trouves plusieurs "ATTESTATION SUR L'HONNEUR", tu DOIS retourner autant d'adresses dans le tableau "adresses".
 
 Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, sans texte avant ou après.`
           })
@@ -1567,9 +1576,33 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
             elements.refSiret.value = extracted.siret;
             elements.refSiret.classList.add('auto-filled');
           }
-          if (extracted.adresses && Array.isArray(extracted.adresses)) {
-            // Prendre seulement la première adresse pour éviter les doublons
-            elements.refAdresse.value = extracted.adresses[0] || '';
+          if (extracted.adresses && Array.isArray(extracted.adresses) && extracted.adresses.length > 0) {
+            // NOUVEAU : Initialiser les chantiers avec TOUTES les adresses trouvées
+            console.log(`✅ ${extracted.adresses.length} adresse(s) de chantier trouvée(s):`, extracted.adresses);
+
+            state.chantiers = extracted.adresses.map(adresse => ({
+              adresse: adresse,
+              audit: null,
+              synthese: null,
+              fiche: null,
+              auditText: '',
+              syntheseText: '',
+              ficheText: ''
+            }));
+
+            // Afficher les résultats
+            elements.detectionResult.style.display = 'block';
+            elements.detectionCount.textContent = state.chantiers.length;
+            elements.manualChantierCount.value = state.chantiers.length;
+            elements.detectionAddresses.innerHTML = state.chantiers
+              .map((ch, i) => `<div style="margin-top: 0.25rem;">Chantier ${i + 1}: ${ch.adresse}</div>`)
+              .join('');
+
+            // Générer les zones d'import par chantier
+            renderChantiers();
+
+            // Remplir aussi le champ référence (pour compatibilité)
+            elements.refAdresse.value = extracted.adresses.join('\n');
             elements.refAdresse.classList.add('auto-filled');
           } else if (extracted.adresse) {
             // Compatibilité avec l'ancien format (string simple)
@@ -1597,7 +1630,8 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
             elements.refAdresseSiege.classList.add('auto-filled');
           }
 
-          alert('✅ Références extraites avec succès du Dossier CEE !');
+          const nbChantiers = state.chantiers.length;
+          alert(`✅ Extraction réussie !\n\n${nbChantiers} chantier(s) détecté(s).\nLes zones d'import sont prêtes ci-dessous.`);
         }
 
         // Réactiver le bouton
