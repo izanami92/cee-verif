@@ -135,10 +135,16 @@ function buildSystemPrompt(references = {}) {
 TON RÔLE : Extraire toutes les valeurs des documents et les retourner en JSON structuré. NE PAS faire de comparaisons, NE PAS analyser, juste EXTRAIRE.
 
 DOCUMENTS À ANALYSER :
-- AUDIT DIALUX : audit énergétique (peut y en avoir plusieurs)
-- SYNTHÈSE : document de synthèse (peut y en avoir plusieurs)
-- DOSSIER CEE : dossier administratif (1 seul)
+- AUDIT DIALUX : audit énergétique (peut y en avoir plusieurs = plusieurs chantiers)
+- SYNTHÈSE : document de synthèse (peut y en avoir plusieurs = plusieurs chantiers)
+- DOSSIER CEE : dossier administratif (1 seul, contient le total de tous les chantiers)
 - FICHE TECHNIQUE : spécifications LED (optionnel)
+
+RÈGLE MULTI-CHANTIERS (TRÈS IMPORTANT) :
+- 1 Audit + 1 Synthèse = 1 chantier
+- 2 Audits + 2 Synthèses = 2 chantiers (même dossier CEE)
+- Pour matcher Audit ↔ Synthèse : comparer l'ADRESSE (même adresse = même chantier)
+- Extraire CHAQUE audit et CHAQUE synthèse séparément avec leur adresse et leur total LED
 
 RÈGLES D'EXTRACTION CRITIQUES :
 
@@ -178,40 +184,30 @@ MENTIONS AGRICOLES :
 FORMAT DE RÉPONSE (JSON uniquement) :
 \`\`\`json
 {
-  "audit": {
-    "nom": "Nom entreprise page 1 (garder casse exacte)",
-    "adresse": "Adresse complète page 1 (garder casse exacte)",
-    "date": "Date page 1 (garder format avec espaces si présents)",
-    "siret": "SIRET sans espaces (85227592400)",
-    "surfaces": ["850", "456"],
-    "ledInitial": "36",
-    "ledFinal": "36",
-    "pceLuminaires": "36",
-    "profilUtilisation": "Profil/type d'utilisation mentionné"
-  },
-  "synthese": {
-    "nom": "Nom entreprise page 1",
-    "date": "Date page 1",
-    "email": "Email contact (ou null)",
-    "telephone": "Téléphone contact (ou null)",
-    "contact": "Nom/prénom contact (ou null)",
-    "totalLedInventaire": "Total LED inventaire projet",
-    "nomClient": "Client fiche identité",
-    "siret": "SIRET fiche identité",
-    "adresseChantier": "Adresse fiche identité",
-    "surfaceEclairee": "Surface éclairée fiche identité",
-    "secteurActivite": "Secteur d'activité fiche identité",
-    "parcelles": "Parcelles cadastrales fiche identité",
-    "nomSite": "Nom du site périmètre",
-    "nombreBatiments": "Nombre de bâtiments",
-    "totalLedInitial": "Total LED état initial",
-    "secteurEtude": "Secteur étude indicateurs initial",
-    "totalLedProjete": "Total LED état projeté",
-    "activiteBatiment": "Activité bâtiment état projeté (2e tableau)",
-    "profilUtilisation": "Profil mentionné",
-    "thd": "THD caractéristiques luminaires (ou null)",
-    "referenceProduit": "Référence produit luminaires"
-  },
+  "audits": [
+    {
+      "nom": "Nom entreprise page 1",
+      "adresse": "Adresse chantier complète page 1",
+      "date": "Date page 1",
+      "siret": "SIRET sans espaces",
+      "surfaces": ["850", "456"],
+      "ledTotal": "36",
+      "profilUtilisation": "Profil/type"
+    }
+  ],
+  "syntheses": [
+    {
+      "nom": "Nom entreprise page 1",
+      "adresse": "Adresse chantier fiche identité",
+      "date": "Date page 1",
+      "ledTotal": "Total LED inventaire projet",
+      "surfaceEclairee": "Surface éclairée fiche identité",
+      "secteurActivite": "Secteur d'activité",
+      "profilUtilisation": "Profil mentionné",
+      "thd": "THD caractéristiques luminaires",
+      "referenceProduit": "Référence produit"
+    }
+  ],
   "cee": {
     "nom": "Nom société bénéficiaire",
     "siret": "SIRET (14 chiffres)",
