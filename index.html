@@ -2379,6 +2379,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
         .replace(/\b(bat|batiment|bâtiment|batiments|bâtiments)\s*\d+\b/gi, '')
         .replace(/\b(bat|batiment|bâtiment|batiments|bâtiments)\b/gi, '')
         .replace(/,/g, ' ')
+        .replace(/\bfrance\b/gi, '')  // Ignorer "france" comme dans compareAddress
         .replace(/–/g, ' ')
         .replace(/-/g, ' ')
         .replace(/\s+/g, ' ')
@@ -3525,13 +3526,16 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
       let valuesHTML = '';
 
       if (check.niveau === 'ok') {
-        valuesHTML = `<span class="check-chip conforme">✓ ${check.valeur_trouvee || check.valeur_attendue}</span>`;
+        valuesHTML = `<span class="check-chip conforme">✓ ${check.valeur_trouvee || check.valeur_attendue || 'Conforme'}</span>`;
       } else {
-        if (check.valeur_attendue) {
-          valuesHTML += `<span class="check-chip expected">Attendu: ${check.valeur_attendue}</span>`;
+        // Pour les erreurs/majeurs : TOUJOURS afficher Attendu ET Trouvé (même si vide)
+        if (check.valeur_attendue !== undefined) {
+          const attenduDisplay = check.valeur_attendue || '(vide)';
+          valuesHTML += `<span class="check-chip expected">Attendu: ${attenduDisplay}</span>`;
         }
-        if (check.valeur_trouvee) {
-          valuesHTML += `<span class="check-chip found">Trouvé: ${check.valeur_trouvee}</span>`;
+        if (check.valeur_trouvee !== undefined) {
+          const trouveDisplay = check.valeur_trouvee || '(vide)';
+          valuesHTML += `<span class="check-chip found">Trouvé: ${trouveDisplay}</span>`;
         }
       }
 
