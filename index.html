@@ -1638,9 +1638,21 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
           }
           if (extracted.adresses && Array.isArray(extracted.adresses) && extracted.adresses.length > 0) {
             // NOUVEAU : Initialiser les chantiers avec TOUTES les adresses trouvées
-            console.log(`✅ ${extracted.adresses.length} adresse(s) de chantier trouvée(s):`, extracted.adresses);
+            console.log(`✅ ${extracted.adresses.length} adresse(s) de chantier trouvée(s) (brut):`, extracted.adresses);
 
-            state.chantiers = extracted.adresses.map(adresse => ({
+            // Nettoyer les adresses : supprimer mentions "BAT X", "Bâtiment X" etc.
+            const cleanedAddresses = extracted.adresses.map(addr => {
+              // Supprimer les patterns : BAT 1, Bat 2, Bâtiment 3, BATIMENT 4, etc.
+              return addr.replace(/\s*-?\s*(BAT|Bat|bât|bat|BATIMENT|Batiment|Bâtiment|bâtiment)\s*\d+\s*/gi, ' ').trim();
+            });
+
+            console.log('✅ Adresses nettoyées:', cleanedAddresses);
+
+            // Dédupliquer les adresses (même adresse = même chantier, même avec plusieurs bâtiments)
+            const uniqueAddresses = [...new Set(cleanedAddresses)];
+            console.log(`✅ ${uniqueAddresses.length} chantier(s) unique(s) après déduplication:`, uniqueAddresses);
+
+            state.chantiers = uniqueAddresses.map(adresse => ({
               adresse: adresse,
               audit: null,
               synthese: null,
