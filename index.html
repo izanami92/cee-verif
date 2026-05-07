@@ -1709,11 +1709,15 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
 
         // Log détaillé du CEE extrait pour debug
         if (extractedData.cee) {
-          console.log('=== CEE EXTRAIT PAR CLAUDE ===');
+          console.log('=== CEE EXTRAIT PAR CLAUDE (BRUT) ===');
+          console.log('CEE complet:', JSON.stringify(extractedData.cee, null, 2));
+          console.log('---');
           console.log('Nom:', extractedData.cee.nom);
           console.log('SIRET:', extractedData.cee.siret);
-          console.log('Adresses chantiers:', extractedData.cee.adressesChantiers || extractedData.cee.adresseChantier);
-          console.log('Attestations:', extractedData.cee.attestations || extractedData.cee.surfacesBatiments);
+          console.log('adressesChantiers (nouveau):', extractedData.cee.adressesChantiers);
+          console.log('adresseChantier (ancien):', extractedData.cee.adresseChantier);
+          console.log('attestations (nouveau):', extractedData.cee.attestations);
+          console.log('surfacesBatiments (ancien):', extractedData.cee.surfacesBatiments);
           console.log('Total LED:', extractedData.cee.totalLed);
         }
         if (extractedData.audits || extractedData.audit) {
