@@ -2509,7 +2509,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
 
       // Check 27 : Surface Audit = Surface Synthèse fiche identité
       const surfaceAuditOk = firstAudit.surfaces && firstSynthese.surfaceEclairee ?
-        sumSurfaces(extracted.audit.surfaces) === parseFloat(String(extracted.synthese.surfaceEclairee).replace(/[^\d.,]/g, '').replace(',', '.')) :
+        sumSurfaces(firstAudit.surfaces) === parseFloat(String(firstSynthese.surfaceEclairee).replace(/[^\d.,]/g, '').replace(',', '.')) :
         false;
       checks.push({
         id: 'check_27',
@@ -2519,7 +2519,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
         localisation: 'Audit, description',
         detail: 'Vérification surface éclairée (check manuel requis)',
         valeur_attendue: firstSynthese.surfaceEclairee || '',
-        valeur_trouvee: firstAudit.surfaces ? extracted.audit.surfaces.join(' + ') : ''
+        valeur_trouvee: firstAudit.surfaces ? firstAudit.surfaces.join(' + ') : ''
       });
 
       // Check 28 : État initial nombre LED
