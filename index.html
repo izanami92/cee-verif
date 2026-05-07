@@ -1574,11 +1574,8 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
 
         const extractedData = await response.json();
         console.log('=== DONNÉES BRUTES REÇUES DE L\'API ===');
-        console.log('Type de données:', typeof extractedData);
         console.log('Clés présentes:', Object.keys(extractedData));
-        console.log('Contient "checks" (ancien format):', 'checks' in extractedData);
-        console.log('Contient "audit" (nouveau format):', 'audit' in extractedData);
-        console.log('Données complètes:', JSON.stringify(extractedData, null, 2));
+        console.log('Format:', 'audit' in extractedData ? '✅ NOUVEAU (extraction)' : '⚠️ ANCIEN (checks)');
 
         updateProgress(75, 'Comparaison des données...');
 
@@ -1597,14 +1594,11 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
           };
 
         } else {
-          console.log('✅ Nouveau format détecté (extraction). Génération des checks JavaScript...');
+          console.log('✅ Nouveau format détecté. Génération des 40 checks JavaScript...');
 
           // Nouveau format : générer les checks via JavaScript (fiabilité 100%)
-          console.log('=== GÉNÉRATION DES CHECKS JAVASCRIPT ===');
           const checks = generateChecks(extractedData, references);
-          console.log('Nombre de checks générés:', checks.length);
-          console.log('Check 1 (nom audit):', checks[0]);
-          console.log('Check 3 (date audit):', checks[2]);
+          console.log(`✅ ${checks.length} checks générés. Seuls les ÉCHECS de comparaison seront affichés ci-dessous.`);
 
           // Vérifier page de garde (checks 1-3)
           const pageGardeChecks = checks.slice(0, 3);
@@ -1645,11 +1639,17 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
     // Normaliser une chaîne : minuscules, espaces nettoyés, trim
     function normalize(str) {
       if (!str) return '';
-      const normalized = String(str)
+
+      // Traiter "null" (string) comme vide
+      const strVal = String(str).trim();
+      if (strVal === 'null' || strVal === 'undefined') return '';
+
+      const normalized = strVal
         .toLowerCase()
-        .replace(/\s+/g, ' ')  // Espaces multiples → 1 espace
+        .replace(/ /g, ' ')  // Espace insécable → espace normal
+        .replace(/\s+/g, ' ')     // Espaces multiples → 1 espace
         .trim();
-      console.log(`[normalize] "${str}" → "${normalized}"`);
+
       return normalized;
     }
 
@@ -1658,7 +1658,14 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
       const norm1 = normalize(val1);
       const norm2 = normalize(val2);
       const result = norm1 === norm2;
-      console.log(`[compareStrings] "${val1}" vs "${val2}" → ${result}`);
+
+      // Log détaillé pour déboguer
+      if (!result) {
+        console.log(`[compareStrings] ÉCHEC: "${val1}" (→ "${norm1}") vs "${val2}" (→ "${norm2}")`);
+        console.log(`  Longueurs: ${norm1.length} vs ${norm2.length}`);
+        console.log(`  Identiques: ${norm1 === norm2}`);
+      }
+
       return result;
     }
 
@@ -1679,7 +1686,50 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
       clean2 = isoToFr(clean2);
 
       const result = clean1 === clean2;
-      console.log(`[compareDate] "${date1}" (→ "${clean1}") vs "${date2}" (→ "${clean2}") → ${result}`);
+      if (!result) {
+        console.log(`[compareDate] ÉCHEC: "${date1}" (→ "${clean1}") vs "${date2}" (→ "${clean2}")`);
+      }
+      return result;
+    }
+
+    // Comparer deux montants (gère "0,00 €" vs "0" ou "0.00")
+    function compareMoney(val1, val2) {
+      const extractNumber = (v) => {
+        if (!v) return 0;
+        const str = String(v).replace(/\s+/g, '').replace(/€/g, '').replace(',', '.');
+        const num = parseFloat(str);
+        return isNaN(num) ? 0 : num;
+      };
+
+      const num1 = extractNumber(val1);
+      const num2 = extractNumber(val2);
+      const result = num1 === num2;
+
+      if (!result) {
+        console.log(`[compareMoney] ÉCHEC: "${val1}" (→ ${num1}) vs "${val2}" (→ ${num2})`);
+      }
+
+      return result;
+    }
+
+    // Comparer références produit (ignore tirets, espaces, variations mineures)
+    function compareProductRef(val1, val2) {
+      const normalizeProduct = (v) => {
+        if (!v) return '';
+        return String(v)
+          .toLowerCase()
+          .replace(/[-_\s]+/g, '')  // Supprimer tirets, underscores, espaces
+          .replace(/[^a-z0-9]/g, ''); // Garder seulement lettres et chiffres
+      };
+
+      const norm1 = normalizeProduct(val1);
+      const norm2 = normalizeProduct(val2);
+      const result = norm1 === norm2;
+
+      if (!result) {
+        console.log(`[compareProductRef] ÉCHEC: "${val1}" (→ "${norm1}") vs "${val2}" (→ "${norm2}")`);
+      }
+
       return result;
     }
 
@@ -1697,20 +1747,38 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
       return month <= 12; // Format JJ/MM/AAAA acceptable si mois ≤ 12
     }
 
-    // Comparer deux adresses (ordre flexible, ignore "France")
+    // Comparer deux adresses (ordre flexible, ignore "France", tirets, etc.)
     function compareAddress(addr1, addr2) {
       const clean = (a) => normalize(String(a || ''))
         .replace(/,/g, ' ')
         .replace(/\bfrance\b/gi, '')
+        .replace(/-/g, ' ')  // Supprimer tirets (SAINT-JEAN → SAINT JEAN)
         .replace(/\s+/g, ' ')
         .trim();
-      return clean(addr1) === clean(addr2);
+
+      const clean1 = clean(addr1);
+      const clean2 = clean(addr2);
+      const result = clean1 === clean2;
+
+      if (!result) {
+        console.log(`[compareAddress] ÉCHEC: "${addr1}" (→ "${clean1}") vs "${addr2}" (→ "${clean2}")`);
+      }
+
+      return result;
     }
 
-    // Comparer SIRET (14 chiffres, ignore espaces)
+    // Comparer SIRET (14 chiffres, ignore espaces et caractères non numériques)
     function compareSIRET(siret1, siret2) {
-      const clean = (s) => String(s || '').replace(/\s+/g, '');
-      return clean(siret1) === clean(siret2);
+      const clean = (s) => String(s || '').replace(/[^\d]/g, '');  // Garder seulement chiffres
+      const clean1 = clean(siret1);
+      const clean2 = clean(siret2);
+      const result = clean1 === clean2;
+
+      if (!result) {
+        console.log(`[compareSIRET] ÉCHEC: "${siret1}" (→ "${clean1}") vs "${siret2}" (→ "${clean2}")`);
+      }
+
+      return result;
     }
 
     // Additionner des surfaces extraites ["850 m²", "456 m²"] → 1306
@@ -2189,8 +2257,8 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
       });
 
       // Check 37 : Référence produit DAEWOO NES-HBL 250W
-      const refProduitOk = compareStrings(extracted.synthese?.referenceProduit, 'DAEWOO NES-HBL 250W') ||
-                          compareStrings(extracted.audit?.pceLuminaires, 'DAEWOO NES-HBL 250W');
+      const refProduitOk = compareProductRef(extracted.synthese?.referenceProduit, 'DAEWOO NES-HBL 250W') ||
+                          compareProductRef(extracted.audit?.pceLuminaires, 'DAEWOO NES-HBL 250W');
       checks.push({
         id: 'check_37',
         categorie: 'audit',
@@ -2203,9 +2271,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
       });
 
       // Checks 38-39 : BLOQUANTS reste à payer + adresse siège
-      const resteAPayerOk = compareStrings(extracted.cee?.resteAPayer, '0') ||
-                            compareStrings(extracted.cee?.resteAPayer, '0€') ||
-                            compareStrings(extracted.cee?.resteAPayer, '0 €');
+      const resteAPayerOk = compareMoney(extracted.cee?.resteAPayer, '0');
       checks.push({
         id: 'check_38',
         categorie: 'audit',
