@@ -54,7 +54,7 @@ export default async function handler(req, res) {
       body: JSON.stringify({
         model: 'anthropic/claude-sonnet-4', // Claude Sonnet 4 (version originale qui marchait)
         messages: formattedMessages,
-        max_tokens: 4000, // Réduit pour accélérer (extraction simple)
+        max_tokens: 8000, // Augmenté pour multi-chantiers (2+ chantiers = plus de données)
         temperature: 0, // Déterministe = résultats identiques à chaque fois
       }),
     });
@@ -134,15 +134,17 @@ function buildSystemPrompt(references = {}) {
 
 TON RÔLE : Extraire toutes les valeurs des documents et les retourner en JSON structuré. NE PAS faire de comparaisons, NE PAS analyser, juste EXTRAIRE.
 
-DOCUMENTS À ANALYSER :
-- AUDIT DIALUX : audit énergétique (peut y en avoir plusieurs = plusieurs chantiers)
-- SYNTHÈSE : document de synthèse (peut y en avoir plusieurs = plusieurs chantiers)
-- DOSSIER CEE : dossier administratif (1 seul, contient le total de tous les chantiers)
-- FICHE TECHNIQUE : spécifications LED (optionnel)
+DOCUMENTS REÇUS (organisation par chantier) :
+Les documents sont organisés par chantier avec les marqueurs suivants :
+- "=== CHANTIER 1 - [adresse] ===" suivi de "= AUDIT DIALUX =" et "= SYNTHÈSE ="
+- "=== CHANTIER 2 - [adresse] ===" suivi de "= AUDIT DIALUX =" et "= SYNTHÈSE ="
+- etc.
+- "=== DOSSIER CEE ===" : dossier administratif (1 seul, contient le total de tous les chantiers)
 
 RÈGLE MULTI-CHANTIERS :
-- 1 Audit + 1 Synthèse = 1 chantier. 2 Audits + 2 Synthèses = 2 chantiers
-- Extraire CHAQUE audit/synthèse avec son adresse complète et total LED
+- Pour CHAQUE section "=== CHANTIER X ===", extraire l'audit ET la synthèse correspondants
+- Retourner TOUS les audits dans le tableau "audits" et TOUTES les synthèses dans le tableau "syntheses"
+- Exemple : 2 chantiers → 2 éléments dans audits[] et 2 éléments dans syntheses[]
 
 RÈGLES D'EXTRACTION CRITIQUES :
 
