@@ -1028,7 +1028,7 @@
             Étape 1 : Importer le dossier CEE
           </div>
           <div style="font-size: 0.75rem; color: rgba(255, 255, 255, 0.6); margin-bottom: var(--spacing-md);">
-            Le CEE sera analysé pour détecter automatiquement le nombre de chantiers
+            Les chantiers seront détectés automatiquement (instantané)
           </div>
 
           <!-- Capture Betool -->
@@ -1047,9 +1047,6 @@
             <input type="file" accept=".pdf" id="fileDossier">
           </div>
 
-          <button id="btnDetectChantiers" class="btn-extract" style="width: 100%; padding: 0.75rem; background: rgba(255, 255, 255, 0.15); color: var(--color-white); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: var(--radius-md); font-size: 0.875rem; font-weight: 600; margin-top: var(--spacing-md); cursor: pointer; transition: all 0.2s;" disabled>
-            🔍 Détecter les chantiers
-          </button>
         </div>
 
         <!-- Résultat de la détection -->
@@ -1254,7 +1251,6 @@
       fileBetool: document.getElementById('fileBetool'),
       fileDossier: document.getElementById('fileDossier'),
 
-      btnDetectChantiers: document.getElementById('btnDetectChantiers'),
       detectionResult: document.getElementById('detectionResult'),
       detectionCount: document.getElementById('detectionCount'),
       detectionAddresses: document.getElementById('detectionAddresses'),
@@ -1396,7 +1392,7 @@
       });
     }
 
-    function handleFileUpload(files, zoneElement, fileKey, isMultiple) {
+    async function handleFileUpload(files, zoneElement, fileKey, isMultiple) {
       const filenameElement = zoneElement.querySelector('.upload-zone-filename');
 
       if (isMultiple) {
@@ -1418,7 +1414,11 @@
       zoneElement.classList.add('loaded');
       checkAnalyzeButton();
       checkExtractButton();
-      checkDetectButton(); // NOUVEAU : activer le bouton de détection
+
+      // NOUVEAU : Si c'est le dossier CEE, détecter automatiquement les chantiers
+      if (fileKey === 'dossier' && state.files.dossier) {
+        await autoDetectChantiers();
+      }
     }
 
     function checkAnalyzeButton() {
@@ -1426,18 +1426,6 @@
       const allChantiersComplete = state.chantiers.length > 0 &&
                                    state.chantiers.every(ch => ch.audit && ch.synthese);
       elements.btnAnalyze.disabled = !allChantiersComplete;
-    }
-
-    function checkDetectButton() {
-      // Activer le bouton "Détecter" si le Dossier CEE est chargé
-      elements.btnDetectChantiers.disabled = !state.files.dossier;
-      if (state.files.dossier) {
-        elements.btnDetectChantiers.style.background = 'rgba(34, 197, 94, 0.2)';
-        elements.btnDetectChantiers.style.borderColor = 'rgba(34, 197, 94, 0.4)';
-      } else {
-        elements.btnDetectChantiers.style.background = 'rgba(255, 255, 255, 0.15)';
-        elements.btnDetectChantiers.style.borderColor = 'rgba(255, 255, 255, 0.3)';
-      }
     }
 
     function checkExtractButton() {
@@ -1605,12 +1593,10 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
       }
     });
 
-    // ========== DÉTECTION CHANTIERS ==========
-    elements.btnDetectChantiers.addEventListener('click', async () => {
+    // ========== DÉTECTION AUTOMATIQUE CHANTIERS ==========
+    async function autoDetectChantiers() {
       try {
-        // Désactiver le bouton pendant le traitement
-        elements.btnDetectChantiers.disabled = true;
-        elements.btnDetectChantiers.textContent = '🔍 Détection en cours...';
+        console.log('🔍 Détection automatique des chantiers...');
 
         // Extraire le texte du PDF CEE
         const ceeText = await extractTextFromPDF(state.files.dossier);
@@ -1618,7 +1604,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
 
         // DÉTECTION LOCALE (rapide, sans API)
         const adresses = detectAdressesLocally(ceeText);
-        console.log('Adresses détectées localement:', adresses);
+        console.log('Adresses détectées:', adresses);
 
         // Initialiser les chantiers dans le state
         state.chantiers = adresses.map(adresse => ({
@@ -1654,17 +1640,13 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
         // Générer les zones d'import par chantier
         renderChantiers();
 
-        // Réactiver le bouton
-        elements.btnDetectChantiers.disabled = false;
-        elements.btnDetectChantiers.textContent = '✅ Chantiers détectés';
+        console.log('✅ Chantiers détectés automatiquement');
 
       } catch (error) {
         console.error('Erreur détection chantiers:', error);
         alert('Erreur lors de la détection des chantiers. Vérifiez la console.');
-        elements.btnDetectChantiers.disabled = false;
-        elements.btnDetectChantiers.textContent = '🔍 Détecter les chantiers';
       }
-    });
+    }
 
     // Détection locale des adresses (regex, sans API)
     function detectAdressesLocally(text) {
