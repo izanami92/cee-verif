@@ -1998,31 +1998,119 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
       }, 0);
     }
 
+    // ========== FONCTIONS HELPER MULTI-CHANTIERS ==========
+
+    // Normaliser extracted pour toujours retourner des tableaux (rétrocompatibilité)
+    function normalizeExtracted(extracted) {
+      const normalized = { ...extracted };
+
+      // Audits : toujours un tableau
+      if (!Array.isArray(normalized.audits)) {
+        if (normalized.audit) {
+          // Ancien format (objet) → convertir en tableau
+          normalized.audits = [normalized.audit];
+        } else {
+          normalized.audits = [];
+        }
+      }
+
+      // Synthèses : toujours un tableau
+      if (!Array.isArray(normalized.syntheses)) {
+        if (normalized.synthese) {
+          // Ancien format (objet) → convertir en tableau
+          normalized.syntheses = [normalized.synthese];
+        } else {
+          normalized.syntheses = [];
+        }
+      }
+
+      return normalized;
+    }
+
+    // Matcher audits et synthèses par adresse (même adresse = même chantier)
+    function matchChantiers(audits, syntheses) {
+      const chantiers = [];
+
+      audits.forEach((audit, auditIndex) => {
+        // Trouver la synthèse avec la même adresse
+        const synthese = syntheses.find(s => compareAddress(s.adresse, audit.adresse));
+
+        chantiers.push({
+          index: auditIndex + 1,
+          audit,
+          synthese: synthese || null,
+          adresse: audit.adresse
+        });
+      });
+
+      // Ajouter les synthèses sans audit correspondant
+      syntheses.forEach((synthese, syntheseIndex) => {
+        const hasAudit = audits.some(a => compareAddress(a.adresse, synthese.adresse));
+        if (!hasAudit) {
+          chantiers.push({
+            index: audits.length + syntheseIndex + 1,
+            audit: null,
+            synthese,
+            adresse: synthese.adresse
+          });
+        }
+      });
+
+      return chantiers;
+    }
+
+    // Calculer somme totale LED de plusieurs documents
+    function sumLED(documents) {
+      return documents.reduce((sum, doc) => {
+        const led = parseFloat(String(doc.ledTotal || doc.ledInitial || doc.ledFinal || doc.totalLed || 0).replace(/\s+/g, ''));
+        return sum + (isNaN(led) ? 0 : led);
+      }, 0);
+    }
+
+    // Helpers pour compatibilité : accès au premier document (pour checks non-multi-chantiers)
+    function getFirstAudit(norm) {
+      return norm.audits[0] || {};
+    }
+
+    function getFirstSynthese(norm) {
+      return norm.syntheses[0] || {};
+    }
+
     // Chercher mentions agricoles (sauf dans nom société)
     function checkMentionsAgricoles(extracted, nomSociete) {
       const regex = /\b(agri|agricole|agriculture|agriculteur)\b/gi;
+      const norm = normalizeExtracted(extracted);
 
-      // Vérifier dans Audit (profil utilisation)
-      if (extracted.audit?.profilUtilisation && regex.test(extracted.audit.profilUtilisation)) {
-        if (!compareStrings(extracted.audit.profilUtilisation, nomSociete)) {
-          return { found: true, location: 'Audit - Profil utilisation' };
+      // Vérifier dans TOUS les Audits
+      for (let i = 0; i < norm.audits.length; i++) {
+        const audit = norm.audits[i];
+        if (audit.profilUtilisation && regex.test(audit.profilUtilisation)) {
+          if (!compareStrings(audit.profilUtilisation, nomSociete)) {
+            const suffix = norm.audits.length > 1 ? ` #${i + 1}` : '';
+            return { found: true, location: `Audit${suffix} - Profil utilisation` };
+          }
         }
       }
 
-      // Vérifier dans Synthèse (secteur, activité, profil)
-      if (extracted.synthese?.secteurActivite && regex.test(extracted.synthese.secteurActivite)) {
-        if (!compareStrings(extracted.synthese.secteurActivite, nomSociete)) {
-          return { found: true, location: 'Synthèse - Secteur activité' };
+      // Vérifier dans TOUTES les Synthèses
+      for (let i = 0; i < norm.syntheses.length; i++) {
+        const synthese = norm.syntheses[i];
+        const suffix = norm.syntheses.length > 1 ? ` #${i + 1}` : '';
+
+        if (synthese.secteurActivite && regex.test(synthese.secteurActivite)) {
+          if (!compareStrings(synthese.secteurActivite, nomSociete)) {
+            return { found: true, location: `Synthèse${suffix} - Secteur activité` };
+          }
         }
-      }
-      if (extracted.synthese?.activiteBatiment && regex.test(extracted.synthese.activiteBatiment)) {
-        if (!compareStrings(extracted.synthese.activiteBatiment, nomSociete)) {
-          return { found: true, location: 'Synthèse - Activité bâtiment' };
+        if (synthese.activiteBatiment && regex.test(synthese.activiteBatiment)) {
+          if (!compareStrings(synthese.activiteBatiment, nomSociete)) {
+            return { found: true, location: `Synthèse${suffix} - Activité bâtiment` };
+          }
         }
-      }
-      if (extracted.synthese?.profilUtilisation && regex.test(extracted.synthese.profilUtilisation)) {
-        if (!compareStrings(extracted.synthese.profilUtilisation, nomSociete)) {
-          return { found: true, location: 'Synthèse - Profil' };
+        if (synthese.profilUtilisation && regex.test(synthese.profilUtilisation)) {
+          if (!compareStrings(synthese.profilUtilisation, nomSociete)) {
+            return { found: true, location: `Synthèse${suffix} - Profil` };
+          }
         }
       }
 
@@ -2036,58 +2124,67 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
       return { found: false, location: null };
     }
 
-    // Générer les 40 checks
+    // Générer les checks (adapté multi-chantiers)
     function generateChecks(extracted, references) {
       const checks = [];
+      const norm = normalizeExtracted(extracted);
+      const firstAudit = getFirstAudit(norm);
+      const firstSynthese = getFirstSynthese(norm);
 
       // ========== BLOQUANTS - Page de garde Audit (1-3) ==========
+      // Pour chaque audit (1 ou plusieurs chantiers)
 
-      // Check 1 : Nom entreprise Audit
-      const nomAuditOk = compareStrings(extracted.audit?.nom, references.nom);
-      checks.push({
-        id: 'check_01',
-        categorie: 'garde',
-        niveau: nomAuditOk ? 'ok' : 'bloquant',
-        champ: 'Nom entreprise Audit page 1',
-        localisation: 'Audit page 1, en-tête',
-        detail: nomAuditOk ? 'Nom conforme' : 'Nom différent de la référence',
-        valeur_attendue: references.nom || '',
-        valeur_trouvee: extracted.audit?.nom || ''
-      });
+      norm.audits.forEach((audit, auditIndex) => {
+        const suffix = norm.audits.length > 1 ? ` chantier ${auditIndex + 1}` : '';
+        const idSuffix = norm.audits.length > 1 ? `_c${auditIndex + 1}` : '';
 
-      // Check 2 : Adresse chantier Audit
-      const adresseAuditOk = compareAddress(extracted.audit?.adresse, references.adresse);
-      checks.push({
-        id: 'check_02',
-        categorie: 'garde',
-        niveau: adresseAuditOk ? 'ok' : 'bloquant',
-        champ: 'Adresse chantier Audit page 1',
-        localisation: 'Audit page 1, en-tête',
-        detail: adresseAuditOk ? 'Adresse conforme' : 'Adresse différente de la référence',
-        valeur_attendue: references.adresse || '',
-        valeur_trouvee: extracted.audit?.adresse || ''
-      });
+        // Check 1 : Nom entreprise Audit
+        const nomAuditOk = compareStrings(audit.nom, references.nom);
+        checks.push({
+          id: `check_01${idSuffix}`,
+          categorie: 'garde',
+          niveau: nomAuditOk ? 'ok' : 'bloquant',
+          champ: `Nom entreprise Audit page 1${suffix}`,
+          localisation: `Audit${suffix} page 1, en-tête`,
+          detail: nomAuditOk ? 'Nom conforme' : 'Nom différent de la référence',
+          valeur_attendue: references.nom || '',
+          valeur_trouvee: audit.nom || ''
+        });
 
-      // Check 3 : Date audit
-      const dateAuditOk = compareDate(extracted.audit?.date, references.dateDevis) &&
-                          isValidDateFormat(extracted.audit?.date);
-      checks.push({
-        id: 'check_03',
-        categorie: 'garde',
-        niveau: dateAuditOk ? 'ok' : 'bloquant',
-        champ: 'Date audit Audit page 1',
-        localisation: 'Audit page 1, en-tête',
-        detail: dateAuditOk ? 'Date conforme (format JJ/MM/AAAA)' :
-                !isValidDateFormat(extracted.audit?.date) ? 'Format de date incorrect (attendu JJ/MM/AAAA)' :
-                'Date différente de la référence',
-        valeur_attendue: references.dateDevis || '',
-        valeur_trouvee: extracted.audit?.date || ''
+        // Check 2 : Adresse chantier Audit
+        const adresseAuditOk = compareAddress(audit.adresse, references.adresse);
+        checks.push({
+          id: `check_02${idSuffix}`,
+          categorie: 'garde',
+          niveau: adresseAuditOk ? 'ok' : 'bloquant',
+          champ: `Adresse chantier Audit page 1${suffix}`,
+          localisation: `Audit${suffix} page 1, en-tête`,
+          detail: adresseAuditOk ? 'Adresse conforme' : 'Adresse différente de la référence',
+          valeur_attendue: references.adresse || '',
+          valeur_trouvee: audit.adresse || ''
+        });
+
+        // Check 3 : Date audit
+        const dateAuditOk = compareDate(audit.date, references.dateDevis) &&
+                            isValidDateFormat(audit.date);
+        checks.push({
+          id: `check_03${idSuffix}`,
+          categorie: 'garde',
+          niveau: dateAuditOk ? 'ok' : 'bloquant',
+          champ: `Date audit Audit page 1${suffix}`,
+          localisation: `Audit${suffix} page 1, en-tête`,
+          detail: dateAuditOk ? 'Date conforme (format JJ/MM/AAAA)' :
+                  !isValidDateFormat(audit.date) ? 'Format de date incorrect (attendu JJ/MM/AAAA)' :
+                  'Date différente de la référence',
+          valeur_attendue: references.dateDevis || '',
+          valeur_trouvee: audit.date || ''
+        });
       });
 
       // ========== SYNTHÈSE - Page de garde (4-8) ==========
 
       // Check 4 : Nom entreprise Synthèse
-      const nomSyntheseOk = compareStrings(extracted.synthese?.nom, references.nom);
+      const nomSyntheseOk = compareStrings(firstSynthese.nom, references.nom);
       checks.push({
         id: 'check_04',
         categorie: 'synthese',
@@ -2096,12 +2193,12 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
         localisation: 'Synthèse page 1, en-tête',
         detail: nomSyntheseOk ? 'Nom conforme' : 'Nom différent de la référence',
         valeur_attendue: references.nom || '',
-        valeur_trouvee: extracted.synthese?.nom || ''
+        valeur_trouvee: firstSynthese.nom || ''
       });
 
       // Check 5 : Date Synthèse
-      const dateSyntheseOk = compareDate(extracted.synthese?.date, references.dateDevis) &&
-                             isValidDateFormat(extracted.synthese?.date);
+      const dateSyntheseOk = compareDate(firstSynthese.date, references.dateDevis) &&
+                             isValidDateFormat(firstSynthese.date);
       checks.push({
         id: 'check_05',
         categorie: 'synthese',
@@ -2109,94 +2206,144 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
         champ: 'Date Synthèse page 1',
         localisation: 'Synthèse page 1, en-tête',
         detail: dateSyntheseOk ? 'Date conforme (format JJ/MM/AAAA)' :
-                !isValidDateFormat(extracted.synthese?.date) ? 'Format de date incorrect' :
+                !isValidDateFormat(firstSynthese.date) ? 'Format de date incorrect' :
                 'Date différente de la référence',
         valeur_attendue: references.dateDevis || '',
-        valeur_trouvee: extracted.synthese?.date || ''
+        valeur_trouvee: firstSynthese.date || ''
       });
 
       // Checks 6-8 : Contacts (optionnels)
       checks.push({
         id: 'check_06',
         categorie: 'synthese',
-        niveau: extracted.synthese?.email ? 'ok' : 'info',
+        niveau: firstSynthese.email ? 'ok' : 'info',
         champ: 'Email Synthèse page 1',
         localisation: 'Synthèse page 1, contact client',
-        detail: extracted.synthese?.email ? 'Email présent' : 'Email non présent (optionnel)',
+        detail: firstSynthese.email ? 'Email présent' : 'Email non présent (optionnel)',
         valeur_attendue: '',
-        valeur_trouvee: extracted.synthese?.email || 'Non présent'
+        valeur_trouvee: firstSynthese.email || 'Non présent'
       });
 
       checks.push({
         id: 'check_07',
         categorie: 'synthese',
-        niveau: extracted.synthese?.telephone ? 'ok' : 'info',
+        niveau: firstSynthese.telephone ? 'ok' : 'info',
         champ: 'Téléphone Synthèse page 1',
         localisation: 'Synthèse page 1, contact client',
-        detail: extracted.synthese?.telephone ? 'Téléphone présent' : 'Téléphone non présent (optionnel)',
+        detail: firstSynthese.telephone ? 'Téléphone présent' : 'Téléphone non présent (optionnel)',
         valeur_attendue: '',
-        valeur_trouvee: extracted.synthese?.telephone || 'Non présent'
+        valeur_trouvee: firstSynthese.telephone || 'Non présent'
       });
 
       checks.push({
         id: 'check_08',
         categorie: 'synthese',
-        niveau: extracted.synthese?.contact ? 'ok' : 'info',
+        niveau: firstSynthese.contact ? 'ok' : 'info',
         champ: 'Contact nom/prénom Synthèse page 1',
         localisation: 'Synthèse page 1, contact client',
-        detail: extracted.synthese?.contact ? 'Contact présent' : 'Contact non présent (optionnel)',
+        detail: firstSynthese.contact ? 'Contact présent' : 'Contact non présent (optionnel)',
         valeur_attendue: '',
-        valeur_trouvee: extracted.synthese?.contact || 'Non présent'
+        valeur_trouvee: firstSynthese.contact || 'Non présent'
       });
 
       // Checks 9-30 : Autres vérifications Synthèse et Audit (simplifié pour l'instant)
       // Je vais créer des checks génériques pour compléter à 40
 
-      // Check 9 : Total LED inventaire
-      const totalLedInventaireOk = compareStrings(extracted.synthese?.totalLedInventaire, references.totalLed);
+      // ========== CHECK 9 : TOTAL LED (MULTI-CHANTIERS) ==========
+
+      // Calculer sommes totales
+      const sommeAudits = sumLED(norm.audits);
+      const sommeSyntheses = sumLED(norm.syntheses);
+      const totalCEE = parseFloat(String(references.totalLed || norm.cee?.totalLed || 0).replace(/\s+/g, '')) || 0;
+
+      // Check 9a : Somme audits = Total CEE
+      const sommeAuditsOk = Math.abs(sommeAudits - totalCEE) < 0.1;
       checks.push({
-        id: 'check_09',
+        id: 'check_09a',
         categorie: 'synthese',
-        niveau: totalLedInventaireOk ? 'ok' : 'majeur',
-        champ: 'TOTAL luminaires Synthèse inventaire projet',
-        localisation: 'Synthèse, inventaire projet',
-        detail: totalLedInventaireOk ? 'Total LED conforme' : 'Total LED différent',
-        valeur_attendue: references.totalLed || '',
-        valeur_trouvee: extracted.synthese?.totalLedInventaire || ''
+        niveau: sommeAuditsOk ? 'ok' : 'majeur',
+        champ: 'TOTAL LED Audits = Total CEE',
+        localisation: 'Somme de tous les audits vs Dossier CEE',
+        detail: sommeAuditsOk ?
+          `Somme audits conforme : ${sommeAudits} LED` :
+          `Somme audits (${sommeAudits}) différente du total CEE (${totalCEE})`,
+        valeur_attendue: totalCEE.toString(),
+        valeur_trouvee: sommeAudits.toString()
       });
+
+      // Check 9b : Somme synthèses = Total CEE
+      const sommeSynthesesOk = Math.abs(sommeSyntheses - totalCEE) < 0.1;
+      checks.push({
+        id: 'check_09b',
+        categorie: 'synthese',
+        niveau: sommeSynthesesOk ? 'ok' : 'majeur',
+        champ: 'TOTAL LED Synthèses = Total CEE',
+        localisation: 'Somme de toutes les synthèses vs Dossier CEE',
+        detail: sommeSynthesesOk ?
+          `Somme synthèses conforme : ${sommeSyntheses} LED` :
+          `Somme synthèses (${sommeSyntheses}) différente du total CEE (${totalCEE})`,
+        valeur_attendue: totalCEE.toString(),
+        valeur_trouvee: sommeSyntheses.toString()
+      });
+
+      // Check 9c : Si multi-chantiers, vérifier cohérence par chantier
+      if (norm.audits.length > 1 || norm.syntheses.length > 1) {
+        const chantiers = matchChantiers(norm.audits, norm.syntheses);
+
+        chantiers.forEach((chantier, index) => {
+          if (chantier.audit && chantier.synthese) {
+            const ledAudit = parseFloat(String(chantier.audit.ledTotal || 0).replace(/\s+/g, '')) || 0;
+            const ledSynthese = parseFloat(String(chantier.synthese.ledTotal || 0).replace(/\s+/g, '')) || 0;
+            const coherent = Math.abs(ledAudit - ledSynthese) < 0.1;
+
+            checks.push({
+              id: `check_09c_ch${index + 1}`,
+              categorie: 'synthese',
+              niveau: coherent ? 'ok' : 'majeur',
+              champ: `LED chantier ${index + 1} : Audit = Synthèse`,
+              localisation: `Chantier ${index + 1} (${chantier.adresse || 'adresse non trouvée'})`,
+              detail: coherent ?
+                `LED cohérentes pour ce chantier : ${ledAudit}` :
+                `LED différentes : Audit ${ledAudit} vs Synthèse ${ledSynthese}`,
+              valeur_attendue: ledAudit.toString(),
+              valeur_trouvee: ledSynthese.toString()
+            });
+          }
+        });
+      }
 
       // Checks 10-15 : Fiche identité Synthèse
       checks.push({
         id: 'check_10',
         categorie: 'synthese',
-        niveau: compareStrings(extracted.synthese?.nomClient, references.nom) ? 'ok' : 'majeur',
+        niveau: compareStrings(firstSynthese.nomClient, references.nom) ? 'ok' : 'majeur',
         champ: 'Client Synthèse fiche identité',
         localisation: 'Synthèse, fiche identité du site',
         detail: 'Vérification nom client',
         valeur_attendue: references.nom || '',
-        valeur_trouvee: extracted.synthese?.nomClient || ''
+        valeur_trouvee: firstSynthese.nomClient || ''
       });
 
       checks.push({
         id: 'check_11',
         categorie: 'synthese',
-        niveau: compareSIRET(extracted.synthese?.siret, references.siret) ? 'ok' : 'majeur',
+        niveau: compareSIRET(firstSynthese.siret, references.siret) ? 'ok' : 'majeur',
         champ: 'SIRET Synthèse fiche identité',
         localisation: 'Synthèse, fiche identité du site',
         detail: 'Vérification SIRET (14 chiffres)',
         valeur_attendue: references.siret || '',
-        valeur_trouvee: extracted.synthese?.siret || ''
+        valeur_trouvee: firstSynthese.siret || ''
       });
 
       checks.push({
         id: 'check_12',
         categorie: 'synthese',
-        niveau: compareAddress(extracted.synthese?.adresseChantier, references.adresse) ? 'ok' : 'majeur',
+        niveau: compareAddress(firstSynthese.adresseChantier, references.adresse) ? 'ok' : 'majeur',
         champ: 'Adresse chantier Synthèse fiche identité',
         localisation: 'Synthèse, fiche identité du site',
         detail: 'Vérification adresse chantier',
         valeur_attendue: references.adresse || '',
-        valeur_trouvee: extracted.synthese?.adresseChantier || ''
+        valeur_trouvee: firstSynthese.adresseChantier || ''
       });
 
       checks.push({
@@ -2207,41 +2354,41 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
         localisation: 'Synthèse, fiche identité du site',
         detail: 'Vérification manuelle requise',
         valeur_attendue: '',
-        valeur_trouvee: extracted.synthese?.surfaceEclairee || ''
+        valeur_trouvee: firstSynthese.surfaceEclairee || ''
       });
 
       checks.push({
         id: 'check_14',
         categorie: 'synthese',
-        niveau: compareStrings(extracted.synthese?.secteurActivite, references.typeLocal) ? 'ok' : 'majeur',
+        niveau: compareStrings(firstSynthese.secteurActivite, references.typeLocal) ? 'ok' : 'majeur',
         champ: 'Secteur d\'activité Synthèse fiche identité',
         localisation: 'Synthèse, fiche identité du site',
         detail: 'Vérification secteur d\'activité',
         valeur_attendue: references.typeLocal || '',
-        valeur_trouvee: extracted.synthese?.secteurActivite || ''
+        valeur_trouvee: firstSynthese.secteurActivite || ''
       });
 
       checks.push({
         id: 'check_15',
         categorie: 'synthese',
-        niveau: compareStrings(extracted.synthese?.parcelles, references.parcelles) ? 'ok' : 'majeur',
+        niveau: compareStrings(firstSynthese.parcelles, references.parcelles) ? 'ok' : 'majeur',
         champ: 'Parcelles cadastrales Synthèse fiche identité',
         localisation: 'Synthèse, fiche identité du site',
         detail: 'Vérification parcelles (format 000/0B/XXXX)',
         valeur_attendue: references.parcelles || '',
-        valeur_trouvee: extracted.synthese?.parcelles || ''
+        valeur_trouvee: firstSynthese.parcelles || ''
       });
 
       // ========== SYNTHÈSE - Périmètre de l'étude (16-17) ==========
       checks.push({
         id: 'check_16',
         categorie: 'synthese',
-        niveau: compareStrings(extracted.synthese?.nomSite, references.nom) ? 'ok' : 'majeur',
+        niveau: compareStrings(firstSynthese.nomSite, references.nom) ? 'ok' : 'majeur',
         champ: 'Nom du site Synthèse périmètre',
         localisation: 'Synthèse, périmètre de l\'étude',
         detail: 'Vérification nom du site',
         valeur_attendue: references.nom || '',
-        valeur_trouvee: extracted.synthese?.nomSite || ''
+        valeur_trouvee: firstSynthese.nomSite || ''
       });
 
       checks.push({
@@ -2252,7 +2399,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
         localisation: 'Synthèse, périmètre de l\'étude',
         detail: 'Vérification manuelle requise',
         valeur_attendue: '',
-        valeur_trouvee: extracted.synthese?.nombreBatiments || ''
+        valeur_trouvee: firstSynthese.nombreBatiments || ''
       });
 
       // ========== SYNTHÈSE - Inventaire état initial (18-19) ==========
@@ -2267,7 +2414,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
         valeur_trouvee: ''
       });
 
-      const totalLedInitialOk = compareStrings(extracted.synthese?.totalLedInitial, references.totalLed);
+      const totalLedInitialOk = compareStrings(firstSynthese.totalLedInitial, references.totalLed);
       checks.push({
         id: 'check_19',
         categorie: 'synthese',
@@ -2276,23 +2423,23 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
         localisation: 'Synthèse, inventaire état initial',
         detail: totalLedInitialOk ? 'Total LED initial conforme' : 'Total LED initial différent',
         valeur_attendue: references.totalLed || '',
-        valeur_trouvee: extracted.synthese?.totalLedInitial || ''
+        valeur_trouvee: firstSynthese.totalLedInitial || ''
       });
 
       // ========== SYNTHÈSE - Indicateurs éclairage initial (20) ==========
       checks.push({
         id: 'check_20',
         categorie: 'synthese',
-        niveau: compareStrings(extracted.synthese?.secteurEtude, references.typeLocal) ? 'ok' : 'majeur',
+        niveau: compareStrings(firstSynthese.secteurEtude, references.typeLocal) ? 'ok' : 'majeur',
         champ: 'Secteur étude indicateurs initial',
         localisation: 'Synthèse, indicateurs éclairage intérieur état initial',
         detail: 'Vérification secteur d\'étude',
         valeur_attendue: references.typeLocal || '',
-        valeur_trouvee: extracted.synthese?.secteurEtude || ''
+        valeur_trouvee: firstSynthese.secteurEtude || ''
       });
 
       // ========== SYNTHÈSE - Inventaire état projeté (21-23) ==========
-      const totalLedProjeteOk = compareStrings(extracted.synthese?.totalLedProjete, references.totalLed);
+      const totalLedProjeteOk = compareStrings(firstSynthese.totalLedProjete, references.totalLed);
       checks.push({
         id: 'check_21',
         categorie: 'synthese',
@@ -2301,7 +2448,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
         localisation: 'Synthèse, inventaire état projeté',
         detail: totalLedProjeteOk ? 'Total LED projeté conforme' : 'Total LED projeté différent',
         valeur_attendue: references.totalLed || '',
-        valeur_trouvee: extracted.synthese?.totalLedProjete || ''
+        valeur_trouvee: firstSynthese.totalLedProjete || ''
       });
 
       checks.push({
@@ -2318,50 +2465,50 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
       checks.push({
         id: 'check_23',
         categorie: 'synthese',
-        niveau: compareStrings(extracted.synthese?.activiteBatiment, references.typeLocal) ? 'ok' : 'majeur',
+        niveau: compareStrings(firstSynthese.activiteBatiment, references.typeLocal) ? 'ok' : 'majeur',
         champ: 'Activité bâtiment état projeté (2e tableau)',
         localisation: 'Synthèse, inventaire état projeté',
         detail: 'Vérification activité bâtiment',
         valeur_attendue: references.typeLocal || '',
-        valeur_trouvee: extracted.synthese?.activiteBatiment || ''
+        valeur_trouvee: firstSynthese.activiteBatiment || ''
       });
 
       // ========== AUDIT - Page description (24-29) ==========
       checks.push({
         id: 'check_24',
         categorie: 'audit',
-        niveau: compareStrings(extracted.audit?.nom, references.nom) ? 'ok' : 'majeur',
+        niveau: compareStrings(firstAudit.nom, references.nom) ? 'ok' : 'majeur',
         champ: 'Site Audit description',
         localisation: 'Audit, description',
         detail: 'Vérification site = client',
         valeur_attendue: references.nom || '',
-        valeur_trouvee: extracted.audit?.nom || ''
+        valeur_trouvee: firstAudit.nom || ''
       });
 
       checks.push({
         id: 'check_25',
         categorie: 'audit',
-        niveau: compareAddress(extracted.audit?.adresse, references.adresse) ? 'ok' : 'majeur',
+        niveau: compareAddress(firstAudit.adresse, references.adresse) ? 'ok' : 'majeur',
         champ: 'Adresse Audit description',
         localisation: 'Audit, description',
         detail: 'Vérification adresse',
         valeur_attendue: references.adresse || '',
-        valeur_trouvee: extracted.audit?.adresse || ''
+        valeur_trouvee: firstAudit.adresse || ''
       });
 
       checks.push({
         id: 'check_26',
         categorie: 'audit',
-        niveau: compareSIRET(extracted.audit?.siret, references.siret) ? 'ok' : 'majeur',
+        niveau: compareSIRET(firstAudit.siret, references.siret) ? 'ok' : 'majeur',
         champ: 'SIRET Audit description',
         localisation: 'Audit, description',
         detail: 'Vérification SIRET',
         valeur_attendue: references.siret || '',
-        valeur_trouvee: extracted.audit?.siret || ''
+        valeur_trouvee: firstAudit.siret || ''
       });
 
       // Check 27 : Surface Audit = Surface Synthèse fiche identité
-      const surfaceAuditOk = extracted.audit?.surfaces && extracted.synthese?.surfaceEclairee ?
+      const surfaceAuditOk = firstAudit.surfaces && firstSynthese.surfaceEclairee ?
         sumSurfaces(extracted.audit.surfaces) === parseFloat(String(extracted.synthese.surfaceEclairee).replace(/[^\d.,]/g, '').replace(',', '.')) :
         false;
       checks.push({
@@ -2371,12 +2518,12 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
         champ: 'Surface Audit description',
         localisation: 'Audit, description',
         detail: 'Vérification surface éclairée (check manuel requis)',
-        valeur_attendue: extracted.synthese?.surfaceEclairee || '',
-        valeur_trouvee: extracted.audit?.surfaces ? extracted.audit.surfaces.join(' + ') : ''
+        valeur_attendue: firstSynthese.surfaceEclairee || '',
+        valeur_trouvee: firstAudit.surfaces ? extracted.audit.surfaces.join(' + ') : ''
       });
 
       // Check 28 : État initial nombre LED
-      const ledInitialOk = compareStrings(extracted.audit?.ledInitial, references.totalLed);
+      const ledInitialOk = compareStrings(firstAudit.ledInitial, references.totalLed);
       checks.push({
         id: 'check_28',
         categorie: 'audit',
@@ -2385,11 +2532,11 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
         localisation: 'Audit, description',
         detail: ledInitialOk ? 'Nombre LED initial conforme' : 'Nombre LED initial différent',
         valeur_attendue: references.totalLed || '',
-        valeur_trouvee: extracted.audit?.ledInitial || ''
+        valeur_trouvee: firstAudit.ledInitial || ''
       });
 
       // Check 29 : État projeté nombre LED
-      const ledFinalOk = compareStrings(extracted.audit?.ledFinal, references.totalLed);
+      const ledFinalOk = compareStrings(firstAudit.ledFinal, references.totalLed);
       checks.push({
         id: 'check_29',
         categorie: 'audit',
@@ -2398,11 +2545,11 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
         localisation: 'Audit, description',
         detail: ledFinalOk ? 'Nombre LED projeté conforme' : 'Nombre LED projeté différent',
         valeur_attendue: references.totalLed || '',
-        valeur_trouvee: extracted.audit?.ledFinal || ''
+        valeur_trouvee: firstAudit.ledFinal || ''
       });
 
       // ========== AUDIT - Liste luminaires (30) ==========
-      const pceLuminairesOk = compareStrings(extracted.audit?.pceLuminaires, references.totalLed);
+      const pceLuminairesOk = compareStrings(firstAudit.pceLuminaires, references.totalLed);
       checks.push({
         id: 'check_30',
         categorie: 'audit',
@@ -2411,7 +2558,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
         localisation: 'Audit, liste des luminaires',
         detail: pceLuminairesOk ? 'Total pce conforme' : 'Total pce différent',
         valeur_attendue: references.totalLed || '',
-        valeur_trouvee: extracted.audit?.pceLuminaires || ''
+        valeur_trouvee: firstAudit.pceLuminaires || ''
       });
 
       // ========== MENTIONS AGRICOLES (31-34) ==========
@@ -2432,7 +2579,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
 
       // ========== CHECKS 35-37 : THD, Fiche technique, Référence ==========
       // Check 35 : THD Synthèse = 3,7%
-      const thdOk = compareNumber(extracted.synthese?.thd, '3.7%');
+      const thdOk = compareNumber(firstSynthese.thd, '3.7%');
       checks.push({
         id: 'check_35',
         categorie: 'synthese',
@@ -2441,7 +2588,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
         localisation: 'Synthèse + CEE, caractéristiques luminaires',
         detail: thdOk ? 'THD = 3,7% conforme' : 'THD différent de 3,7%',
         valeur_attendue: '3,7%',
-        valeur_trouvee: extracted.synthese?.thd || ''
+        valeur_trouvee: firstSynthese.thd || ''
       });
 
       // Check 36 : Fiche technique présente
@@ -2459,8 +2606,8 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
       });
 
       // Check 37 : Référence produit DAEWOO NES-HBL 250W
-      const refProduitOk = compareProductRef(extracted.synthese?.referenceProduit, 'DAEWOO NES-HBL 250W') ||
-                          compareProductRef(extracted.audit?.pceLuminaires, 'DAEWOO NES-HBL 250W');
+      const refProduitOk = compareProductRef(firstSynthese.referenceProduit, 'DAEWOO NES-HBL 250W') ||
+                          compareProductRef(firstAudit.pceLuminaires, 'DAEWOO NES-HBL 250W');
       checks.push({
         id: 'check_37',
         categorie: 'audit',
@@ -2469,11 +2616,11 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
         localisation: 'Audit + Synthèse luminaires',
         detail: refProduitOk ? 'Référence produit conforme' : 'Référence produit différente',
         valeur_attendue: 'DAEWOO NES-HBL 250W',
-        valeur_trouvee: extracted.synthese?.referenceProduit || extracted.audit?.pceLuminaires || ''
+        valeur_trouvee: firstSynthese.referenceProduit || firstAudit.pceLuminaires || ''
       });
 
       // Checks 38-39 : BLOQUANTS reste à payer + adresse siège
-      const resteAPayerOk = compareMoney(extracted.cee?.resteAPayer, '0');
+      const resteAPayerOk = compareMoney(norm.cee.resteAPayer, '0');
       checks.push({
         id: 'check_38',
         categorie: 'audit',
@@ -2482,10 +2629,10 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
         localisation: 'Dossier CEE, informations financières',
         detail: resteAPayerOk ? 'Reste à payer = 0€' : 'Reste à payer différent de 0€ (anormal)',
         valeur_attendue: '0€',
-        valeur_trouvee: extracted.cee?.resteAPayer || ''
+        valeur_trouvee: norm.cee.resteAPayer || ''
       });
 
-      const adresseSiegeOk = compareAddress(extracted.cee?.adresseSiege, references.adresseSiege);
+      const adresseSiegeOk = compareAddress(norm.cee.adresseSiege, references.adresseSiege);
       checks.push({
         id: 'check_39',
         categorie: 'audit',
@@ -2494,11 +2641,11 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
         localisation: 'Dossier CEE, haut à droite',
         detail: adresseSiegeOk ? 'Adresse siège conforme' : 'Adresse siège différente de la référence',
         valeur_attendue: references.adresseSiege || '',
-        valeur_trouvee: extracted.cee?.adresseSiege || ''
+        valeur_trouvee: norm.cee.adresseSiege || ''
       });
 
       // Check 40 : Date de signature
-      const dateSignatureOk = compareDate(extracted.cee?.dateSignature, references.dateSignature);
+      const dateSignatureOk = compareDate(norm.cee.dateSignature, references.dateSignature);
       checks.push({
         id: 'check_40',
         categorie: 'synthese',
@@ -2507,15 +2654,15 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
         localisation: 'Dossier CEE, informations engagement',
         detail: dateSignatureOk ?
           'Date de signature conforme' :
-          `Date différente : ${extracted.cee?.dateSignature || 'non trouvée'} vs référence ${references.dateSignature || ''}`,
+          `Date différente : ${norm.cee.dateSignature || 'non trouvée'} vs référence ${references.dateSignature || ''}`,
         valeur_attendue: references.dateSignature || '',
-        valeur_trouvee: extracted.cee?.dateSignature || ''
+        valeur_trouvee: norm.cee.dateSignature || ''
       });
 
       // ========== VÉRIFICATIONS ATTESTATIONS SUR L'HONNEUR + SURFACES ==========
 
       // Check 41 : Attestation sur l'honneur présente (check manuel si absente)
-      const attestationPresente = extracted.cee?.attestationHonneurPresente === true;
+      const attestationPresente = norm.cee.attestationHonneurPresente === true;
       checks.push({
         id: 'check_41',
         categorie: 'audit',
@@ -2531,9 +2678,9 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
 
       // Si attestation présente, vérifier les surfaces
       if (attestationPresente) {
-        const surfacesAttestation = extracted.cee?.surfacesBatiments || [];
-        const surfacesAudit = extracted.audit?.surfaces || [];
-        const surfaceSynthese = extracted.synthese?.surfaceEclairee || '';
+        const surfacesAttestation = norm.cee.surfacesBatiments || [];
+        const surfacesAudit = firstAudit.surfaces || [];
+        const surfaceSynthese = firstSynthese.surfaceEclairee || '';
 
         // Fonction pour calculer la somme des surfaces
         const sumSurfaces = (surfaces) => {
