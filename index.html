@@ -1641,16 +1641,28 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
             console.log(`✅ ${extracted.adresses.length} adresse(s) de chantier trouvée(s) (brut):`, extracted.adresses);
 
             // Nettoyer les adresses : supprimer mentions "BAT X", "Bâtiment X" etc.
-            const cleanedAddresses = extracted.adresses.map(addr => {
+            const addressPairs = extracted.adresses.map(addr => {
               // Supprimer les patterns : BAT 1, Bat 2, Bâtiment 3, BATIMENT 4, etc.
-              return addr.replace(/\s*-?\s*(BAT|Bat|bât|bat|BATIMENT|Batiment|Bâtiment|bâtiment)\s*\d+\s*/gi, ' ').trim();
+              const cleaned = addr.replace(/\s*-?\s*(BAT|Bat|bât|bat|BATIMENT|Batiment|Bâtiment|bâtiment)\s*\d+\s*/gi, ' ').trim();
+              return {
+                original: cleaned,
+                normalized: cleaned.toLowerCase() // Normaliser pour déduplication insensible à la casse
+              };
             });
 
-            console.log('✅ Adresses nettoyées:', cleanedAddresses);
+            console.log('✅ Adresses nettoyées (paires original/normalized):', addressPairs);
 
-            // Dédupliquer les adresses (même adresse = même chantier, même avec plusieurs bâtiments)
-            const uniqueAddresses = [...new Set(cleanedAddresses)];
-            console.log(`✅ ${uniqueAddresses.length} chantier(s) unique(s) après déduplication:`, uniqueAddresses);
+            // Dédupliquer par adresse normalisée (insensible à la casse)
+            // Garder la première occurrence (adresse originale) pour l'affichage
+            const uniqueMap = new Map();
+            addressPairs.forEach(pair => {
+              if (!uniqueMap.has(pair.normalized)) {
+                uniqueMap.set(pair.normalized, pair.original);
+              }
+            });
+
+            const uniqueAddresses = Array.from(uniqueMap.values());
+            console.log(`✅ ${uniqueAddresses.length} chantier(s) unique(s) après déduplication (insensible casse):`, uniqueAddresses);
 
             state.chantiers = uniqueAddresses.map(adresse => ({
               adresse: adresse,
