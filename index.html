@@ -2609,6 +2609,10 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
       const firstAudit = getFirstAudit(norm);
       const firstSynthese = getFirstSynthese(norm);
 
+      // Déterminer le nombre de chantiers et le suffixe pour les localisations
+      const nbChantiers = norm.cee?.attestations?.length || norm.audits.length || 1;
+      const chantierSuffix = nbChantiers > 1 ? ' (chantier 1)' : '';
+
       // Log détaillé des données extraites pour debug
       console.log('\n=== DONNÉES EXTRAITES PAR CLAUDE ===');
       console.log('Audits extraits:', norm.audits.length);
@@ -2746,9 +2750,6 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
       });
 
       // ========== SYNTHÈSE - Page de garde (4-8) ==========
-
-      // Déterminer le suffixe pour les checks utilisant firstSynthese/firstAudit
-      const chantierSuffix = nbChantiers > 1 ? ' (chantier 1)' : '';
 
       // Check 4 : Nom entreprise Synthèse
       const nomSyntheseOk = compareStrings(firstSynthese.nom, references.nom);
@@ -3058,7 +3059,6 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
       });
 
       // Check 19 : Désactivé en multi-chantiers (déjà vérifié par checks globaux)
-      const nbChantiers = norm.cee?.attestations?.length || norm.audits.length || 1;
       if (nbChantiers === 1) {
         const totalLedInitialOk = compareStrings(firstSynthese.totalLedInitial, references.totalLed);
         checks.push({
