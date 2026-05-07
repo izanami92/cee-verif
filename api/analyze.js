@@ -146,6 +146,26 @@ RÈGLE MULTI-CHANTIERS (TRÈS IMPORTANT) :
 - Pour matcher Audit ↔ Synthèse : comparer l'ADRESSE (même adresse = même chantier)
 - Extraire CHAQUE audit et CHAQUE synthèse séparément avec leur adresse et leur total LED
 
+EXTRACTION AUDIT (LOCALISATION PRÉCISE) :
+- "nom" : page 1, en-tête en haut (nom client/société)
+- "adresse" : page 1, en-tête en haut (adresse complète du chantier)
+- "date" : page 1, en-tête en haut (date de l'audit)
+- "siret" : page "Description" > "SIRET" (14 chiffres sans espaces)
+- "surfaces" : page "Description" > section "Observations préliminaires" > tableau des surfaces (toutes les valeurs en m²)
+- "ledTotal" : page "Liste des luminaires" > colonne "Pce" > TOTAL (somme en bas du tableau) OU page "Description" > "Etat initial : nombre" OU "Etat projeté : nombre"
+- "profilUtilisation" : page "Description" > "Profil d'utilisation" ou similaire
+
+EXTRACTION SYNTHÈSE (LOCALISATION PRÉCISE) :
+- "nom" : page 1, en haut (nom du client/société)
+- "adresse" : page "Fiche d'identité du site" > "Adresse"
+- "date" : page 1, en haut (date du document)
+- "ledTotal" : page "Inventaire du projet" > TOTAL des luminaires (ligne de total en bas du tableau)
+- "surfaceEclairee" : page "Fiche d'identité du site" > "Surface éclairée"
+- "secteurActivite" : page "Fiche d'identité du site" > "Secteur d'activité" OU "Type de bâtiment"
+- "profilUtilisation" : chercher dans tout le document les mentions de profil/type d'utilisation
+- "thd" : page "Caractéristiques des luminaires" > "Taux de distorsion harmonique" ou "THD"
+- "referenceProduit" : page "Caractéristiques des luminaires" > "Référence" ou "Modèle"
+
 RÈGLES D'EXTRACTION CRITIQUES :
 
 1. NOMBRES (LED, surfaces, etc.) :
