@@ -770,6 +770,7 @@
 
     .error-group.bloquant { border-left-color: var(--color-bloquant); }
     .error-group.majeur { border-left-color: var(--color-majeur); }
+    .error-group.ok { border-left-color: var(--color-conforme); }
 
     .error-group-header {
       padding: var(--spacing-lg);
@@ -796,6 +797,7 @@
 
     .error-group-badge.bloquant { background: #fee; color: var(--color-bloquant); }
     .error-group-badge.majeur { background: #fef3c7; color: #92400e; }
+    .error-group-badge.ok { background: #dcfce7; color: #166534; }
 
     .error-group-content {
       flex: 1;
@@ -2591,9 +2593,9 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
     let currentChecks = [];
     let activeFilter = null; // null, 'bloquant', 'majeur', 'conforme'
 
-    // Regroupe les erreurs similaires par document
+    // Regroupe les erreurs et conformes similaires par document
     function groupSimilarErrors(checks) {
-      // Ne regrouper que les erreurs (pas les conformes ni les infos)
+      // Regrouper les erreurs ET les conformes
       const errors = checks.filter(c => c.niveau === 'bloquant' || c.niveau === 'majeur');
       const conformes = checks.filter(c => c.niveau === 'ok' || c.niveau === 'info');
 
@@ -2655,12 +2657,65 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
         return !groupedCheckKeys.has(key);
       });
 
-      return { groups, individualChecks, conformes };
+      // Même logique pour les conformes
+      const conformeGroupMap = new Map();
+
+      conformes.forEach(check => {
+        let document = 'Autre';
+        const loc = (check.localisation || check.champ || '').toLowerCase();
+        if (loc.includes('audit')) document = 'Audit';
+        else if (loc.includes('synthèse') || loc.includes('synthese')) document = 'Synthèse';
+        else if (loc.includes('cee') || loc.includes('dossier')) document = 'Dossier CEE';
+        else if (loc.includes('fiche technique')) document = 'Fiche Technique';
+
+        const key = `${document}::${check.valeur_trouvee || check.valeur_attendue}`;
+
+        if (!conformeGroupMap.has(key)) {
+          conformeGroupMap.set(key, {
+            document,
+            niveau: 'ok',
+            valeur: check.valeur_trouvee || check.valeur_attendue,
+            occurrences: []
+          });
+        }
+
+        conformeGroupMap.get(key).occurrences.push({
+          champ: check.champ,
+          localisation: check.localisation,
+          detail: check.detail,
+          categorie: check.categorie
+        });
+      });
+
+      const conformeGroups = Array.from(conformeGroupMap.values()).filter(g => g.occurrences.length > 1);
+
+      const groupedConformeKeys = new Set();
+      conformeGroups.forEach(group => {
+        group.occurrences.forEach(occ => {
+          const key = `${group.document}::${occ.champ}::${group.valeur}`;
+          groupedConformeKeys.add(key);
+        });
+      });
+
+      const individualConformes = conformes.filter(check => {
+        let document = 'Autre';
+        const loc = (check.localisation || check.champ || '').toLowerCase();
+        if (loc.includes('audit')) document = 'Audit';
+        else if (loc.includes('synthèse') || loc.includes('synthese')) document = 'Synthèse';
+        else if (loc.includes('cee') || loc.includes('dossier')) document = 'Dossier CEE';
+        else if (loc.includes('fiche technique')) document = 'Fiche Technique';
+
+        const key = `${document}::${check.champ}::${check.valeur_trouvee || check.valeur_attendue}`;
+        return !groupedConformeKeys.has(key);
+      });
+
+      return { groups, individualChecks, conformeGroups, individualConformes };
     }
 
-    // Crée le HTML d'un groupe d'erreurs
+    // Crée le HTML d'un groupe d'erreurs ou conformes
     function createErrorGroupCard(group) {
-      const badgeText = group.niveau === 'bloquant' ? 'Bloquant' : 'Majeur';
+      const isConforme = group.niveau === 'ok';
+      const badgeText = isConforme ? 'Conforme' : (group.niveau === 'bloquant' ? 'Bloquant' : 'Majeur');
       const count = group.occurrences.length;
       const locations = group.occurrences.map(o => o.champ).join(', ');
 
@@ -2671,6 +2726,15 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
         </div>
       `).join('');
 
+      const summaryHTML = isConforme
+        ? `<div class="error-group-summary">Valeur conforme: <strong>${group.valeur || 'N/A'}</strong></div>`
+        : `<div class="error-group-summary">
+             Attendu: <strong>${group.valeur_attendue || 'N/A'}</strong> |
+             Trouvé: <strong>${group.valeur_trouvee || 'N/A'}</strong>
+           </div>`;
+
+      const titleText = isConforme ? 'Valeurs conformes' : 'Valeur incorrecte';
+
       return `
         <div class="error-group ${group.niveau}" data-niveau="${group.niveau}">
           <div class="error-group-header" onclick="this.parentElement.classList.toggle('expanded')">
@@ -2679,12 +2743,9 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
               <div class="error-group-title">
                 <span class="error-group-document">📄 ${group.document}</span>
                 <span>—</span>
-                <span>Valeur incorrecte</span>
+                <span>${titleText}</span>
               </div>
-              <div class="error-group-summary">
-                Attendu: <strong>${group.valeur_attendue || 'N/A'}</strong> |
-                Trouvé: <strong>${group.valeur_trouvee || 'N/A'}</strong>
-              </div>
+              ${summaryHTML}
               <div class="error-group-count">
                 ${count} occurrence${count > 1 ? 's' : ''} : ${locations}
               </div>
@@ -2702,7 +2763,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
 
     // Affiche les checks avec regroupement
     function renderChecksWithGroups(checks, container) {
-      const { groups, individualChecks, conformes } = groupSimilarErrors(checks);
+      const { groups, individualChecks, conformeGroups, individualConformes } = groupSimilarErrors(checks);
 
       // Trier par gravité : bloquants d'abord
       const sortByGravity = (a, b) => {
@@ -2720,9 +2781,10 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
 
       const groupsHTML = groups.map(g => createErrorGroupCard(g)).join('');
       const individualsHTML = individualChecks.map(c => createCheckCard(c)).join('');
-      const conformesHTML = conformes.map(c => createCheckCard(c)).join('');
+      const conformeGroupsHTML = conformeGroups.map(g => createErrorGroupCard(g)).join('');
+      const conformesHTML = individualConformes.map(c => createCheckCard(c)).join('');
 
-      container.innerHTML = groupsHTML + individualsHTML + conformesHTML;
+      container.innerHTML = groupsHTML + individualsHTML + conformeGroupsHTML + conformesHTML;
     }
 
     // Fonction de filtrage par niveau
@@ -2735,7 +2797,11 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
         // Activer le filtre
         activeFilter = niveau;
         document.querySelectorAll('.counter').forEach(c => c.classList.remove('active'));
-        document.querySelector(`.counter.${niveau}`).classList.add('active');
+
+        // Mapping niveau → classe CSS
+        const cssClass = niveau === 'ok' ? 'conforme' : niveau;
+        const counterElement = document.querySelector(`.counter.${cssClass}`);
+        if (counterElement) counterElement.classList.add('active');
       }
 
       // Réafficher avec ou sans filtre
