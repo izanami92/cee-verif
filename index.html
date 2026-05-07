@@ -3442,20 +3442,17 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
               });
             } else {
               const sommeSyntheseMatch = Math.abs(sommeAttestationTotale - surfaceSyntheseNum) < 1; // Tolérance 1 m²
-              const detailAttestation = nbAttestations > 1 ?
-                `${nbAttestations} attestations groupées (même adresse)` :
-                'Attestation unique';
 
               checks.push({
                 id: `check_44_${chantierIndex}`,
                 categorie: 'synthese',
                 niveau: sommeSyntheseMatch ? 'ok' : 'majeur',
-                champ: `Surface Synthèse = Somme attestations${chantierLabel}`,
-                localisation: `Synthèse fiche identité vs Total attestations honneur (${detailAttestation})`,
+                champ: `Surface Synthèse = Somme attestation${chantierLabel}`,
+                localisation: `Synthèse fiche identité vs Attestation honneur chantier ${chantierIndex + 1}`,
                 detail: sommeSyntheseMatch ?
-                  `Surface Synthèse cohérente avec attestations : ${sommeAttestationTotale} m²` :
-                  `Surface Synthèse (${surfaceSyntheseNum} m²) différente des attestations (${sommeAttestationTotale} m²). ${detailAttestation}.`,
-                valeur_attendue: surfacesAttestationGroupees.join(' + ') + ' = ' + sommeAttestationTotale.toString() + ' m²',
+                  `Surface Synthèse cohérente avec attestation : ${sommeAttestationTotale} m²` :
+                  `Surface Synthèse (${surfaceSyntheseNum} m²) différente de l'attestation (${sommeAttestationTotale} m²)`,
+                valeur_attendue: surfacesAttestation.join(' + ') + ' = ' + sommeAttestationTotale.toString() + ' m²',
                 valeur_trouvee: surfaceSyntheseNum.toString() + ' m²'
               });
             }
