@@ -2730,14 +2730,6 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
 
       // ========== VÉRIFICATIONS ATTESTATIONS SUR L'HONNEUR + SURFACES ==========
 
-      // Fonction pour calculer la somme des surfaces
-      const sumSurfaces = (surfaces) => {
-        return surfaces
-          .map(s => parseFloat(String(s).replace(/\s+/g, '').replace(/m²/g, '').replace(/,/g, '.')))
-          .filter(n => !isNaN(n))
-          .reduce((sum, n) => sum + n, 0);
-      };
-
       // Check 41 : Attestation(s) sur l'honneur présente(s) (check manuel si absente)
       const attestations = norm.cee?.attestations || [];
       const attestationsPresentes = attestations.length > 0;
