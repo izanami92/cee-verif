@@ -2561,34 +2561,34 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
             valeur_trouvee: 'Non trouvées'
           });
         } else {
-          // Check 42 : Surfaces individuelles cohérentes
+          // Check 42 : Surfaces Audit = Surfaces attestations (attestations = référence)
           const surfacesListMatch = JSON.stringify(surfacesAttestation.sort()) === JSON.stringify(surfacesAudit.sort());
           checks.push({
             id: 'check_42',
             categorie: 'audit',
             niveau: surfacesListMatch ? 'ok' : 'majeur',
-            champ: 'Surfaces bâtiments attestations vs Audit',
-            localisation: 'Attestations honneur + Audit observations préliminaires',
+            champ: 'Surfaces Audit = Surfaces attestations',
+            localisation: 'Audit observations préliminaires vs Attestations honneur (référence)',
             detail: surfacesListMatch ?
-              'Surfaces individuelles cohérentes' :
-              'Surfaces individuelles différentes entre attestations et audit',
-            valeur_attendue: surfacesAudit.join(', ') + ' m²',
-            valeur_trouvee: surfacesAttestation.join(', ') + ' m²'
+              'Surfaces individuelles cohérentes avec attestations' :
+              'Surfaces Audit différentes des attestations (référence)',
+            valeur_attendue: surfacesAttestation.join(', ') + ' m²',  // Référence = attestations
+            valeur_trouvee: surfacesAudit.join(', ') + ' m²'           // Trouvé = audit
           });
 
-          // Check 43 : Somme surfaces attestations = somme surfaces audit
+          // Check 43 : Somme Audit = Somme attestations (attestations = référence)
           const sommesAuditMatch = Math.abs(sommeAttestation - sommeAudit) < 1; // Tolérance 1 m²
           checks.push({
             id: 'check_43',
             categorie: 'audit',
             niveau: sommesAuditMatch ? 'ok' : 'majeur',
-            champ: 'Somme surfaces attestations = Somme surfaces Audit',
-            localisation: 'Total attestations honneur vs total Audit observations préliminaires',
+            champ: 'Somme surfaces Audit = Somme attestations',
+            localisation: 'Total Audit observations préliminaires vs Total attestations honneur (référence)',
             detail: sommesAuditMatch ?
-              `Sommes cohérentes : ${sommeAttestation} m²` :
-              `Sommes différentes : attestations ${sommeAttestation} m² vs audit ${sommeAudit} m²`,
-            valeur_attendue: sommeAudit.toString() + ' m²',
-            valeur_trouvee: sommeAttestation.toString() + ' m²'
+              `Somme Audit cohérente avec attestations : ${sommeAttestation} m²` :
+              `Somme Audit (${sommeAudit} m²) différente des attestations (${sommeAttestation} m²)`,
+            valeur_attendue: sommeAttestation.toString() + ' m²',  // Référence = attestations
+            valeur_trouvee: sommeAudit.toString() + ' m²'           // Trouvé = audit
           });
         }
 
@@ -2611,13 +2611,13 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
             id: 'check_44',
             categorie: 'synthese',
             niveau: sommeSyntheseMatch ? 'ok' : 'majeur',
-            champ: 'Somme surfaces attestations = Surface éclairée Synthèse',
-            localisation: 'Total attestations honneur vs Synthèse fiche identité surface éclairée',
+            champ: 'Surface Synthèse = Somme attestations',
+            localisation: 'Synthèse fiche identité surface éclairée vs Total attestations honneur (référence)',
             detail: sommeSyntheseMatch ?
-              `Surface cohérente : ${sommeAttestation} m²` :
-              `Surfaces différentes : attestations ${sommeAttestation} m² vs synthèse ${surfaceSyntheseNum} m²`,
-            valeur_attendue: surfaceSyntheseNum.toString() + ' m²',
-            valeur_trouvee: sommeAttestation.toString() + ' m²'
+              `Surface Synthèse cohérente avec attestations : ${sommeAttestation} m²` :
+              `Surface Synthèse (${surfaceSyntheseNum} m²) différente des attestations (${sommeAttestation} m²)`,
+            valeur_attendue: sommeAttestation.toString() + ' m²',  // Référence = attestations
+            valeur_trouvee: surfaceSyntheseNum.toString() + ' m²'   // Trouvé = synthèse
           });
         }
       }
