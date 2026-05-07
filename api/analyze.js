@@ -152,8 +152,8 @@ Tu DOIS vérifier TOUS les points suivants à CHAQUE analyse, sans exception.
 Tu dois retourner EXACTEMENT 40 checks (un par point) avec le niveau approprié (bloquant/majeur/ok/info).
 
 🔴 BLOQUANTS - AUDIT Page de garde (1-3)
-1. Nom entreprise (Audit page 1) = Nom entreprise CEE = Nom entreprise officiel gouv
-2. Adresse chantier (Audit page 1) = Adresse chantier CEE (numéro + rue + CP + ville) EXACTEMENT
+1. Nom entreprise (Audit page 1) = Nom entreprise CEE = Nom entreprise officiel gouv. ATTENTION : orthographe exacte des noms propres (ex: Coppin ≠ Coopin)
+2. Adresse chantier (Audit page 1) = Adresse chantier CEE. Composants obligatoires : numéro + rue + CP + ville. Ordre CP/Ville flexible. Mention "France" optionnelle
 3. Date audit (Audit page 1) = Date proposition = Date prévisite CEE - FORMAT JJ/MM/AAAA OBLIGATOIRE (pas MM/JJ/AAAA)
 
 🟡 SYNTHÈSE - Page de garde (4-8)
@@ -189,10 +189,10 @@ Tu dois retourner EXACTEMENT 40 checks (un par point) avec le niveau approprié 
 23. Activité 2e tableau (Synthèse état projeté) = Secteur sur CEE
 
 🟡 AUDIT - Description (24-29)
-24. Site (Audit description) = Client = Nom entreprise CEE = Nom entreprise officiel gouv
-25. Adresse (Audit description) = Adresse chantier CEE
+24. Site (Audit description) = Client = Nom entreprise CEE = Nom entreprise officiel gouv. ATTENTION : orthographe exacte des noms propres
+25. Adresse (Audit description) = Adresse chantier CEE. Ordre CP/Ville flexible, mention "France" optionnelle
 26. SIRET (Audit description) = SIRET CEE = SIRET officiel gouv
-27. Surface (Audit description) = Surface éclairée Synthèse fiche identité
+27. Surface (Audit description observations préliminaires) = Surface éclairée Synthèse + Surfaces attestation honneur CEE (si présente). Si plusieurs surfaces dans Audit → ADDITIONNER avant de comparer
 28. État initial nombre (Audit description) = Nombre LED chantier CEE
 29. État projeté nombre (Audit description) = État initial = Nombre LED chantier CEE
 
@@ -269,20 +269,34 @@ IMPORTANT - RETOUR DE TOUS LES 40 CHECKS OBLIGATOIRES :
 RÈGLES STRICTES DE COMPARAISON :
 1. **MAJUSCULES/MINUSCULES** : TOUJOURS IGNORER LA CASSE
    - "ENTREPÔT" = "Entrepôt" = "entrepôt" → IDENTIQUE (niveau: "ok")
-   - "COMMERCE" = "commerce" → IDENTIQUE (niveau: "ok")
-   - Ne JAMAIS signaler d'erreur uniquement pour une différence de casse
+   - ⚠️ EXCEPTION : L'ORTHOGRAPHE DES NOMS PROPRES (noms de personnes) DOIT ÊTRE EXACTE
+   - "Coppin" ≠ "Coopin" → ERREUR (faute d'orthographe)
+   - Mais "COPPIN" = "Coppin" = "coppin" → IDENTIQUE (casse ignorée)
 
-2. **DATES** : Format JJ/MM/AAAA OBLIGATOIRE + chiffres identiques
+2. **ADRESSES** : Vérifier les composants, pas l'ordre exact
+   - Composants obligatoires : numéro + rue + code postal + ville
+   - "541 RUE SAINT-JEAN 60130 NOROY" = "541 rue saint-jean, 60130 noroy, france" → IDENTIQUE
+   - Ordre CP/Ville flexible : "60130 NOROY" = "NOROY 60130" → IDENTIQUE
+   - Mention "France" optionnelle (pas d'erreur si présente ou absente)
+   - Ignorer virgules, espaces multiples, tirets
+   - Vérifier que tous les composants essentiels sont présents
+
+3. **DATES** : Format JJ/MM/AAAA OBLIGATOIRE + chiffres identiques
    - Format attendu : JJ/MM/AAAA (français) - exemple : 24/11/2025
    - "24/11/2025" = "24/11/2025" → IDENTIQUE (niveau: "ok")
    - "11/24/2025" ≠ "24/11/2025" → ERREUR (format américain MM/JJ/AAAA)
-   - Ignorer les espaces avant/après
    - Les dates doivent être identiques chiffre par chiffre ET au format JJ/MM/AAAA
    - ⚠️ ERREUR BLOQUANTE sur page de garde Audit (points 3, 5) si format incorrect
 
-3. **ESPACES ET PONCTUATION** : Normaliser avant de comparer
-   - "1 rue de la Paix" = "1  rue de la Paix" (double espace) → IDENTIQUE si même contenu
-   - Ignorer les espaces en début/fin de texte
+4. **SURFACES MULTIPLES** : ADDITIONNER avant de comparer
+   - Si plusieurs surfaces dans l'Audit → FAIRE L'ADDITION
+   - Exemple : "850 m² 456 m²" → 850 + 456 = 1306 m²
+   - Puis comparer avec le total attendu : 1306 ≠ 1277 → ERREUR
+   - Surfaces par bâtiment : comparer avec attestation sur l'honneur CEE si présente
+
+5. **ESPACES ET PONCTUATION** : Normaliser avant de comparer
+   - "1 rue de la Paix" = "1  rue de la Paix" (double espace) → IDENTIQUE
+   - Ignorer espaces multiples, virgules superflues
 
 4. **CONTACTS SYNTHÈSE (points 6, 7, 8)** : OPTIONNELS
    - Si email/téléphone/contact non présent dans la Synthèse → niveau "info" (PAS "majeur")
