@@ -1638,19 +1638,32 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
 
     // Normaliser une chaîne : minuscules, espaces nettoyés, trim
     // Normaliser une chaîne : minuscules, espaces nettoyés, trim, Unicode normalisé
+    // Normaliser une chaîne : minuscules, espaces, accents supprimés
     function normalize(str) {
       if (!str) return '';
 
-      const strVal = String(str).trim();
+      let strVal = String(str).trim();
 
-      // Traiter "null" (string) comme vide
+      // Traiter "null" comme vide
       if (strVal.toLowerCase() === 'null' || strVal.toLowerCase() === 'undefined') return '';
 
+      // Remplacer TOUS les caractères accentués directement
+      const accents = {
+        'à':'a', 'á':'a', 'â':'a', 'ã':'a', 'ä':'a', 'å':'a',
+        'è':'e', 'é':'e', 'ê':'e', 'ë':'e',
+        'ì':'i', 'í':'i', 'î':'i', 'ï':'i',
+        'ò':'o', 'ó':'o', 'ô':'o', 'õ':'o', 'ö':'o',
+        'ù':'u', 'ú':'u', 'û':'u', 'ü':'u',
+        'ñ':'n', 'ç':'c', 'ÿ':'y'
+      };
+
+      strVal = strVal.toLowerCase();
+      for (let accent in accents) {
+        strVal = strVal.replace(new RegExp(accent, 'g'), accents[accent]);
+      }
+
       const normalized = strVal
-        .normalize('NFD')           // Décomposer Unicode
-        .replace(/[\u0300-\u036f]/g, '')  // Supprimer accents
-        .toLowerCase()
-        .replace(/\s+/g, ' ')       // Espaces multiples → 1 espace
+        .replace(/\s+/g, ' ')  // Espaces multiples → 1 espace
         .trim();
 
       return normalized;
