@@ -3048,17 +3048,21 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
         valeur_trouvee: ''
       });
 
-      const totalLedInitialOk = compareStrings(firstSynthese.totalLedInitial, references.totalLed);
-      checks.push({
-        id: 'check_19',
-        categorie: 'synthese',
-        niveau: totalLedInitialOk ? 'ok' : 'majeur',
-        champ: 'TOTAL LED état initial Synthèse',
-        localisation: 'Synthèse, inventaire état initial',
-        detail: totalLedInitialOk ? 'Total LED initial conforme' : 'Total LED initial différent',
-        valeur_attendue: references.totalLed || '',
-        valeur_trouvee: firstSynthese.totalLedInitial || ''
-      });
+      // Check 19 : Désactivé en multi-chantiers (déjà vérifié par checks globaux)
+      const nbChantiers = norm.cee?.attestations?.length || norm.audits.length || 1;
+      if (nbChantiers === 1) {
+        const totalLedInitialOk = compareStrings(firstSynthese.totalLedInitial, references.totalLed);
+        checks.push({
+          id: 'check_19',
+          categorie: 'synthese',
+          niveau: totalLedInitialOk ? 'ok' : 'majeur',
+          champ: 'TOTAL LED état initial Synthèse',
+          localisation: 'Synthèse, inventaire état initial',
+          detail: totalLedInitialOk ? 'Total LED initial conforme' : 'Total LED initial différent',
+          valeur_attendue: references.totalLed || '',
+          valeur_trouvee: firstSynthese.totalLedInitial || ''
+        });
+      }
 
       // ========== SYNTHÈSE - Indicateurs éclairage initial (20) ==========
       checks.push({
@@ -3073,17 +3077,20 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
       });
 
       // ========== SYNTHÈSE - Inventaire état projeté (21-23) ==========
-      const totalLedProjeteOk = compareStrings(firstSynthese.totalLedProjete, references.totalLed);
-      checks.push({
-        id: 'check_21',
-        categorie: 'synthese',
-        niveau: totalLedProjeteOk ? 'ok' : 'majeur',
-        champ: 'TOTAL LED état projeté Synthèse',
-        localisation: 'Synthèse, inventaire état projeté',
-        detail: totalLedProjeteOk ? 'Total LED projeté conforme' : 'Total LED projeté différent',
-        valeur_attendue: references.totalLed || '',
-        valeur_trouvee: firstSynthese.totalLedProjete || ''
-      });
+      // Check 21 : Désactivé en multi-chantiers (déjà vérifié par checks globaux)
+      if (nbChantiers === 1) {
+        const totalLedProjeteOk = compareStrings(firstSynthese.totalLedProjete, references.totalLed);
+        checks.push({
+          id: 'check_21',
+          categorie: 'synthese',
+          niveau: totalLedProjeteOk ? 'ok' : 'majeur',
+          champ: 'TOTAL LED état projeté Synthèse',
+          localisation: 'Synthèse, inventaire état projeté',
+          detail: totalLedProjeteOk ? 'Total LED projeté conforme' : 'Total LED projeté différent',
+          valeur_attendue: references.totalLed || '',
+          valeur_trouvee: firstSynthese.totalLedProjete || ''
+        });
+      }
 
       checks.push({
         id: 'check_22',
@@ -3096,16 +3103,19 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
         valeur_trouvee: ''
       });
 
-      checks.push({
-        id: 'check_23',
-        categorie: 'synthese',
-        niveau: compareStrings(firstSynthese.activiteBatiment, references.typeLocal) ? 'ok' : 'majeur',
-        champ: 'Activité bâtiment état projeté (2e tableau)',
-        localisation: 'Synthèse, inventaire état projeté',
-        detail: 'Vérification activité bâtiment',
-        valeur_attendue: references.typeLocal || '',
-        valeur_trouvee: firstSynthese.activiteBatiment || ''
-      });
+      // Check 23 : Désactivé en multi-chantiers (déjà vérifié par checks mentions agricoles)
+      if (nbChantiers === 1) {
+        checks.push({
+          id: 'check_23',
+          categorie: 'synthese',
+          niveau: compareStrings(firstSynthese.activiteBatiment, references.typeLocal) ? 'ok' : 'majeur',
+          champ: 'Activité bâtiment état projeté (2e tableau)',
+          localisation: 'Synthèse, inventaire état projeté',
+          detail: 'Vérification activité bâtiment',
+          valeur_attendue: references.typeLocal || '',
+          valeur_trouvee: firstSynthese.activiteBatiment || ''
+        });
+      }
 
       // ========== AUDIT - Page description (24-29) ==========
       checks.push({
@@ -3119,16 +3129,19 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
         valeur_trouvee: firstAudit.nom || ''
       });
 
-      checks.push({
-        id: 'check_25',
-        categorie: 'audit',
-        niveau: compareAddress(firstAudit.adresse, references.adresse) ? 'ok' : 'majeur',
-        champ: 'Adresse Audit description',
-        localisation: 'Audit, description',
-        detail: 'Vérification adresse',
-        valeur_attendue: references.adresse || '',
-        valeur_trouvee: firstAudit.adresse || ''
-      });
+      // Check 25 : Désactivé en multi-chantiers (references.adresse vide, déjà vérifié par checks par-chantier)
+      if (nbChantiers === 1) {
+        checks.push({
+          id: 'check_25',
+          categorie: 'audit',
+          niveau: compareAddress(firstAudit.adresse, references.adresse) ? 'ok' : 'majeur',
+          champ: 'Adresse Audit description',
+          localisation: 'Audit, description',
+          detail: 'Vérification adresse',
+          valeur_attendue: references.adresse || '',
+          valeur_trouvee: firstAudit.adresse || ''
+        });
+      }
 
       checks.push({
         id: 'check_26',
@@ -3156,44 +3169,48 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
         valeur_trouvee: firstAudit.surfaces ? firstAudit.surfaces.join(' + ') : ''
       });
 
-      // Check 28 : État initial nombre LED
-      const ledInitialOk = compareStrings(firstAudit.ledInitial, references.totalLed);
-      checks.push({
-        id: 'check_28',
-        categorie: 'audit',
-        niveau: ledInitialOk ? 'ok' : 'majeur',
-        champ: 'État initial nombre LED Audit',
-        localisation: 'Audit, description',
-        detail: ledInitialOk ? 'Nombre LED initial conforme' : 'Nombre LED initial différent',
-        valeur_attendue: references.totalLed || '',
-        valeur_trouvee: firstAudit.ledInitial || ''
-      });
+      // Check 28-29 : Désactivés en multi-chantiers (déjà vérifiés par checks globaux)
+      if (nbChantiers === 1) {
+        const ledInitialOk = compareStrings(firstAudit.ledInitial, references.totalLed);
+        checks.push({
+          id: 'check_28',
+          categorie: 'audit',
+          niveau: ledInitialOk ? 'ok' : 'majeur',
+          champ: 'État initial nombre LED Audit',
+          localisation: 'Audit, description',
+          detail: ledInitialOk ? 'Nombre LED initial conforme' : 'Nombre LED initial différent',
+          valeur_attendue: references.totalLed || '',
+          valeur_trouvee: firstAudit.ledInitial || ''
+        });
 
-      // Check 29 : État projeté nombre LED
-      const ledFinalOk = compareStrings(firstAudit.ledFinal, references.totalLed);
-      checks.push({
-        id: 'check_29',
-        categorie: 'audit',
-        niveau: ledFinalOk ? 'ok' : 'majeur',
-        champ: 'État projeté nombre LED Audit',
-        localisation: 'Audit, description',
-        detail: ledFinalOk ? 'Nombre LED projeté conforme' : 'Nombre LED projeté différent',
-        valeur_attendue: references.totalLed || '',
-        valeur_trouvee: firstAudit.ledFinal || ''
-      });
+        const ledFinalOk = compareStrings(firstAudit.ledFinal, references.totalLed);
+        checks.push({
+          id: 'check_29',
+          categorie: 'audit',
+          niveau: ledFinalOk ? 'ok' : 'majeur',
+          champ: 'État projeté nombre LED Audit',
+          localisation: 'Audit, description',
+          detail: ledFinalOk ? 'Nombre LED projeté conforme' : 'Nombre LED projeté différent',
+          valeur_attendue: references.totalLed || '',
+          valeur_trouvee: firstAudit.ledFinal || ''
+        });
+      }
 
       // ========== AUDIT - Liste luminaires (30) ==========
-      const pceLuminairesOk = compareStrings(firstAudit.pceLuminaires, references.totalLed);
-      checks.push({
-        id: 'check_30',
-        categorie: 'audit',
-        niveau: pceLuminairesOk ? 'ok' : 'majeur',
-        champ: 'Pce total liste luminaires Audit',
-        localisation: 'Audit, liste des luminaires',
-        detail: pceLuminairesOk ? 'Total pce conforme' : 'Total pce différent',
-        valeur_attendue: references.totalLed || '',
-        valeur_trouvee: firstAudit.pceLuminaires || ''
-      });
+      // Check 30 : Désactivé en multi-chantiers (déjà vérifié par checks globaux)
+      if (nbChantiers === 1) {
+        const pceLuminairesOk = compareStrings(firstAudit.pceLuminaires, references.totalLed);
+        checks.push({
+          id: 'check_30',
+          categorie: 'audit',
+          niveau: pceLuminairesOk ? 'ok' : 'majeur',
+          champ: 'Pce total liste luminaires Audit',
+          localisation: 'Audit, liste des luminaires',
+          detail: pceLuminairesOk ? 'Total pce conforme' : 'Total pce différent',
+          valeur_attendue: references.totalLed || '',
+          valeur_trouvee: firstAudit.pceLuminaires || ''
+        });
+      }
 
       // ========== MENTIONS AGRICOLES (31-34) ==========
       const mentionsAgri = checkMentionsAgricoles(extracted, references.nom);
