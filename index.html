@@ -2747,6 +2747,9 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
 
       // ========== SYNTHÈSE - Page de garde (4-8) ==========
 
+      // Déterminer le suffixe pour les checks utilisant firstSynthese/firstAudit
+      const chantierSuffix = nbChantiers > 1 ? ' (chantier 1)' : '';
+
       // Check 4 : Nom entreprise Synthèse
       const nomSyntheseOk = compareStrings(firstSynthese.nom, references.nom);
       checks.push({
@@ -2754,7 +2757,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
         categorie: 'synthese',
         niveau: nomSyntheseOk ? 'ok' : 'majeur',
         champ: 'Nom entreprise Synthèse page 1',
-        localisation: 'Synthèse page 1, en-tête',
+        localisation: `Synthèse page 1, en-tête${chantierSuffix}`,
         detail: nomSyntheseOk ? 'Nom conforme' : 'Nom différent de la référence',
         valeur_attendue: references.nom || '',
         valeur_trouvee: firstSynthese.nom || ''
@@ -2768,7 +2771,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
         categorie: 'synthese',
         niveau: dateSyntheseOk ? 'ok' : 'majeur',
         champ: 'Date Synthèse page 1',
-        localisation: 'Synthèse page 1, en-tête',
+        localisation: `Synthèse page 1, en-tête${chantierSuffix}`,
         detail: dateSyntheseOk ? 'Date conforme (format JJ/MM/AAAA)' :
                 !isValidDateFormat(firstSynthese.date) ? 'Format de date incorrect' :
                 'Date différente de la référence',
@@ -2782,7 +2785,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
         categorie: 'synthese',
         niveau: firstSynthese.email ? 'ok' : 'info',
         champ: 'Email Synthèse page 1',
-        localisation: 'Synthèse page 1, contact client',
+        localisation: `Synthèse page 1, contact client${chantierSuffix}`,
         detail: firstSynthese.email ? 'Email présent' : 'Email non présent (optionnel)',
         valeur_attendue: '',
         valeur_trouvee: firstSynthese.email || 'Non présent'
@@ -2793,7 +2796,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
         categorie: 'synthese',
         niveau: firstSynthese.telephone ? 'ok' : 'info',
         champ: 'Téléphone Synthèse page 1',
-        localisation: 'Synthèse page 1, contact client',
+        localisation: `Synthèse page 1, contact client${chantierSuffix}`,
         detail: firstSynthese.telephone ? 'Téléphone présent' : 'Téléphone non présent (optionnel)',
         valeur_attendue: '',
         valeur_trouvee: firstSynthese.telephone || 'Non présent'
@@ -2804,7 +2807,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
         categorie: 'synthese',
         niveau: firstSynthese.contact ? 'ok' : 'info',
         champ: 'Contact nom/prénom Synthèse page 1',
-        localisation: 'Synthèse page 1, contact client',
+        localisation: `Synthèse page 1, contact client${chantierSuffix}`,
         detail: firstSynthese.contact ? 'Contact présent' : 'Contact non présent (optionnel)',
         valeur_attendue: '',
         valeur_trouvee: firstSynthese.contact || 'Non présent'
@@ -2882,7 +2885,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
         categorie: 'synthese',
         niveau: compareStrings(firstSynthese.nomClient, references.nom) ? 'ok' : 'majeur',
         champ: 'Client Synthèse fiche identité',
-        localisation: 'Synthèse, fiche identité du site',
+        localisation: `Synthèse, fiche identité du site${chantierSuffix}`,
         detail: 'Vérification nom client',
         valeur_attendue: references.nom || '',
         valeur_trouvee: firstSynthese.nomClient || ''
@@ -2893,7 +2896,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
         categorie: 'synthese',
         niveau: compareSIRET(firstSynthese.siret, references.siret) ? 'ok' : 'majeur',
         champ: 'SIRET Synthèse fiche identité',
-        localisation: 'Synthèse, fiche identité du site',
+        localisation: `Synthèse, fiche identité du site${chantierSuffix}`,
         detail: 'Vérification SIRET (14 chiffres)',
         valeur_attendue: references.siret || '',
         valeur_trouvee: firstSynthese.siret || ''
@@ -2914,7 +2917,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
         categorie: 'synthese',
         niveau: adresseSyntheseMatchCEE ? 'ok' : 'majeur',
         champ: 'Adresse chantier Synthèse fiche identité',
-        localisation: 'Synthèse, fiche identité du site',
+        localisation: `Synthèse, fiche identité du site${chantierSuffix}`,
         detail: adresseSyntheseMatchCEE ? 'Adresse correspond à un chantier du CEE' : 'Adresse ne correspond à aucune adresse du CEE',
         valeur_attendue: adresseCEECorrespondanteSynthese || adressesCEE12[0] || '',
         valeur_trouvee: firstSynthese.adresse || ''
@@ -2933,7 +2936,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
             categorie: 'synthese',
             niveau: 'majeur',
             champ: 'Numéro de rue Synthèse',
-            localisation: 'Synthèse, fiche identité du site',
+            localisation: `Synthèse, fiche identité du site${chantierSuffix}`,
             detail: 'Numéro de rue différent',
             valeur_attendue: ceeAddr.numero || 'Non spécifié',
             valeur_trouvee: syntheseAddr.numero || 'Non spécifié'
@@ -2948,7 +2951,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
             categorie: 'synthese',
             niveau: 'majeur',
             champ: 'Nom de rue Synthèse',
-            localisation: 'Synthèse, fiche identité du site',
+            localisation: `Synthèse, fiche identité du site${chantierSuffix}`,
             detail: 'Nom de rue différent',
             valeur_attendue: ceeAddr.rue || '',
             valeur_trouvee: syntheseAddr.rue || ''
@@ -2963,7 +2966,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
             categorie: 'synthese',
             niveau: 'majeur',
             champ: 'Code postal Synthèse',
-            localisation: 'Synthèse, fiche identité du site',
+            localisation: `Synthèse, fiche identité du site${chantierSuffix}`,
             detail: 'Code postal différent',
             valeur_attendue: ceeAddr.cp || '',
             valeur_trouvee: syntheseAddr.cp || ''
@@ -2978,7 +2981,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
             categorie: 'synthese',
             niveau: 'majeur',
             champ: 'Ville Synthèse',
-            localisation: 'Synthèse, fiche identité du site',
+            localisation: `Synthèse, fiche identité du site${chantierSuffix}`,
             detail: 'Ville différente',
             valeur_attendue: ceeAddr.ville || '',
             valeur_trouvee: syntheseAddr.ville || ''
@@ -2991,7 +2994,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
         categorie: 'synthese',
         niveau: 'info',
         champ: 'Surface éclairée Synthèse fiche identité',
-        localisation: 'Synthèse, fiche identité du site',
+        localisation: `Synthèse, fiche identité du site${chantierSuffix}`,
         detail: 'Vérification manuelle requise',
         valeur_attendue: '',
         valeur_trouvee: firstSynthese.surfaceEclairee || ''
@@ -3002,7 +3005,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
         categorie: 'synthese',
         niveau: compareStrings(firstSynthese.secteurActivite, references.typeLocal) ? 'ok' : 'majeur',
         champ: 'Secteur d\'activité Synthèse fiche identité',
-        localisation: 'Synthèse, fiche identité du site',
+        localisation: `Synthèse, fiche identité du site${chantierSuffix}`,
         detail: 'Vérification secteur d\'activité',
         valeur_attendue: references.typeLocal || '',
         valeur_trouvee: firstSynthese.secteurActivite || ''
@@ -3013,7 +3016,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
         categorie: 'synthese',
         niveau: compareStrings(firstSynthese.parcelles, references.parcelles) ? 'ok' : 'majeur',
         champ: 'Parcelles cadastrales Synthèse fiche identité',
-        localisation: 'Synthèse, fiche identité du site',
+        localisation: `Synthèse, fiche identité du site${chantierSuffix}`,
         detail: 'Vérification parcelles (format 000/0B/XXXX)',
         valeur_attendue: references.parcelles || '',
         valeur_trouvee: firstSynthese.parcelles || ''
@@ -3025,7 +3028,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
         categorie: 'synthese',
         niveau: compareStrings(firstSynthese.nomSite, references.nom) ? 'ok' : 'majeur',
         champ: 'Nom du site Synthèse périmètre',
-        localisation: 'Synthèse, périmètre de l\'étude',
+        localisation: `Synthèse, périmètre de l\'étude${chantierSuffix}`,
         detail: 'Vérification nom du site',
         valeur_attendue: references.nom || '',
         valeur_trouvee: firstSynthese.nomSite || ''
@@ -3036,7 +3039,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
         categorie: 'synthese',
         niveau: 'info',
         champ: 'Nombre de bâtiments Synthèse',
-        localisation: 'Synthèse, périmètre de l\'étude',
+        localisation: `Synthèse, périmètre de l\'étude${chantierSuffix}`,
         detail: 'Vérification manuelle requise',
         valeur_attendue: '',
         valeur_trouvee: firstSynthese.nombreBatiments || ''
@@ -3048,7 +3051,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
         categorie: 'synthese',
         niveau: 'info',
         champ: 'Répartition LED état initial',
-        localisation: 'Synthèse, inventaire état initial',
+        localisation: `Synthèse, inventaire état initial${chantierSuffix}`,
         detail: 'Vérification manuelle requise',
         valeur_attendue: '',
         valeur_trouvee: ''
@@ -3076,7 +3079,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
         categorie: 'synthese',
         niveau: compareStrings(firstSynthese.secteurEtude, references.typeLocal) ? 'ok' : 'majeur',
         champ: 'Secteur étude indicateurs initial',
-        localisation: 'Synthèse, indicateurs éclairage intérieur état initial',
+        localisation: `Synthèse, indicateurs éclairage intérieur état initial${chantierSuffix}`,
         detail: 'Vérification secteur d\'étude',
         valeur_attendue: references.typeLocal || '',
         valeur_trouvee: firstSynthese.secteurEtude || ''
@@ -3103,7 +3106,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
         categorie: 'synthese',
         niveau: 'info',
         champ: 'Répartition LED état projeté',
-        localisation: 'Synthèse, inventaire état projeté',
+        localisation: `Synthèse, inventaire état projeté${chantierSuffix}`,
         detail: 'Vérification manuelle requise',
         valeur_attendue: '',
         valeur_trouvee: ''
@@ -3129,7 +3132,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
         categorie: 'audit',
         niveau: compareStrings(firstAudit.nom, references.nom) ? 'ok' : 'majeur',
         champ: 'Site Audit description',
-        localisation: 'Audit, description',
+        localisation: `Audit, description${chantierSuffix}`,
         detail: 'Vérification site = client',
         valeur_attendue: references.nom || '',
         valeur_trouvee: firstAudit.nom || ''
@@ -3154,7 +3157,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
         categorie: 'audit',
         niveau: compareSIRET(firstAudit.siret, references.siret) ? 'ok' : 'majeur',
         champ: 'SIRET Audit description',
-        localisation: 'Audit, description',
+        localisation: `Audit, description${chantierSuffix}`,
         detail: 'Vérification SIRET',
         valeur_attendue: references.siret || '',
         valeur_trouvee: firstAudit.siret || ''
@@ -3169,7 +3172,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
         categorie: 'audit',
         niveau: surfaceAuditOk ? 'ok' : 'info',
         champ: 'Surface Audit description',
-        localisation: 'Audit, description',
+        localisation: `Audit, description${chantierSuffix}`,
         detail: 'Vérification surface éclairée (check manuel requis)',
         valeur_attendue: firstSynthese.surfaceEclairee || '',
         valeur_trouvee: firstAudit.surfaces ? firstAudit.surfaces.join(' + ') : ''
@@ -3242,7 +3245,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
         categorie: 'synthese',
         niveau: thdOk ? 'ok' : 'majeur',
         champ: 'THD Synthèse caractéristiques luminaires',
-        localisation: 'Synthèse + CEE, caractéristiques luminaires',
+        localisation: `Synthèse + CEE, caractéristiques luminaires${chantierSuffix}`,
         detail: thdOk ? 'THD = 3,7% conforme' : 'THD différent de 3,7%',
         valeur_attendue: '3,7%',
         valeur_trouvee: firstSynthese.thd || ''
@@ -3270,7 +3273,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
         categorie: 'audit',
         niveau: refProduitOk ? 'ok' : 'majeur',
         champ: 'Référence produit',
-        localisation: 'Audit + Synthèse luminaires',
+        localisation: `Audit + Synthèse luminaires${chantierSuffix}`,
         detail: refProduitOk ? 'Référence produit conforme' : 'Référence produit différente',
         valeur_attendue: 'DAEWOO NES-HBL 250W',
         valeur_trouvee: firstSynthese.referenceProduit || firstAudit.pceLuminaires || ''
