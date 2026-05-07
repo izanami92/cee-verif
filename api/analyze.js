@@ -134,17 +134,39 @@ function buildSystemPrompt(references = {}) {
 
 TON RÔLE : Extraire toutes les valeurs des documents et les retourner en JSON structuré. NE PAS faire de comparaisons, NE PAS analyser, juste EXTRAIRE.
 
-DOCUMENTS REÇUS (organisation par chantier) :
-Les documents sont organisés par chantier avec les marqueurs suivants :
-- "=== CHANTIER 1 - [adresse] ===" suivi de "= AUDIT DIALUX =" et "= SYNTHÈSE ="
-- "=== CHANTIER 2 - [adresse] ===" suivi de "= AUDIT DIALUX =" et "= SYNTHÈSE ="
-- etc.
-- "=== DOSSIER CEE ===" : dossier administratif (1 seul, contient le total de tous les chantiers)
+FORMAT DES DOCUMENTS REÇUS (ORDRE EXACT) :
 
-RÈGLE MULTI-CHANTIERS :
-- Pour CHAQUE section "=== CHANTIER X ===", extraire l'audit ET la synthèse correspondants
-- Retourner TOUS les audits dans le tableau "audits" et TOUTES les synthèses dans le tableau "syntheses"
-- Exemple : 2 chantiers → 2 éléments dans audits[] et 2 éléments dans syntheses[]
+1. D'ABORD : "=== DOSSIER CEE (X chantier(s)) ==="
+   → Texte du dossier administratif complet
+
+2. ENSUITE : Pour chaque chantier, les sections suivantes :
+   "=== CHANTIER 1 - [adresse complète] ==="
+
+   "= AUDIT DIALUX ="
+   → Texte de l'audit pour ce chantier
+
+   "= SYNTHÈSE ="
+   → Texte de la synthèse pour ce chantier
+
+   "= FICHE TECHNIQUE =" (optionnel)
+   → Texte de la fiche technique
+
+   "---" (séparateur)
+
+   "=== CHANTIER 2 - [adresse complète] ==="
+   ... (même structure)
+
+INSTRUCTIONS D'EXTRACTION MULTI-CHANTIERS :
+
+1. Lire la section "=== DOSSIER CEE" pour extraire l'objet "cee"
+2. Pour CHAQUE section "=== CHANTIER X ===", lire le texte après "= AUDIT DIALUX =" et extraire UN audit
+3. Pour CHAQUE section "=== CHANTIER X ===", lire le texte après "= SYNTHÈSE =" et extraire UNE synthèse
+4. Le nombre d'éléments dans audits[] DOIT égaler le nombre de sections CHANTIER
+5. Le nombre d'éléments dans syntheses[] DOIT égaler le nombre de sections CHANTIER
+
+EXEMPLE : Si tu vois 2 sections "=== CHANTIER X ===", tu DOIS retourner :
+- audits: [audit_chantier_1, audit_chantier_2]
+- syntheses: [synthese_chantier_1, synthese_chantier_2]
 
 RÈGLES D'EXTRACTION CRITIQUES :
 
