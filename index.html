@@ -1054,8 +1054,25 @@
           <div style="font-weight: 600; font-size: 0.9rem; margin-bottom: var(--spacing-sm); color: rgba(255, 255, 255, 0.9);">
             ✅ <span id="detectionCount">0</span> chantier(s) détecté(s)
           </div>
-          <div id="detectionAddresses" style="font-size: 0.75rem; color: rgba(255, 255, 255, 0.7);"></div>
-          <div style="margin-top: var(--spacing-md); display: flex; gap: var(--spacing-sm);">
+          <div id="detectionAddresses" style="font-size: 0.75rem; color: rgba(255, 255, 255, 0.7); margin-bottom: var(--spacing-md);"></div>
+
+          <!-- Contrôle manuel du nombre de chantiers -->
+          <div style="display: flex; align-items: center; gap: var(--spacing-sm); margin-bottom: var(--spacing-sm);">
+            <label style="font-size: 0.75rem; color: rgba(255, 255, 255, 0.7);">Ajuster :</label>
+            <input
+              type="number"
+              id="manualChantierCount"
+              min="1"
+              max="10"
+              value="1"
+              style="width: 60px; padding: 0.25rem; background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: var(--radius-sm); color: var(--color-white); font-size: 0.75rem; text-align: center;"
+            >
+            <button id="btnApplyManualCount" style="padding: 0.25rem 0.75rem; background: rgba(255, 255, 255, 0.15); color: var(--color-white); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: var(--radius-sm); font-size: 0.75rem; cursor: pointer;">
+              Appliquer
+            </button>
+          </div>
+
+          <div style="display: flex; gap: var(--spacing-sm);">
             <button id="btnAddChantier" style="flex: 1; padding: 0.5rem; background: rgba(255, 255, 255, 0.1); color: var(--color-white); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: var(--radius-sm); font-size: 0.75rem; cursor: pointer;">
               ➕ Ajouter un chantier
             </button>
@@ -1254,6 +1271,8 @@
       detectionResult: document.getElementById('detectionResult'),
       detectionCount: document.getElementById('detectionCount'),
       detectionAddresses: document.getElementById('detectionAddresses'),
+      manualChantierCount: document.getElementById('manualChantierCount'),
+      btnApplyManualCount: document.getElementById('btnApplyManualCount'),
       btnAddChantier: document.getElementById('btnAddChantier'),
       btnRemoveChantier: document.getElementById('btnRemoveChantier'),
 
@@ -1633,6 +1652,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
         // Afficher les résultats
         elements.detectionResult.style.display = 'block';
         elements.detectionCount.textContent = state.chantiers.length;
+        elements.manualChantierCount.value = state.chantiers.length;
         elements.detectionAddresses.innerHTML = state.chantiers
           .map((ch, i) => `<div style="margin-top: 0.25rem;">Chantier ${i + 1}: ${ch.adresse}</div>`)
           .join('');
@@ -1642,6 +1662,11 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
 
         console.log('✅ Chantiers détectés automatiquement');
 
+        // Avertir si une seule adresse détectée mais potentiellement plusieurs chantiers
+        if (state.chantiers.length === 1) {
+          console.warn('⚠️ Une seule adresse détectée. Si vous avez plusieurs chantiers, utilisez le champ "Ajuster" pour définir le nombre.');
+        }
+
       } catch (error) {
         console.error('Erreur détection chantiers:', error);
         alert('Erreur lors de la détection des chantiers. Vérifiez la console.');
@@ -1650,46 +1675,103 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
 
     // Détection locale des adresses (regex, sans API)
     function detectAdressesLocally(text) {
-      // Chercher les patterns d'adresses : texte + 5 chiffres (code postal) + texte (ville)
-      // Exemples :
-      // "10 LA BROSSE DE CHANZEAUX 49380 BELLEVIGNE EN LAYON"
-      // "ROUTE DE LA RAIMBAUDIERE 49380 BELLEVIGNE EN LAYON"
-
-      const lines = text.split('\n');
       const adresses = new Set(); // Pour dédoublonner
 
-      // Pattern : chercher les lignes contenant un code postal (5 chiffres)
-      const cpPattern = /\b\d{5}\b/;
+      console.log('=== DÉBUT DÉTECTION ADRESSES ===');
 
-      for (let i = 0; i < lines.length; i++) {
-        const line = lines[i].trim();
+      // MÉTHODE 1 : Chercher les "ATTESTATION SUR L'HONNEUR" (plus fiable)
+      const attestationPattern = /ATTESTATION\s+SUR\s+L['']\s*HONNEUR/gi;
+      const matches = text.matchAll(attestationPattern);
 
-        // Si la ligne contient un code postal
-        if (cpPattern.test(line)) {
-          // Nettoyer la ligne (supprimer les caractères parasites)
-          let cleaned = line
-            .replace(/[|]/g, '') // Supprimer les pipes
-            .replace(/\s+/g, ' ') // Normaliser les espaces
-            .trim();
+      for (const match of matches) {
+        const startIndex = match.index;
+        // Extraire les 500 caractères après "ATTESTATION SUR L'HONNEUR"
+        const afterAttestation = text.substring(startIndex, startIndex + 500);
 
-          // Vérifier que la ligne a au moins : quelques mots + CP + ville
-          if (cleaned.length > 20 && cleaned.length < 200) {
-            adresses.add(cleaned);
+        // Chercher une adresse avec code postal dans cette zone
+        const lines = afterAttestation.split('\n');
+        for (const line of lines) {
+          const cpMatch = line.match(/\b\d{5}\b/);
+          if (cpMatch) {
+            let cleaned = line
+              .replace(/[|]/g, '')
+              .replace(/\s+/g, ' ')
+              .trim();
+
+            if (cleaned.length > 15 && cleaned.length < 200) {
+              adresses.add(cleaned);
+              console.log('Adresse trouvée via attestation:', cleaned);
+              break; // Une seule adresse par attestation
+            }
           }
         }
       }
 
-      // Convertir le Set en tableau
-      const result = Array.from(adresses);
+      // MÉTHODE 2 : Chercher toutes les lignes avec code postal (si méthode 1 n'a rien trouvé)
+      if (adresses.size === 0) {
+        console.log('Aucune attestation trouvée, recherche globale...');
+        const lines = text.split('\n');
+        const cpPattern = /\b\d{5}\b/;
 
-      // Si trop d'adresses détectées (> 5), ne garder que les premières
-      if (result.length > 5) {
-        console.warn('Plus de 5 adresses détectées, limitation à 5');
-        return result.slice(0, 5);
+        for (const line of lines) {
+          if (cpPattern.test(line)) {
+            let cleaned = line
+              .replace(/[|]/g, '')
+              .replace(/\s+/g, ' ')
+              .trim();
+
+            if (cleaned.length > 15 && cleaned.length < 200) {
+              adresses.add(cleaned);
+              console.log('Adresse trouvée globalement:', cleaned);
+            }
+          }
+        }
+      }
+
+      const result = Array.from(adresses);
+      console.log('=== TOTAL ADRESSES DÉTECTÉES:', result.length, '===');
+
+      // Limiter à 10 adresses max
+      if (result.length > 10) {
+        console.warn('Plus de 10 adresses détectées, limitation à 10');
+        return result.slice(0, 10);
       }
 
       return result;
     }
+
+    // Bouton appliquer le nombre manuel
+    elements.btnApplyManualCount.addEventListener('click', () => {
+      const count = parseInt(elements.manualChantierCount.value);
+      if (count < 1 || count > 10) {
+        alert('Le nombre de chantiers doit être entre 1 et 10.');
+        return;
+      }
+
+      // Ajuster le nombre de chantiers
+      const currentCount = state.chantiers.length;
+
+      if (count > currentCount) {
+        // Ajouter des chantiers
+        for (let i = currentCount; i < count; i++) {
+          state.chantiers.push({
+            adresse: `Adresse chantier ${i + 1} (à saisir)`,
+            audit: null,
+            synthese: null,
+            fiche: null,
+            auditText: '',
+            syntheseText: '',
+            ficheText: ''
+          });
+        }
+      } else if (count < currentCount) {
+        // Retirer des chantiers
+        state.chantiers = state.chantiers.slice(0, count);
+      }
+
+      renderChantiers();
+      elements.detectionCount.textContent = state.chantiers.length;
+    });
 
     // Bouton ajouter un chantier
     elements.btnAddChantier.addEventListener('click', () => {
@@ -1704,6 +1786,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
       });
       renderChantiers();
       elements.detectionCount.textContent = state.chantiers.length;
+      elements.manualChantierCount.value = state.chantiers.length;
     });
 
     // Bouton retirer un chantier
@@ -1712,6 +1795,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
         state.chantiers.pop();
         renderChantiers();
         elements.detectionCount.textContent = state.chantiers.length;
+        elements.manualChantierCount.value = state.chantiers.length;
       } else {
         alert('Vous devez avoir au moins un chantier.');
       }
