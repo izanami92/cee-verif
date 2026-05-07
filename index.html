@@ -1018,48 +1018,59 @@
         </button>
       </section>
 
-      <!-- Import des documents -->
+      <!-- Import des documents - NOUVELLE ARCHITECTURE -->
       <section class="section">
         <div class="section-title">Documents à importer</div>
 
-        <!-- Capture Betool -->
-        <div class="upload-zone" id="uploadBetool">
-          <div class="upload-zone-title">📸 Capture Betool</div>
-          <div class="upload-zone-optional">Optionnel - Auto-remplit les références</div>
-          <div class="upload-zone-filename"></div>
-          <input type="file" accept="image/png,image/jpeg,image/jpg" id="fileBetool">
+        <!-- ÉTAPE 1 : Import CEE obligatoire -->
+        <div style="background: rgba(255, 255, 255, 0.08); padding: var(--spacing-md); border-radius: var(--radius-md); margin-bottom: var(--spacing-lg);">
+          <div style="font-weight: 600; font-size: 0.9rem; margin-bottom: var(--spacing-sm); color: rgba(255, 255, 255, 0.9);">
+            Étape 1 : Importer le dossier CEE
+          </div>
+          <div style="font-size: 0.75rem; color: rgba(255, 255, 255, 0.6); margin-bottom: var(--spacing-md);">
+            Le CEE sera analysé pour détecter automatiquement le nombre de chantiers
+          </div>
+
+          <!-- Capture Betool -->
+          <div class="upload-zone" id="uploadBetool" style="margin-bottom: var(--spacing-sm);">
+            <div class="upload-zone-title">📸 Capture Betool</div>
+            <div class="upload-zone-optional">Optionnel - Auto-remplit les références</div>
+            <div class="upload-zone-filename"></div>
+            <input type="file" accept="image/png,image/jpeg,image/jpg" id="fileBetool">
+          </div>
+
+          <!-- Dossier CEE (OBLIGATOIRE maintenant) -->
+          <div class="upload-zone" id="uploadDossier">
+            <div class="upload-zone-title">📄 Dossier CEE</div>
+            <div class="upload-zone-required">Requis - Contient toutes les adresses</div>
+            <div class="upload-zone-filename"></div>
+            <input type="file" accept=".pdf" id="fileDossier">
+          </div>
+
+          <button id="btnDetectChantiers" class="btn-extract" style="width: 100%; padding: 0.75rem; background: rgba(255, 255, 255, 0.15); color: var(--color-white); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: var(--radius-md); font-size: 0.875rem; font-weight: 600; margin-top: var(--spacing-md); cursor: pointer; transition: all 0.2s;" disabled>
+            🔍 Détecter les chantiers
+          </button>
         </div>
 
-        <!-- Audits (plusieurs possibles) -->
-        <div class="upload-zone" id="uploadAudit">
-          <div class="upload-zone-title">Audit(s) Dialux</div>
-          <div class="upload-zone-required">Requis - Plusieurs fichiers possibles</div>
-          <div class="upload-zone-filename"></div>
-          <input type="file" accept=".pdf" id="fileAudit" multiple>
+        <!-- Résultat de la détection -->
+        <div id="detectionResult" style="display: none; background: rgba(22, 163, 74, 0.15); border: 1px solid rgba(22, 163, 74, 0.3); padding: var(--spacing-md); border-radius: var(--radius-md); margin-bottom: var(--spacing-lg);">
+          <div style="font-weight: 600; font-size: 0.9rem; margin-bottom: var(--spacing-sm); color: rgba(255, 255, 255, 0.9);">
+            ✅ <span id="detectionCount">0</span> chantier(s) détecté(s)
+          </div>
+          <div id="detectionAddresses" style="font-size: 0.75rem; color: rgba(255, 255, 255, 0.7);"></div>
+          <div style="margin-top: var(--spacing-md); display: flex; gap: var(--spacing-sm);">
+            <button id="btnAddChantier" style="flex: 1; padding: 0.5rem; background: rgba(255, 255, 255, 0.1); color: var(--color-white); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: var(--radius-sm); font-size: 0.75rem; cursor: pointer;">
+              ➕ Ajouter un chantier
+            </button>
+            <button id="btnRemoveChantier" style="flex: 1; padding: 0.5rem; background: rgba(255, 255, 255, 0.1); color: var(--color-white); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: var(--radius-sm); font-size: 0.75rem; cursor: pointer;">
+              ➖ Retirer un chantier
+            </button>
+          </div>
         </div>
 
-        <!-- Synthèses (plusieurs possibles) -->
-        <div class="upload-zone" id="uploadSynthese">
-          <div class="upload-zone-title">Synthèse(s)</div>
-          <div class="upload-zone-required">Requis - Plusieurs fichiers possibles</div>
-          <div class="upload-zone-filename"></div>
-          <input type="file" accept=".pdf" id="fileSynthese" multiple>
-        </div>
-
-        <!-- Dossier CEE (1 seul) -->
-        <div class="upload-zone" id="uploadDossier">
-          <div class="upload-zone-title">Dossier CEE</div>
-          <div class="upload-zone-optional">Optionnel - Contient toutes les adresses</div>
-          <div class="upload-zone-filename"></div>
-          <input type="file" accept=".pdf" id="fileDossier">
-        </div>
-
-        <!-- Fiches techniques (plusieurs possibles) -->
-        <div class="upload-zone" id="uploadFiche">
-          <div class="upload-zone-title">Fiche(s) technique</div>
-          <div class="upload-zone-optional">Optionnel - Plusieurs fichiers possibles</div>
-          <div class="upload-zone-filename"></div>
-          <input type="file" accept=".pdf" id="fileFiche" multiple>
+        <!-- ÉTAPE 2 : Zones d'import par chantier (générées dynamiquement) -->
+        <div id="chantiersContainer">
+          <!-- Les zones par chantier seront ajoutées ici dynamiquement -->
         </div>
 
         <button id="btnAnalyze" class="btn-analyze" disabled>
@@ -1206,18 +1217,17 @@
     const state = {
       files: {
         betool: null,        // Capture Betool (image)
-        audits: [],          // Tableau d'Audits
-        syntheses: [],       // Tableau de Synthèses
-        dossier: null,       // 1 seul Dossier CEE
-        fiches: []           // Tableau de Fiches techniques
+        dossier: null        // 1 seul Dossier CEE
       },
       extractedTexts: {
-        audits: [],          // Tableau de textes extraits
-        syntheses: [],
-        dossier: '',
-        fiches: []
+        dossier: ''
       },
       betoolImage: null,     // Image Betool encodée en base64
+
+      // NOUVELLE ARCHITECTURE : organisation par chantier
+      chantiers: [],         // [{adresse: "...", audit: File, synthese: File, fiche: File, auditText: "", syntheseText: "", ficheText: ""}]
+      chantiersDetectes: [], // [{adresse: "..."}] depuis l'API extract-cee
+
       analysisResult: null
     };
 
@@ -1238,18 +1248,20 @@
 
       btnExtractFromCEE: document.getElementById('btnExtractFromCEE'),
 
+      // Nouveaux éléments pour la détection des chantiers
       uploadBetool: document.getElementById('uploadBetool'),
-      uploadAudit: document.getElementById('uploadAudit'),
-      uploadSynthese: document.getElementById('uploadSynthese'),
       uploadDossier: document.getElementById('uploadDossier'),
-      uploadFiche: document.getElementById('uploadFiche'),
-
       fileBetool: document.getElementById('fileBetool'),
-      fileAudit: document.getElementById('fileAudit'),
-      fileSynthese: document.getElementById('fileSynthese'),
       fileDossier: document.getElementById('fileDossier'),
-      fileFiche: document.getElementById('fileFiche'),
 
+      btnDetectChantiers: document.getElementById('btnDetectChantiers'),
+      detectionResult: document.getElementById('detectionResult'),
+      detectionCount: document.getElementById('detectionCount'),
+      detectionAddresses: document.getElementById('detectionAddresses'),
+      btnAddChantier: document.getElementById('btnAddChantier'),
+      btnRemoveChantier: document.getElementById('btnRemoveChantier'),
+
+      chantiersContainer: document.getElementById('chantiersContainer'),
       btnAnalyze: document.getElementById('btnAnalyze'),
 
       emptyState: document.getElementById('emptyState'),
@@ -1406,12 +1418,26 @@
       zoneElement.classList.add('loaded');
       checkAnalyzeButton();
       checkExtractButton();
+      checkDetectButton(); // NOUVEAU : activer le bouton de détection
     }
 
     function checkAnalyzeButton() {
-      const hasAtLeastOne = (state.files.audits && state.files.audits.length > 0) ||
-                           (state.files.syntheses && state.files.syntheses.length > 0);
-      elements.btnAnalyze.disabled = !hasAtLeastOne;
+      // NOUVELLE LOGIQUE : vérifier que tous les chantiers ont au moins un audit ET une synthèse
+      const allChantiersComplete = state.chantiers.length > 0 &&
+                                   state.chantiers.every(ch => ch.audit && ch.synthese);
+      elements.btnAnalyze.disabled = !allChantiersComplete;
+    }
+
+    function checkDetectButton() {
+      // Activer le bouton "Détecter" si le Dossier CEE est chargé
+      elements.btnDetectChantiers.disabled = !state.files.dossier;
+      if (state.files.dossier) {
+        elements.btnDetectChantiers.style.background = 'rgba(34, 197, 94, 0.2)';
+        elements.btnDetectChantiers.style.borderColor = 'rgba(34, 197, 94, 0.4)';
+      } else {
+        elements.btnDetectChantiers.style.background = 'rgba(255, 255, 255, 0.15)';
+        elements.btnDetectChantiers.style.borderColor = 'rgba(255, 255, 255, 0.3)';
+      }
     }
 
     function checkExtractButton() {
@@ -1426,12 +1452,9 @@
       }
     }
 
-    // Initialiser toutes les zones d'upload
-    setupUploadZone(elements.uploadBetool, elements.fileBetool, 'betool', false);      // 1 seule image
-    setupUploadZone(elements.uploadAudit, elements.fileAudit, 'audits', true);         // Multiple
-    setupUploadZone(elements.uploadSynthese, elements.fileSynthese, 'syntheses', true); // Multiple
-    setupUploadZone(elements.uploadDossier, elements.fileDossier, 'dossier', false);   // 1 seul
-    setupUploadZone(elements.uploadFiche, elements.fileFiche, 'fiches', true);         // Multiple
+    // Initialiser les zones d'upload (NOUVELLE ARCHITECTURE : seulement betool et dossier)
+    setupUploadZone(elements.uploadBetool, elements.fileBetool, 'betool', false);   // 1 seule image
+    setupUploadZone(elements.uploadDossier, elements.fileDossier, 'dossier', false); // 1 seul
 
     // ========== EXTRACTION PDF ==========
     async function extractTextFromPDF(file) {
@@ -1581,6 +1604,225 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
         elements.btnExtractFromCEE.textContent = '📋 Extraire depuis le Dossier CEE';
       }
     });
+
+    // ========== DÉTECTION CHANTIERS ==========
+    elements.btnDetectChantiers.addEventListener('click', async () => {
+      try {
+        // Désactiver le bouton pendant le traitement
+        elements.btnDetectChantiers.disabled = true;
+        elements.btnDetectChantiers.textContent = '🔍 Détection en cours...';
+
+        // Extraire le texte du PDF CEE
+        const ceeText = await extractTextFromPDF(state.files.dossier);
+        state.extractedTexts.dossier = ceeText;
+
+        // Appeler l'API de détection des chantiers
+        const response = await fetch('/api/extract-cee', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ceeText })
+        });
+
+        if (!response.ok) {
+          throw new Error(`Erreur API: ${response.status}`);
+        }
+
+        const result = await response.json();
+        console.log('Résultat détection chantiers:', result);
+
+        // Sauvegarder les chantiers détectés
+        state.chantiersDetectes = result.chantiers || [];
+
+        // Initialiser les chantiers dans le state
+        state.chantiers = state.chantiersDetectes.map(ch => ({
+          adresse: ch.adresse,
+          audit: null,
+          synthese: null,
+          fiche: null,
+          auditText: '',
+          syntheseText: '',
+          ficheText: ''
+        }));
+
+        // Afficher les résultats
+        elements.detectionResult.style.display = 'block';
+        elements.detectionCount.textContent = state.chantiers.length;
+        elements.detectionAddresses.innerHTML = state.chantiers
+          .map((ch, i) => `<div style="margin-top: 0.25rem;">Chantier ${i + 1}: ${ch.adresse}</div>`)
+          .join('');
+
+        // Générer les zones d'import par chantier
+        renderChantiers();
+
+        // Réactiver le bouton
+        elements.btnDetectChantiers.disabled = false;
+        elements.btnDetectChantiers.textContent = '✅ Chantiers détectés';
+
+      } catch (error) {
+        console.error('Erreur détection chantiers:', error);
+        alert('Erreur lors de la détection des chantiers. Vérifiez la console.');
+        elements.btnDetectChantiers.disabled = false;
+        elements.btnDetectChantiers.textContent = '🔍 Détecter les chantiers';
+      }
+    });
+
+    // Bouton ajouter un chantier
+    elements.btnAddChantier.addEventListener('click', () => {
+      state.chantiers.push({
+        adresse: 'Nouvelle adresse (à modifier)',
+        audit: null,
+        synthese: null,
+        fiche: null,
+        auditText: '',
+        syntheseText: '',
+        ficheText: ''
+      });
+      renderChantiers();
+      elements.detectionCount.textContent = state.chantiers.length;
+    });
+
+    // Bouton retirer un chantier
+    elements.btnRemoveChantier.addEventListener('click', () => {
+      if (state.chantiers.length > 1) {
+        state.chantiers.pop();
+        renderChantiers();
+        elements.detectionCount.textContent = state.chantiers.length;
+      } else {
+        alert('Vous devez avoir au moins un chantier.');
+      }
+    });
+
+    // Générer les zones d'import par chantier
+    function renderChantiers() {
+      elements.chantiersContainer.innerHTML = '';
+
+      state.chantiers.forEach((chantier, index) => {
+        const chantierDiv = document.createElement('div');
+        chantierDiv.style.cssText = `
+          background: rgba(255, 255, 255, 0.08);
+          padding: var(--spacing-md);
+          border-radius: var(--radius-md);
+          margin-bottom: var(--spacing-md);
+        `;
+
+        chantierDiv.innerHTML = `
+          <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: var(--spacing-md);">
+            <div>
+              <div style="font-weight: 600; font-size: 0.9rem; margin-bottom: var(--spacing-xs); color: rgba(255, 255, 255, 0.9);">
+                Chantier ${index + 1}
+              </div>
+              <input
+                type="text"
+                id="adresseChantier${index}"
+                value="${chantier.adresse}"
+                style="
+                  width: 100%;
+                  padding: 0.5rem;
+                  background: rgba(255, 255, 255, 0.1);
+                  border: 1px solid rgba(255, 255, 255, 0.2);
+                  border-radius: var(--radius-sm);
+                  color: var(--color-white);
+                  font-size: 0.75rem;
+                  font-family: var(--font-sans);
+                "
+              >
+            </div>
+          </div>
+
+          <div class="upload-zone" id="uploadAuditChantier${index}">
+            <div class="upload-zone-title">Audit Dialux</div>
+            <div class="upload-zone-required">Requis</div>
+            <div class="upload-zone-filename"></div>
+            <input type="file" accept=".pdf" id="fileAuditChantier${index}">
+          </div>
+
+          <div class="upload-zone" id="uploadSyntheseChantier${index}" style="margin-top: var(--spacing-sm);">
+            <div class="upload-zone-title">Synthèse</div>
+            <div class="upload-zone-required">Requis</div>
+            <div class="upload-zone-filename"></div>
+            <input type="file" accept=".pdf" id="fileSyntheseChantier${index}">
+          </div>
+
+          <div class="upload-zone" id="uploadFicheChantier${index}" style="margin-top: var(--spacing-sm);">
+            <div class="upload-zone-title">Fiche technique</div>
+            <div class="upload-zone-optional">Optionnel</div>
+            <div class="upload-zone-filename"></div>
+            <input type="file" accept=".pdf" id="fileFicheChantier${index}">
+          </div>
+        `;
+
+        elements.chantiersContainer.appendChild(chantierDiv);
+
+        // Configurer les zones d'upload
+        const uploadAudit = document.getElementById(`uploadAuditChantier${index}`);
+        const fileAudit = document.getElementById(`fileAuditChantier${index}`);
+        const uploadSynthese = document.getElementById(`uploadSyntheseChantier${index}`);
+        const fileSynthese = document.getElementById(`fileSyntheseChantier${index}`);
+        const uploadFiche = document.getElementById(`uploadFicheChantier${index}`);
+        const fileFiche = document.getElementById(`fileFicheChantier${index}`);
+        const adresseInput = document.getElementById(`adresseChantier${index}`);
+
+        setupChantierUploadZone(uploadAudit, fileAudit, index, 'audit');
+        setupChantierUploadZone(uploadSynthese, fileSynthese, index, 'synthese');
+        setupChantierUploadZone(uploadFiche, fileFiche, index, 'fiche');
+
+        // Mise à jour de l'adresse
+        adresseInput.addEventListener('input', (e) => {
+          state.chantiers[index].adresse = e.target.value;
+        });
+      });
+
+      checkAnalyzeButton();
+    }
+
+    // Configuration des zones d'upload par chantier
+    function setupChantierUploadZone(zoneElement, inputElement, chantierIndex, fileType) {
+      // Clic sur la zone
+      zoneElement.addEventListener('click', () => {
+        inputElement.click();
+      });
+
+      // Sélection de fichier
+      inputElement.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (file) {
+          handleChantierFileUpload(file, zoneElement, chantierIndex, fileType);
+        }
+      });
+
+      // Drag & drop
+      zoneElement.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        zoneElement.classList.add('drag-over');
+      });
+
+      zoneElement.addEventListener('dragleave', () => {
+        zoneElement.classList.remove('drag-over');
+      });
+
+      zoneElement.addEventListener('drop', (e) => {
+        e.preventDefault();
+        zoneElement.classList.remove('drag-over');
+
+        const file = e.dataTransfer.files[0];
+        if (file && file.type === 'application/pdf') {
+          handleChantierFileUpload(file, zoneElement, chantierIndex, fileType);
+        }
+      });
+    }
+
+    function handleChantierFileUpload(file, zoneElement, chantierIndex, fileType) {
+      const filenameElement = zoneElement.querySelector('.upload-zone-filename');
+
+      // Sauvegarder le fichier dans le state
+      state.chantiers[chantierIndex][fileType] = file;
+
+      // Afficher le nom du fichier
+      filenameElement.textContent = file.name;
+      zoneElement.classList.add('loaded');
+
+      checkAnalyzeButton();
+    }
 
     // ========== ANALYSE ==========
     elements.btnAnalyze.addEventListener('click', async () => {
