@@ -140,11 +140,24 @@ DOCUMENTS À ANALYSER :
 - DOSSIER CEE : dossier administratif (1 seul)
 - FICHE TECHNIQUE : spécifications LED (optionnel)
 
-IMPORTANT - EXTRAIRE LE TEXTE TEL QUEL :
-- Ne pas modifier la casse (garder majuscules/minuscules comme dans le document)
-- Ne pas supprimer les espaces (garder "08 / 10 / 2025" tel quel)
-- Ne pas interpréter ou corriger
-- Si une valeur n'existe pas : mettre null
+RÈGLES D'EXTRACTION CRITIQUES :
+
+1. NOMBRES (LED, surfaces, etc.) :
+   - SUPPRIMER tous les espaces parasites : "3 6" → "36", "8 5 2" → "852"
+   - Garder seulement les chiffres et les séparateurs décimaux
+   - Exemples : "3 6" → "36", "1 2 3" → "123", "850 m²" → "850"
+
+2. NOMS et ADRESSES :
+   - Garder la casse EXACTEMENT comme dans le document (majuscules/minuscules)
+   - Garder les espaces normaux entre les mots
+   - Exemples : "COPPIN JEAN BAPTISTE" → "COPPIN JEAN BAPTISTE" (tel quel)
+
+3. DATES :
+   - Garder le format avec espaces s'il existe : "08 / 10 / 2025" → "08 / 10 / 2025"
+   - Ne pas reformater
+
+4. Valeurs manquantes :
+   - Si une valeur n'existe pas dans le document : mettre null (pas la chaîne "null")
 
 ADRESSES DANS LE DOSSIER CEE :
 - Adresse SIÈGE SOCIAL : en haut à DROITE du CEE (avec coordonnées client)
@@ -163,14 +176,14 @@ FORMAT DE RÉPONSE (JSON uniquement) :
 \`\`\`json
 {
   "audit": {
-    "nom": "Nom entreprise page 1",
-    "adresse": "Adresse complète page 1",
-    "date": "Date page 1 (format trouvé)",
-    "siret": "SIRET description",
-    "surfaces": ["surface1", "surface2"],
-    "ledInitial": "Nombre LED état initial",
-    "ledFinal": "Nombre LED état projeté",
-    "pceLuminaires": "Total pce liste luminaires",
+    "nom": "Nom entreprise page 1 (garder casse exacte)",
+    "adresse": "Adresse complète page 1 (garder casse exacte)",
+    "date": "Date page 1 (garder format avec espaces si présents)",
+    "siret": "SIRET sans espaces (85227592400)",
+    "surfaces": ["850", "456"],
+    "ledInitial": "36",
+    "ledFinal": "36",
+    "pceLuminaires": "36",
     "profilUtilisation": "Profil/type d'utilisation mentionné"
   },
   "synthese": {
