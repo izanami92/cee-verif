@@ -146,6 +146,27 @@ IMPORTANT - PARCELLES CADASTRALES :
 - La parcelle cadastrale au milieu de l'adresse est celle du chantier et doit correspondre sur la Synthèse
 - Ne pas signaler d'erreur si la parcelle est présente dans l'adresse mais pas dans un champ séparé
 
+⚠️⚠️⚠️ LOGIQUE DE COMPARAISON CRITIQUE - À APPLIQUER SYSTÉMATIQUEMENT ⚠️⚠️⚠️
+
+POUR COMPARER DEUX VALEURS, SUIS CES ÉTAPES DANS L'ORDRE :
+1. Convertis les DEUX valeurs en minuscules (lowercase)
+2. Compare les versions minuscules
+3. Si identiques après conversion → niveau = "ok"
+4. Si différentes après conversion → vérifier si erreur réelle
+
+EXEMPLES CONCRETS À SUIVRE OBLIGATOIREMENT :
+- Attendu: "COPPIN JEAN BAPTISTE" | Trouvé: "coppin jean baptiste"
+  → minuscules: "coppin jean baptiste" = "coppin jean baptiste" → niveau = "ok" ✅
+
+- Attendu: "ENTREPÔT" | Trouvé: "Entrepôt"
+  → minuscules: "entrepôt" = "entrepôt" → niveau = "ok" ✅
+
+- Attendu: "COPPIN" | Trouvé: "COPIN" (1 seul p)
+  → minuscules: "coppin" ≠ "copin" → niveau = "majeur" ❌ (orthographe différente)
+
+- Attendu: "1277 m²" | Trouvé: "850 m² 456 m²"
+  → addition: 850 + 456 = 1306 → 1306 ≠ 1277 → niveau = "majeur" ❌
+
 CHECKLIST EXHAUSTIVE — 40 POINTS OBLIGATOIRES
 
 Tu DOIS vérifier TOUS les points suivants à CHAQUE analyse, sans exception.
@@ -192,7 +213,11 @@ Tu dois retourner EXACTEMENT 40 checks (un par point) avec le niveau approprié 
 24. Site (Audit description) = Client = Nom entreprise CEE = Nom entreprise officiel gouv. ATTENTION : orthographe exacte des noms propres
 25. Adresse (Audit description) = Adresse chantier CEE. Ordre CP/Ville flexible, mention "France" optionnelle
 26. SIRET (Audit description) = SIRET CEE = SIRET officiel gouv
-27. Surface (Audit description observations préliminaires) = Surface éclairée Synthèse + Surfaces attestation honneur CEE (si présente). Si plusieurs surfaces dans Audit → ADDITIONNER avant de comparer
+27. Surface (Audit description observations préliminaires) = Surface totale attendue. VÉRIFICATIONS :
+   - Si plusieurs surfaces dans Audit → ADDITIONNER d'abord (ex: 850+456=1306)
+   - Chercher "ATTESTATION SUR L'HONNEUR Existence d'un entrepôt" dans CEE
+   - Si attestation présente → extraire surfaces par bâtiment et comparer UNE PAR UNE avec Audit
+   - Surfaces doivent être EXACTEMENT identiques (aucun écart toléré)
 28. État initial nombre (Audit description) = Nombre LED chantier CEE
 29. État projeté nombre (Audit description) = État initial = Nombre LED chantier CEE
 
