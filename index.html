@@ -1616,26 +1616,13 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
         const ceeText = await extractTextFromPDF(state.files.dossier);
         state.extractedTexts.dossier = ceeText;
 
-        // Appeler l'API de détection des chantiers
-        const response = await fetch('/api/extract-cee', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ceeText })
-        });
-
-        if (!response.ok) {
-          throw new Error(`Erreur API: ${response.status}`);
-        }
-
-        const result = await response.json();
-        console.log('Résultat détection chantiers:', result);
-
-        // Sauvegarder les chantiers détectés
-        state.chantiersDetectes = result.chantiers || [];
+        // DÉTECTION LOCALE (rapide, sans API)
+        const adresses = detectAdressesLocally(ceeText);
+        console.log('Adresses détectées localement:', adresses);
 
         // Initialiser les chantiers dans le state
-        state.chantiers = state.chantiersDetectes.map(ch => ({
-          adresse: ch.adresse,
+        state.chantiers = adresses.map(adresse => ({
+          adresse: adresse,
           audit: null,
           synthese: null,
           fiche: null,
@@ -1643,6 +1630,19 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
           syntheseText: '',
           ficheText: ''
         }));
+
+        // Si aucune adresse détectée, en créer une par défaut
+        if (state.chantiers.length === 0) {
+          state.chantiers = [{
+            adresse: 'Adresse à saisir manuellement',
+            audit: null,
+            synthese: null,
+            fiche: null,
+            auditText: '',
+            syntheseText: '',
+            ficheText: ''
+          }];
+        }
 
         // Afficher les résultats
         elements.detectionResult.style.display = 'block';
@@ -1665,6 +1665,49 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
         elements.btnDetectChantiers.textContent = '🔍 Détecter les chantiers';
       }
     });
+
+    // Détection locale des adresses (regex, sans API)
+    function detectAdressesLocally(text) {
+      // Chercher les patterns d'adresses : texte + 5 chiffres (code postal) + texte (ville)
+      // Exemples :
+      // "10 LA BROSSE DE CHANZEAUX 49380 BELLEVIGNE EN LAYON"
+      // "ROUTE DE LA RAIMBAUDIERE 49380 BELLEVIGNE EN LAYON"
+
+      const lines = text.split('\n');
+      const adresses = new Set(); // Pour dédoublonner
+
+      // Pattern : chercher les lignes contenant un code postal (5 chiffres)
+      const cpPattern = /\b\d{5}\b/;
+
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i].trim();
+
+        // Si la ligne contient un code postal
+        if (cpPattern.test(line)) {
+          // Nettoyer la ligne (supprimer les caractères parasites)
+          let cleaned = line
+            .replace(/[|]/g, '') // Supprimer les pipes
+            .replace(/\s+/g, ' ') // Normaliser les espaces
+            .trim();
+
+          // Vérifier que la ligne a au moins : quelques mots + CP + ville
+          if (cleaned.length > 20 && cleaned.length < 200) {
+            adresses.add(cleaned);
+          }
+        }
+      }
+
+      // Convertir le Set en tableau
+      const result = Array.from(adresses);
+
+      // Si trop d'adresses détectées (> 5), ne garder que les premières
+      if (result.length > 5) {
+        console.warn('Plus de 5 adresses détectées, limitation à 5');
+        return result.slice(0, 5);
+      }
+
+      return result;
+    }
 
     // Bouton ajouter un chantier
     elements.btnAddChantier.addEventListener('click', () => {

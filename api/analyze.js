@@ -54,7 +54,7 @@ export default async function handler(req, res) {
       body: JSON.stringify({
         model: 'anthropic/claude-sonnet-4', // Claude Sonnet 4 (version originale qui marchait)
         messages: formattedMessages,
-        max_tokens: 10000, // Optimisé pour éviter timeout tout en permettant 40 checks
+        max_tokens: 4000, // Réduit pour accélérer (extraction simple)
         temperature: 0, // Déterministe = résultats identiques à chaque fois
       }),
     });
