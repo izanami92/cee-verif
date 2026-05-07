@@ -1434,10 +1434,8 @@
       checkAnalyzeButton();
       checkExtractButton();
 
-      // NOUVEAU : Si c'est le dossier CEE, détecter automatiquement les chantiers
-      if (fileKey === 'dossier' && state.files.dossier) {
-        await autoDetectChantiers();
-      }
+      // Détection automatique retirée : l'utilisateur doit cliquer sur "Extraire du CEE"
+      // pour détecter les chantiers et générer les zones d'import
     }
 
     function checkAnalyzeButton() {
@@ -1601,9 +1599,8 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
             // Générer les zones d'import par chantier
             renderChantiers();
 
-            // Remplir aussi le champ référence (pour compatibilité)
-            elements.refAdresse.value = extracted.adresses.join('\n');
-            elements.refAdresse.classList.add('auto-filled');
+            // NE PAS remplir refAdresse avec plusieurs adresses (évite confusion)
+            // Pour multi-chantiers, chaque chantier a sa propre adresse dans state.chantiers[]
           } else if (extracted.adresse) {
             // Compatibilité avec l'ancien format (string simple)
             elements.refAdresse.value = extracted.adresse;
@@ -1628,6 +1625,10 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
           if (extracted.adresseSiege) {
             elements.refAdresseSiege.value = extracted.adresseSiege;
             elements.refAdresseSiege.classList.add('auto-filled');
+          }
+          if (extracted.secteurActivite) {
+            elements.refTypeLocal.value = extracted.secteurActivite;
+            elements.refTypeLocal.classList.add('auto-filled');
           }
 
           const nbChantiers = state.chantiers.length;
@@ -3310,67 +3311,56 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
         valeur_trouvee: attestationsPresentes ? `${attestations.length} attestation(s)` : 'Non détecté'
       });
 
-      // Si attestations présentes, grouper par adresse puis vérifier les surfaces
+      // Si attestations présentes, vérifier les surfaces par chantier
       if (attestationsPresentes) {
-        // Grouper les attestations par adresse (même adresse = même chantier)
-        const attestationsParChantier = {};
-        attestations.forEach(attestation => {
-          const adresse = attestation.adresse || '';
-          if (!attestationsParChantier[adresse]) {
-            attestationsParChantier[adresse] = {
-              adresse: adresse,
-              attestations: [],
-              toutesLesSurfaces: []
-            };
-          }
-          attestationsParChantier[adresse].attestations.push(attestation);
-          attestationsParChantier[adresse].toutesLesSurfaces.push(...(attestation.surfaces || []));
-        });
+        // Pour chaque chantier (= attestation)
+        // Utiliser l'INDEX : attestations[0] → audits[0], attestations[1] → audits[1]
+        (norm.cee?.attestations || []).forEach((attestation, chantierIndex) => {
+          const chantierAdresse = attestation.adresse || '';
+          const surfacesAttestation = attestation.surfaces || [];
+          const sommeAttestationTotale = sumSurfaces(surfacesAttestation);
 
-        // Pour chaque chantier (= groupe d'attestations avec même adresse)
-        Object.values(attestationsParChantier).forEach((chantier, chantierIndex) => {
-          const chantierAdresse = chantier.adresse;
-          const surfacesAttestationGroupees = chantier.toutesLesSurfaces; // Toutes les surfaces des attestations de ce chantier
-          const sommeAttestationTotale = sumSurfaces(surfacesAttestationGroupees);
-          const nbAttestations = chantier.attestations.length;
+          // Trouver l'audit correspondant PAR INDEX (pas par adresse)
+          const auditCorrespondant = norm.audits[chantierIndex] || null;
+          console.log(`\n=== CHANTIER ${chantierIndex + 1} - ${chantierAdresse} ===`);
+          console.log('Audit correspondant (par index):', auditCorrespondant ? auditCorrespondant.adresse : 'NON TROUVÉ');
 
-          // Trouver l'audit correspondant (même adresse)
-          console.log(`\n=== MATCHING AUDIT CHANTIER ${chantierIndex + 1} ===`);
-          console.log('Adresse chantier CEE:', chantierAdresse);
-          console.log('Nombre audits extraits:', norm.audits.length);
-          norm.audits.forEach((audit, i) => {
-            console.log(`  Audit ${i + 1} adresse:`, audit.adresse);
-            const match = compareAddress(audit.adresse, chantierAdresse);
-            console.log(`    → Match: ${match}`);
-          });
+          // Trouver la synthèse correspondante PAR INDEX (pas par adresse)
+          const syntheseCorrespondante = norm.syntheses[chantierIndex] || null;
+          console.log('Synthèse correspondante (par index):', syntheseCorrespondante ? syntheseCorrespondante.adresse : 'NON TROUVÉE');
 
-          const auditCorrespondant = norm.audits.find(audit =>
-            compareAddress(audit.adresse, chantierAdresse)
-          );
-          console.log('Audit correspondant trouvé:', !!auditCorrespondant);
-
-          // Trouver la synthèse correspondante (même adresse)
-          const syntheseCorrespondante = norm.syntheses.find(synthese =>
-            compareAddress(synthese.adresse, chantierAdresse)
-          );
-
-          const chantierLabel = Object.keys(attestationsParChantier).length > 1 ?
+          const nbChantiers = norm.cee?.attestations?.length || 0;
+          const chantierLabel = nbChantiers > 1 ?
             ` (Chantier ${chantierIndex + 1} : ${chantierAdresse.substring(0, 30)}...)` :
             '';
 
-          // Check 42 : Audit trouvé pour ce chantier
+          // Check 42 : Audit trouvé pour ce chantier (PAR INDEX)
           if (!auditCorrespondant) {
             checks.push({
               id: `check_42_${chantierIndex}`,
               categorie: 'audit',
               niveau: 'majeur',
               champ: `Audit correspondant${chantierLabel}`,
-              localisation: `Attestation(s) adresse ${chantierAdresse}`,
-              detail: `⚠️ Aucun audit trouvé pour l'adresse ${chantierAdresse}`,
-              valeur_attendue: chantierAdresse,
-              valeur_trouvee: 'Audit non trouvé'
+              localisation: `Chantier ${chantierIndex + 1} - ${chantierAdresse}`,
+              detail: `⚠️ Audit manquant : attendu à la position ${chantierIndex + 1} mais non extrait par Claude`,
+              valeur_attendue: `Audit ${chantierIndex + 1} pour ${chantierAdresse}`,
+              valeur_trouvee: 'Audit non extrait'
             });
           } else {
+            // Check 42a : Adresse audit correspond à l'adresse CEE
+            const adresseMatch = compareAddress(auditCorrespondant.adresse, chantierAdresse);
+            if (!adresseMatch) {
+              checks.push({
+                id: `check_42a_${chantierIndex}`,
+                categorie: 'audit',
+                niveau: 'majeur',
+                champ: `Adresse Audit${chantierLabel}`,
+                localisation: `Audit ${chantierIndex + 1}, page 1`,
+                detail: `❌ Adresse audit différente de l'adresse chantier CEE`,
+                valeur_attendue: chantierAdresse,
+                valeur_trouvee: auditCorrespondant.adresse || ''
+              });
+            }
             const surfacesAudit = auditCorrespondant.surfaces || [];
             const sommeAudit = sumSurfaces(surfacesAudit);
 
@@ -3390,18 +3380,15 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
               // Check 42 : NE PLUS comparer les listes (car audit peut ne pas avoir toutes les surfaces)
               // On compare SEULEMENT les sommes maintenant
 
-              // Check 43 : Somme Audit = Somme TOTALE attestations (groupées par chantier)
+              // Check 43 : Somme Audit = Somme attestation
               const sommesAuditMatch = Math.abs(sommeAttestationTotale - sommeAudit) < 1; // Tolérance 1 m²
-              const detailAttestation = nbAttestations > 1 ?
-                `${nbAttestations} attestations groupées (même adresse)` :
-                'Attestation unique';
 
               checks.push({
                 id: `check_43_${chantierIndex}`,
                 categorie: 'audit',
                 niveau: sommesAuditMatch ? 'ok' : 'majeur',
-                champ: `Somme surfaces Audit = Somme attestations${chantierLabel}`,
-                localisation: `Total Audit observations vs Total attestations honneur (${detailAttestation})`,
+                champ: `Somme surfaces Audit = Somme attestation${chantierLabel}`,
+                localisation: `Total Audit observations vs Total attestation honneur chantier ${chantierIndex + 1}`,
                 detail: sommesAuditMatch ?
                   `Somme Audit cohérente avec attestations : ${sommeAttestationTotale} m²` :
                   `Somme Audit (${sommeAudit} m²) différente des attestations (${sommeAttestationTotale} m²). ${detailAttestation}.`,
