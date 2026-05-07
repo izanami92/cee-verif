@@ -1945,10 +1945,31 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
 
       const clean1 = clean(addr1);
       const clean2 = clean(addr2);
-      const result = clean1 === clean2;
+
+      // Extraire le code postal (5 chiffres)
+      const extractCP = (str) => {
+        const match = str.match(/\b\d{5}\b/);
+        return match ? match[0] : '';
+      };
+
+      const cp1 = extractCP(clean1);
+      const cp2 = extractCP(clean2);
+
+      // Si codes postaux différents, c'est une erreur
+      if (cp1 && cp2 && cp1 !== cp2) {
+        console.log(`[compareAddress] ÉCHEC (code postal): "${addr1}" (CP: ${cp1}) vs "${addr2}" (CP: ${cp2})`);
+        return false;
+      }
+
+      // Supprimer le code postal des deux adresses et comparer le reste
+      // Cela permet d'ignorer l'ordre "60130 NOROY" vs "NOROY 60130"
+      const withoutCP1 = clean1.replace(/\b\d{5}\b/g, '').replace(/\s+/g, ' ').trim();
+      const withoutCP2 = clean2.replace(/\b\d{5}\b/g, '').replace(/\s+/g, ' ').trim();
+
+      const result = withoutCP1 === withoutCP2;
 
       if (!result) {
-        console.log(`[compareAddress] ÉCHEC: "${addr1}" (→ "${clean1}") vs "${addr2}" (→ "${clean2}")`);
+        console.log(`[compareAddress] ÉCHEC: "${addr1}" (→ "${withoutCP1}") vs "${addr2}" (→ "${withoutCP2}")`);
       }
 
       return result;
