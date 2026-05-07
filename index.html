@@ -374,10 +374,35 @@
       color: var(--color-conforme);
       margin-top: var(--spacing-sm);
       display: none;
+      align-items: center;
+      gap: var(--spacing-sm);
     }
 
     .upload-zone.loaded .upload-zone-filename {
-      display: block;
+      display: flex;
+    }
+
+    .upload-zone-filename-text {
+      flex: 1;
+      word-break: break-word;
+    }
+
+    .btn-remove-file {
+      padding: 0.25rem 0.5rem;
+      background: rgba(239, 68, 68, 0.2);
+      color: rgba(239, 68, 68, 1);
+      border: 1px solid rgba(239, 68, 68, 0.4);
+      border-radius: var(--radius-sm);
+      font-size: 0.7rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+
+    .btn-remove-file:hover {
+      background: rgba(239, 68, 68, 0.3);
+      border-color: rgba(239, 68, 68, 0.6);
     }
 
     .upload-zone input[type="file"] {
@@ -1427,13 +1452,19 @@
 
         // Afficher la liste des fichiers
         const fileNames = state.files[fileKey].map(f => f.name).join('\n');
-        filenameElement.textContent = `${state.files[fileKey].length} fichier(s) :\n${fileNames}`;
+        filenameElement.innerHTML = `
+          <span class="upload-zone-filename-text">${state.files[fileKey].length} fichier(s) :\n${fileNames}</span>
+          <button class="btn-remove-file" onclick="removeFile('${fileKey}', this)">× Retirer</button>
+        `;
         filenameElement.style.whiteSpace = 'pre-line';
         filenameElement.style.fontSize = '0.7rem';
       } else {
         // Fichier unique
         state.files[fileKey] = files[0];
-        filenameElement.textContent = files[0].name;
+        filenameElement.innerHTML = `
+          <span class="upload-zone-filename-text">${files[0].name}</span>
+          <button class="btn-remove-file" onclick="removeFile('${fileKey}', this)">× Retirer</button>
+        `;
       }
 
       zoneElement.classList.add('loaded');
@@ -1442,6 +1473,31 @@
 
       // Détection automatique retirée : l'utilisateur doit cliquer sur "Extraire du CEE"
       // pour détecter les chantiers et générer les zones d'import
+    }
+
+    function removeFile(fileKey, buttonElement) {
+      // Supprimer le fichier du state
+      state.files[fileKey] = null;
+
+      // Trouver la zone d'upload parente
+      const zoneElement = buttonElement.closest('.upload-zone');
+
+      // Retirer la classe loaded
+      zoneElement.classList.remove('loaded');
+
+      // Vider le contenu du filename
+      const filenameElement = zoneElement.querySelector('.upload-zone-filename');
+      filenameElement.innerHTML = '';
+
+      // Réinitialiser l'input file
+      const fileInput = zoneElement.querySelector('input[type="file"]');
+      if (fileInput) {
+        fileInput.value = '';
+      }
+
+      // Vérifier les boutons
+      checkAnalyzeButton();
+      checkExtractButton();
     }
 
     function checkAnalyzeButton() {
@@ -1967,10 +2023,42 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
       // Sauvegarder le fichier dans le state
       state.chantiers[chantierIndex][fileType] = file;
 
-      // Afficher le nom du fichier
-      filenameElement.textContent = file.name;
+      // Afficher le nom du fichier avec bouton retirer
+      filenameElement.innerHTML = `
+        <span class="upload-zone-filename-text">${file.name}</span>
+        <button class="btn-remove-file" onclick="removeChantierFile(${chantierIndex}, '${fileType}', this)">× Retirer</button>
+      `;
       zoneElement.classList.add('loaded');
 
+      checkAnalyzeButton();
+    }
+
+    function removeChantierFile(chantierIndex, fileType, buttonElement) {
+      // Supprimer le fichier du chantier
+      state.chantiers[chantierIndex][fileType] = null;
+      // Supprimer aussi le texte extrait si existant
+      const textKey = fileType + 'Text';
+      if (state.chantiers[chantierIndex][textKey]) {
+        state.chantiers[chantierIndex][textKey] = '';
+      }
+
+      // Trouver la zone d'upload parente
+      const zoneElement = buttonElement.closest('.upload-zone');
+
+      // Retirer la classe loaded
+      zoneElement.classList.remove('loaded');
+
+      // Vider le contenu du filename
+      const filenameElement = zoneElement.querySelector('.upload-zone-filename');
+      filenameElement.innerHTML = '';
+
+      // Réinitialiser l'input file
+      const fileInput = zoneElement.querySelector('input[type="file"]');
+      if (fileInput) {
+        fileInput.value = '';
+      }
+
+      // Vérifier le bouton Analyser
       checkAnalyzeButton();
     }
 
