@@ -2602,6 +2602,18 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
       const firstAudit = getFirstAudit(norm);
       const firstSynthese = getFirstSynthese(norm);
 
+      // Log détaillé des données extraites pour debug
+      console.log('\n=== DONNÉES EXTRAITES PAR CLAUDE ===');
+      console.log('Audits extraits:', norm.audits.length);
+      norm.audits.forEach((audit, i) => {
+        console.log(`  Audit ${i + 1}:`, { nom: audit.nom, adresse: audit.adresse, ledTotal: audit.ledTotal });
+      });
+      console.log('Synthèses extraites:', norm.syntheses.length);
+      norm.syntheses.forEach((synthese, i) => {
+        console.log(`  Synthèse ${i + 1}:`, { nom: synthese.nom, adresse: synthese.adresse, ledTotal: synthese.ledTotal });
+      });
+      console.log('Adresses chantiers CEE:', norm.cee?.adressesChantiers || []);
+
       // ========== BLOQUANTS - Page de garde Audit (1-3) ==========
       // Pour chaque audit (1 ou plusieurs chantiers)
 
@@ -3323,9 +3335,19 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
           const nbAttestations = chantier.attestations.length;
 
           // Trouver l'audit correspondant (même adresse)
+          console.log(`\n=== MATCHING AUDIT CHANTIER ${chantierIndex + 1} ===`);
+          console.log('Adresse chantier CEE:', chantierAdresse);
+          console.log('Nombre audits extraits:', norm.audits.length);
+          norm.audits.forEach((audit, i) => {
+            console.log(`  Audit ${i + 1} adresse:`, audit.adresse);
+            const match = compareAddress(audit.adresse, chantierAdresse);
+            console.log(`    → Match: ${match}`);
+          });
+
           const auditCorrespondant = norm.audits.find(audit =>
             compareAddress(audit.adresse, chantierAdresse)
           );
+          console.log('Audit correspondant trouvé:', !!auditCorrespondant);
 
           // Trouver la synthèse correspondante (même adresse)
           const syntheseCorrespondante = norm.syntheses.find(synthese =>
