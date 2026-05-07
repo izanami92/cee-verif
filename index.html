@@ -503,6 +503,19 @@
       border-radius: var(--radius-md);
       box-shadow: var(--shadow-sm);
       text-align: center;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      border: 2px solid transparent;
+    }
+
+    .counter:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-md);
+    }
+
+    .counter.active {
+      border-color: currentColor;
+      box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.1);
     }
 
     .counter-value {
@@ -743,6 +756,120 @@
     .check-chip.conforme {
       background: #dcfce7;
       color: #166534;
+    }
+
+    /* Groupes d'erreurs */
+    .error-group {
+      background: var(--color-white);
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-sm);
+      border-left: 4px solid var(--color-info);
+      margin-bottom: var(--spacing-md);
+      overflow: hidden;
+    }
+
+    .error-group.bloquant { border-left-color: var(--color-bloquant); }
+    .error-group.majeur { border-left-color: var(--color-majeur); }
+
+    .error-group-header {
+      padding: var(--spacing-lg);
+      cursor: pointer;
+      display: flex;
+      align-items: flex-start;
+      gap: var(--spacing-md);
+      transition: background 0.2s ease;
+    }
+
+    .error-group-header:hover {
+      background: #f8fafc;
+    }
+
+    .error-group-badge {
+      padding: var(--spacing-xs) var(--spacing-sm);
+      border-radius: var(--radius-sm);
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      white-space: nowrap;
+    }
+
+    .error-group-badge.bloquant { background: #fee; color: var(--color-bloquant); }
+    .error-group-badge.majeur { background: #fef3c7; color: #92400e; }
+
+    .error-group-content {
+      flex: 1;
+    }
+
+    .error-group-title {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-sm);
+      font-weight: 600;
+      font-size: 1rem;
+      color: var(--color-text);
+      margin-bottom: var(--spacing-xs);
+    }
+
+    .error-group-document {
+      font-family: var(--font-mono);
+      font-size: 0.875rem;
+      color: var(--color-primary);
+    }
+
+    .error-group-summary {
+      color: var(--color-text-light);
+      font-size: 0.875rem;
+      margin-bottom: var(--spacing-xs);
+    }
+
+    .error-group-count {
+      font-size: 0.75rem;
+      color: var(--color-text-light);
+      font-style: italic;
+    }
+
+    .error-group-expand-icon {
+      transition: transform 0.2s ease;
+      color: var(--color-text-light);
+    }
+
+    .error-group.expanded .error-group-expand-icon {
+      transform: rotate(180deg);
+    }
+
+    .error-group-details {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.3s ease;
+    }
+
+    .error-group.expanded .error-group-details {
+      max-height: 1000px;
+    }
+
+    .error-group-details-inner {
+      padding: 0 var(--spacing-lg) var(--spacing-lg) var(--spacing-lg);
+      border-top: 1px solid var(--color-border);
+    }
+
+    .error-occurrence {
+      padding: var(--spacing-md);
+      background: #f8fafc;
+      border-radius: var(--radius-sm);
+      margin-top: var(--spacing-md);
+    }
+
+    .error-occurrence-location {
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      color: var(--color-text-light);
+      margin-bottom: var(--spacing-xs);
+    }
+
+    .error-occurrence-detail {
+      font-size: 0.875rem;
+      color: var(--color-text-light);
     }
 
     /* Message auditeur */
@@ -2405,6 +2532,9 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
 
       // Compter par niveau
       const checks = result.checks || [];
+      currentChecks = checks; // Stocker pour le filtrage
+      activeFilter = null; // Réinitialiser le filtre
+
       const bloquants = checks.filter(c => c.niveau === 'bloquant').length;
       const majeurs = checks.filter(c => c.niveau === 'majeur').length;
       const conformes = checks.filter(c => c.niveau === 'ok').length;
@@ -2413,31 +2543,11 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
       elements.counterMajeur.textContent = majeurs;
       elements.counterConforme.textContent = conformes;
 
-      // Trier les checks par gravité
-      const sortedChecks = [...checks].sort((a, b) => {
-        const order = { bloquant: 0, majeur: 1, ok: 2, info: 3 };
-        return order[a.niveau] - order[b.niveau];
-      });
+      // Enlever la classe active de tous les compteurs
+      document.querySelectorAll('.counter').forEach(c => c.classList.remove('active'));
 
-      // Afficher toutes les cartes
-      elements.checksListTous.innerHTML = sortedChecks.map(check => createCheckCard(check)).join('');
-
-      // Afficher par catégorie
-      const gardeChecks = checks.filter(c => c.categorie === 'garde');
-      const syntheseChecks = checks.filter(c => c.categorie === 'synthese');
-      const auditChecks = checks.filter(c => c.categorie === 'audit');
-
-      elements.checksListGarde.innerHTML = gardeChecks.length > 0
-        ? gardeChecks.map(check => createCheckCard(check)).join('')
-        : '<p style="color: #666; text-align: center; padding: 2rem;">Aucune vérification dans cette catégorie</p>';
-
-      elements.checksListSynthese.innerHTML = syntheseChecks.length > 0
-        ? syntheseChecks.map(check => createCheckCard(check)).join('')
-        : '<p style="color: #666; text-align: center; padding: 2rem;">Aucune vérification dans cette catégorie</p>';
-
-      elements.checksListAudit.innerHTML = auditChecks.length > 0
-        ? auditChecks.map(check => createCheckCard(check)).join('')
-        : '<p style="color: #666; text-align: center; padding: 2rem;">Aucune vérification dans cette catégorie</p>';
+      // Afficher avec regroupement
+      refreshDisplay();
 
       // Message auditeur
       elements.messageContent.textContent = result.message_auditeur || 'Aucun message généré.';
@@ -2477,6 +2587,180 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
       `;
     }
 
+    // Variable globale pour stocker les checks et permettre le filtrage
+    let currentChecks = [];
+    let activeFilter = null; // null, 'bloquant', 'majeur', 'conforme'
+
+    // Regroupe les erreurs similaires par document
+    function groupSimilarErrors(checks) {
+      // Ne regrouper que les erreurs (pas les conformes ni les infos)
+      const errors = checks.filter(c => c.niveau === 'bloquant' || c.niveau === 'majeur');
+      const conformes = checks.filter(c => c.niveau === 'ok' || c.niveau === 'info');
+
+      // Map pour regrouper : clé = document + valeur_attendue + valeur_trouvee
+      const groupMap = new Map();
+
+      errors.forEach(check => {
+        // Déterminer le document depuis la localisation ou le champ
+        let document = 'Autre';
+        const loc = (check.localisation || check.champ || '').toLowerCase();
+        if (loc.includes('audit')) document = 'Audit';
+        else if (loc.includes('synthèse') || loc.includes('synthese')) document = 'Synthèse';
+        else if (loc.includes('cee') || loc.includes('dossier')) document = 'Dossier CEE';
+        else if (loc.includes('fiche technique')) document = 'Fiche Technique';
+
+        // Clé de regroupement : document + valeurs
+        const key = `${document}::${check.valeur_attendue}::${check.valeur_trouvee}`;
+
+        if (!groupMap.has(key)) {
+          groupMap.set(key, {
+            document,
+            niveau: check.niveau,
+            valeur_attendue: check.valeur_attendue,
+            valeur_trouvee: check.valeur_trouvee,
+            occurrences: []
+          });
+        }
+
+        groupMap.get(key).occurrences.push({
+          champ: check.champ,
+          localisation: check.localisation,
+          detail: check.detail,
+          categorie: check.categorie
+        });
+      });
+
+      // Convertir en tableau et ne garder que les groupes avec plusieurs occurrences
+      const groups = Array.from(groupMap.values()).filter(g => g.occurrences.length > 1);
+
+      // IDs des checks groupés
+      const groupedCheckKeys = new Set();
+      groups.forEach(group => {
+        group.occurrences.forEach(occ => {
+          const key = `${group.document}::${occ.champ}::${group.valeur_attendue}::${group.valeur_trouvee}`;
+          groupedCheckKeys.add(key);
+        });
+      });
+
+      // Checks individuels = ceux qui ne sont pas groupés
+      const individualChecks = errors.filter(check => {
+        let document = 'Autre';
+        const loc = (check.localisation || check.champ || '').toLowerCase();
+        if (loc.includes('audit')) document = 'Audit';
+        else if (loc.includes('synthèse') || loc.includes('synthese')) document = 'Synthèse';
+        else if (loc.includes('cee') || loc.includes('dossier')) document = 'Dossier CEE';
+        else if (loc.includes('fiche technique')) document = 'Fiche Technique';
+
+        const key = `${document}::${check.champ}::${check.valeur_attendue}::${check.valeur_trouvee}`;
+        return !groupedCheckKeys.has(key);
+      });
+
+      return { groups, individualChecks, conformes };
+    }
+
+    // Crée le HTML d'un groupe d'erreurs
+    function createErrorGroupCard(group) {
+      const badgeText = group.niveau === 'bloquant' ? 'Bloquant' : 'Majeur';
+      const count = group.occurrences.length;
+      const locations = group.occurrences.map(o => o.champ).join(', ');
+
+      const occurrencesHTML = group.occurrences.map(occ => `
+        <div class="error-occurrence">
+          <div class="error-occurrence-location">📍 ${occ.localisation || occ.champ}</div>
+          <div class="error-occurrence-detail">${occ.detail}</div>
+        </div>
+      `).join('');
+
+      return `
+        <div class="error-group ${group.niveau}" data-niveau="${group.niveau}">
+          <div class="error-group-header" onclick="this.parentElement.classList.toggle('expanded')">
+            <span class="error-group-badge ${group.niveau}">${badgeText}</span>
+            <div class="error-group-content">
+              <div class="error-group-title">
+                <span class="error-group-document">📄 ${group.document}</span>
+                <span>—</span>
+                <span>Valeur incorrecte</span>
+              </div>
+              <div class="error-group-summary">
+                Attendu: <strong>${group.valeur_attendue || 'N/A'}</strong> |
+                Trouvé: <strong>${group.valeur_trouvee || 'N/A'}</strong>
+              </div>
+              <div class="error-group-count">
+                ${count} occurrence${count > 1 ? 's' : ''} : ${locations}
+              </div>
+            </div>
+            <div class="error-group-expand-icon">▼</div>
+          </div>
+          <div class="error-group-details">
+            <div class="error-group-details-inner">
+              ${occurrencesHTML}
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    // Affiche les checks avec regroupement
+    function renderChecksWithGroups(checks, container) {
+      const { groups, individualChecks, conformes } = groupSimilarErrors(checks);
+
+      // Trier par gravité : bloquants d'abord
+      const sortByGravity = (a, b) => {
+        const order = { bloquant: 0, majeur: 1 };
+        const levelA = a.niveau || (a.occurrences && a.occurrences[0].niveau);
+        const levelB = b.niveau || (b.occurrences && b.occurrences[0].niveau);
+        return order[levelA] - order[levelB];
+      };
+
+      groups.sort(sortByGravity);
+      individualChecks.sort((a, b) => {
+        const order = { bloquant: 0, majeur: 1, ok: 2, info: 3 };
+        return order[a.niveau] - order[b.niveau];
+      });
+
+      const groupsHTML = groups.map(g => createErrorGroupCard(g)).join('');
+      const individualsHTML = individualChecks.map(c => createCheckCard(c)).join('');
+      const conformesHTML = conformes.map(c => createCheckCard(c)).join('');
+
+      container.innerHTML = groupsHTML + individualsHTML + conformesHTML;
+    }
+
+    // Fonction de filtrage par niveau
+    function filterChecksByLevel(niveau) {
+      if (activeFilter === niveau) {
+        // Désactiver le filtre
+        activeFilter = null;
+        document.querySelectorAll('.counter').forEach(c => c.classList.remove('active'));
+      } else {
+        // Activer le filtre
+        activeFilter = niveau;
+        document.querySelectorAll('.counter').forEach(c => c.classList.remove('active'));
+        document.querySelector(`.counter.${niveau}`).classList.add('active');
+      }
+
+      // Réafficher avec ou sans filtre
+      refreshDisplay();
+    }
+
+    // Rafraîchit l'affichage selon le filtre actif
+    function refreshDisplay() {
+      const checksToDisplay = activeFilter
+        ? currentChecks.filter(c => c.niveau === activeFilter)
+        : currentChecks;
+
+      // Afficher dans l'onglet "Tous"
+      renderChecksWithGroups(checksToDisplay, elements.checksListTous);
+
+      // Afficher par catégorie (avec filtre si actif)
+      const gardeChecks = checksToDisplay.filter(c => c.categorie === 'garde');
+      const syntheseChecks = checksToDisplay.filter(c => c.categorie === 'synthese');
+      const auditChecks = checksToDisplay.filter(c => c.categorie === 'audit');
+
+      renderChecksWithGroups(gardeChecks, elements.checksListGarde);
+      renderChecksWithGroups(syntheseChecks, elements.checksListSynthese);
+      renderChecksWithGroups(auditChecks, elements.checksListAudit);
+    }
+
     // ========== ONGLETS ==========
     elements.tabs.forEach(tab => {
       tab.addEventListener('click', () => {
@@ -2508,6 +2792,19 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
         console.error('Erreur copie:', error);
         alert('Erreur lors de la copie. Utilisez Ctrl+C manuellement.');
       }
+    });
+
+    // ========== FILTRES PAR NIVEAU (COMPTEURS CLIQUABLES) ==========
+    elements.counterBloquant.parentElement.addEventListener('click', () => {
+      filterChecksByLevel('bloquant');
+    });
+
+    elements.counterMajeur.parentElement.addEventListener('click', () => {
+      filterChecksByLevel('majeur');
+    });
+
+    elements.counterConforme.parentElement.addEventListener('click', () => {
+      filterChecksByLevel('ok');
     });
 
     // ========== CHECKLIST MANUELLE ==========
