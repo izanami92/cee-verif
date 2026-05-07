@@ -140,31 +140,9 @@ DOCUMENTS À ANALYSER :
 - DOSSIER CEE : dossier administratif (1 seul, contient le total de tous les chantiers)
 - FICHE TECHNIQUE : spécifications LED (optionnel)
 
-RÈGLE MULTI-CHANTIERS (TRÈS IMPORTANT) :
-- 1 Audit + 1 Synthèse = 1 chantier
-- 2 Audits + 2 Synthèses = 2 chantiers (même dossier CEE)
-- Pour matcher Audit ↔ Synthèse : comparer l'ADRESSE (même adresse = même chantier)
-- Extraire CHAQUE audit et CHAQUE synthèse séparément avec leur adresse et leur total LED
-
-EXTRACTION AUDIT (LOCALISATION PRÉCISE) :
-- "nom" : page 1, en-tête en haut (nom client/société)
-- "adresse" : page 1, en-tête en haut (adresse complète du chantier)
-- "date" : page 1, en-tête en haut (date de l'audit)
-- "siret" : page "Description" > "SIRET" (14 chiffres sans espaces)
-- "surfaces" : page "Description" > section "Observations préliminaires" > tableau des surfaces (toutes les valeurs en m²)
-- "ledTotal" : page "Liste des luminaires" > colonne "Pce" > TOTAL (somme en bas du tableau) OU page "Description" > "Etat initial : nombre" OU "Etat projeté : nombre"
-- "profilUtilisation" : page "Description" > "Profil d'utilisation" ou similaire
-
-EXTRACTION SYNTHÈSE (LOCALISATION PRÉCISE) :
-- "nom" : page 1, en haut (nom du client/société)
-- "adresse" : page "Fiche d'identité du site" > "Adresse"
-- "date" : page 1, en haut (date du document)
-- "ledTotal" : page "Inventaire du projet" > TOTAL des luminaires (ligne de total en bas du tableau)
-- "surfaceEclairee" : page "Fiche d'identité du site" > "Surface éclairée"
-- "secteurActivite" : page "Fiche d'identité du site" > "Secteur d'activité" OU "Type de bâtiment"
-- "profilUtilisation" : chercher dans tout le document les mentions de profil/type d'utilisation
-- "thd" : page "Caractéristiques des luminaires" > "Taux de distorsion harmonique" ou "THD"
-- "referenceProduit" : page "Caractéristiques des luminaires" > "Référence" ou "Modèle"
+RÈGLE MULTI-CHANTIERS :
+- 1 Audit + 1 Synthèse = 1 chantier. 2 Audits + 2 Synthèses = 2 chantiers
+- Extraire CHAQUE audit/synthèse avec son adresse complète et total LED
 
 RÈGLES D'EXTRACTION CRITIQUES :
 
@@ -185,30 +163,9 @@ RÈGLES D'EXTRACTION CRITIQUES :
 4. Valeurs manquantes :
    - Si une valeur n'existe pas dans le document : mettre null (pas la chaîne "null")
 
-ADRESSES DANS LE DOSSIER CEE (TRÈS IMPORTANT) :
-- Adresse SIÈGE SOCIAL : en haut à DROITE du CEE (avec coordonnées client)
-- Adresses CHANTIERS (CRITIQUE - lire TOUT le document) :
-  * PARCOURIR ENTIÈREMENT le dossier CEE pour identifier TOUTES les adresses de chantiers
-  * Chercher dans :
-    1. En haut à GAUCHE (première page) : adresse chantier principal
-    2. Dans CHAQUE page "ATTESTATION SUR L'HONNEUR" : adresse en haut de l'attestation
-    3. Dans les factures : adresses mentionnées
-    4. Dans toute section mentionnant une adresse de travaux/chantier/site
-  * IMPORTANT : Si tu trouves 2 attestations sur l'honneur → extraire les 2 adresses
-  * IMPORTANT : Si tu trouves 3 attestations sur l'honneur → extraire les 3 adresses
-  * Retourner un tableau avec TOUTES les adresses trouvées : ["adresse 1", "adresse 2", ...]
-  * NE PAS déduire le nombre d'adresses du nombre d'audits/synthèses - lire le CEE lui-même
-
-SURFACES ET ATTESTATIONS (TRÈS IMPORTANT) :
-- Dans l'AUDIT, section "Description" > "Observations préliminaires" : extraire TOUTES les surfaces mentionnées (tableau)
-- Dans le CEE, chercher "ATTESTATION SUR L'HONNEUR Existence d'un entrepôt de stockage non agricole" :
-  - PARCOURIR TOUT LE DOCUMENT pour trouver TOUTES les attestations (il peut y en avoir 2, 3 ou plus)
-  - Pour CHAQUE attestation trouvée (ne pas s'arrêter à la première) :
-    - Extraire l'ADRESSE COMPLÈTE du chantier (numéro, rue, CP, ville - généralement en haut de l'attestation)
-    - Extraire TOUTES les surfaces de bâtiments listées dans cette attestation (tableau)
-  - Retourner un tableau d'objets : [{adresse: "adresse complète 1", surfaces: ["850", "456"]}, {adresse: "adresse complète 2", surfaces: ["1240"]}, ...]
-  - Si aucune attestation trouvée : retourner un tableau vide []
-- Dans la SYNTHÈSE, "Fiche d'identité du site" > "Surface éclairée" : extraire la surface totale
+CEE - ADRESSES ET ATTESTATIONS :
+- adressesChantiers : TOUTES les adresses trouvées (page 1, attestations, factures)
+- attestations : Pour CHAQUE "ATTESTATION SUR L'HONNEUR", extraire {adresse: "...", surfaces: ["850", "456"]}
 
 MENTIONS AGRICOLES :
 - Chercher toute mention de "agri", "agricole", "agriculture", "agriculteur" dans TOUS les documents
@@ -274,12 +231,6 @@ FORMAT DE RÉPONSE (JSON uniquement) :
   }
 }
 \`\`\`
-
-RAPPEL MULTI-CHANTIERS :
-- Si le dossier CEE contient 2 attestations sur l'honneur → extraire 2 adresses dans "adressesChantiers" ET 2 objets dans "attestations"
-- Si le dossier CEE contient 3 attestations sur l'honneur → extraire 3 adresses dans "adressesChantiers" ET 3 objets dans "attestations"
-- Chaque attestation DOIT avoir son adresse complète (celle écrite en haut de l'attestation)
-- NE JAMAIS mettre qu'une seule adresse si le document contient plusieurs chantiers
 
 IMPORTANT : Retourner UNIQUEMENT le JSON, sans texte avant ou après.`;
 }
