@@ -154,11 +154,11 @@ Tu dois retourner EXACTEMENT 40 checks (un par point) avec le niveau approprié 
 🔴 BLOQUANTS - AUDIT Page de garde (1-3)
 1. Nom entreprise (Audit page 1) = Nom entreprise CEE = Nom entreprise officiel gouv
 2. Adresse chantier (Audit page 1) = Adresse chantier CEE (numéro + rue + CP + ville) EXACTEMENT
-3. Date audit (Audit page 1) = Date proposition = Date prévisite CEE
+3. Date audit (Audit page 1) = Date proposition = Date prévisite CEE - FORMAT JJ/MM/AAAA OBLIGATOIRE (pas MM/JJ/AAAA)
 
 🟡 SYNTHÈSE - Page de garde (4-8)
 4. Nom entreprise (Synthèse page 1) = Nom entreprise CEE = Nom entreprise officiel gouv
-5. Date (Synthèse page 1) = Date proposition = Date prévisite CEE
+5. Date (Synthèse page 1) = Date proposition = Date prévisite CEE - FORMAT JJ/MM/AAAA OBLIGATOIRE
 6. Adresse mail (Synthèse page 1) = Adresse mail du CEE (si présente dans Synthèse, sinon niveau "info")
 7. Téléphone (Synthèse page 1) = Téléphone du dossier CEE (si présent dans Synthèse, sinon niveau "info")
 8. Contact nom/prénom (Synthèse page 1) = Représenté par sur le CEE (si présent dans Synthèse, sinon niveau "info")
@@ -217,7 +217,7 @@ Tu dois retourner EXACTEMENT 40 checks (un par point) avec le niveau approprié 
 39. Adresse siège social (Dossier CEE, haut à droite) = Adresse officielle siège social gouv
 
 🟡 AUTRE VÉRIFICATION MAJEURE (40)
-40. Date de signature / Date d'engagement de l'opération (Dossier CEE) = Date d'acceptation du devis (comparer jour/mois/année, ignorer le format)
+40. Date de signature / Date d'engagement de l'opération (Dossier CEE) = Date d'acceptation du devis - FORMAT JJ/MM/AAAA
 
 RÉFÉRENCES DU DOSSIER À UTILISER POUR LA VÉRIFICATION
 ${references.nom ? `- Nom société cliente : ${references.nom}` : ''}
@@ -272,10 +272,13 @@ RÈGLES STRICTES DE COMPARAISON :
    - "COMMERCE" = "commerce" → IDENTIQUE (niveau: "ok")
    - Ne JAMAIS signaler d'erreur uniquement pour une différence de casse
 
-2. **DATES** : Comparer le contenu, pas le format
-   - "17/10/2025" = "17/10/2025" → IDENTIQUE
+2. **DATES** : Format JJ/MM/AAAA OBLIGATOIRE + chiffres identiques
+   - Format attendu : JJ/MM/AAAA (français) - exemple : 24/11/2025
+   - "24/11/2025" = "24/11/2025" → IDENTIQUE (niveau: "ok")
+   - "11/24/2025" ≠ "24/11/2025" → ERREUR (format américain MM/JJ/AAAA)
    - Ignorer les espaces avant/après
-   - Si les jours, mois et années sont identiques → IDENTIQUE (niveau: "ok")
+   - Les dates doivent être identiques chiffre par chiffre ET au format JJ/MM/AAAA
+   - ⚠️ ERREUR BLOQUANTE sur page de garde Audit (points 3, 5) si format incorrect
 
 3. **ESPACES ET PONCTUATION** : Normaliser avant de comparer
    - "1 rue de la Paix" = "1  rue de la Paix" (double espace) → IDENTIQUE si même contenu
