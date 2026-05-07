@@ -159,9 +159,9 @@ Tu dois retourner EXACTEMENT 40 checks (un par point) avec le niveau approprié 
 🟡 SYNTHÈSE - Page de garde (4-8)
 4. Nom entreprise (Synthèse page 1) = Nom entreprise CEE = Nom entreprise officiel gouv
 5. Date (Synthèse page 1) = Date proposition = Date prévisite CEE
-6. Adresse mail (Synthèse page 1) = Adresse mail du CEE
-7. Téléphone (Synthèse page 1) = Téléphone du dossier CEE
-8. Contact nom/prénom (Synthèse page 1) = Représenté par sur le CEE
+6. Adresse mail (Synthèse page 1) = Adresse mail du CEE (si présente dans Synthèse, sinon niveau "info")
+7. Téléphone (Synthèse page 1) = Téléphone du dossier CEE (si présent dans Synthèse, sinon niveau "info")
+8. Contact nom/prénom (Synthèse page 1) = Représenté par sur le CEE (si présent dans Synthèse, sinon niveau "info")
 
 🟡 SYNTHÈSE - Inventaire projet (9)
 9. TOTAL luminaires (Synthèse inventaire projet) = Nombre LED chantier CEE
@@ -217,7 +217,7 @@ Tu dois retourner EXACTEMENT 40 checks (un par point) avec le niveau approprié 
 39. Adresse siège social (Dossier CEE, haut à droite) = Adresse officielle siège social gouv
 
 🟡 AUTRE VÉRIFICATION MAJEURE (40)
-40. Date de signature / Date d'engagement de l'opération (Dossier CEE) = Date d'acceptation du devis
+40. Date de signature / Date d'engagement de l'opération (Dossier CEE) = Date d'acceptation du devis (comparer jour/mois/année, ignorer le format)
 
 RÉFÉRENCES DU DOSSIER À UTILISER POUR LA VÉRIFICATION
 ${references.nom ? `- Nom société cliente : ${references.nom}` : ''}
@@ -257,22 +257,39 @@ IMPORTANT - RETOUR DE TOUS LES 40 CHECKS OBLIGATOIRES :
 - JAMAIS moins de 40 checks, même si tout est conforme
 - Pour chaque point numéroté (1 à 40), crée UN check avec :
   * id: "check_01", "check_02", ..., "check_40"
-  * niveau: "bloquant" (points 1-3, 31-34, 38-39) | "majeur" (autres) | "ok" (si conforme) | "info" (si check manuel requis)
+  * niveau: "bloquant" (points 1-3, 31-34, 38-39) | "majeur" (points 4-5, 9-12, 14-16, 19-21, 23-30, 35-37, 40) | "ok" (si conforme) | "info" (si check manuel requis OU si donnée absente mais optionnelle)
   * champ: Le nom exact du point (ex: "Nom entreprise Audit page 1")
   * localisation: Page et section EXACTE dans le document
   * valeur_attendue: Valeur de référence
   * valeur_trouvee: Valeur EXACTE dans le document
-- Ne marque JAMAIS "bloquant" ou "majeur" si valeur_attendue === valeur_trouvee
-- Si valeur_attendue === valeur_trouvee → niveau = "ok"
+- Ne marque JAMAIS "bloquant" ou "majeur" si les valeurs sont IDENTIQUES
 - Si check manuel requis (points 13, 17, 18, 22) → niveau = "info", detail = "Vérification manuelle requise"
+- Si donnée absente mais optionnelle (points 6, 7, 8 : contacts Synthèse) → niveau = "info", detail = "Donnée non présente dans le document (optionnel)"
+
+RÈGLES STRICTES DE COMPARAISON :
+1. **MAJUSCULES/MINUSCULES** : TOUJOURS IGNORER LA CASSE
+   - "ENTREPÔT" = "Entrepôt" = "entrepôt" → IDENTIQUE (niveau: "ok")
+   - "COMMERCE" = "commerce" → IDENTIQUE (niveau: "ok")
+   - Ne JAMAIS signaler d'erreur uniquement pour une différence de casse
+
+2. **DATES** : Comparer le contenu, pas le format
+   - "17/10/2025" = "17/10/2025" → IDENTIQUE
+   - Ignorer les espaces avant/après
+   - Si les jours, mois et années sont identiques → IDENTIQUE (niveau: "ok")
+
+3. **ESPACES ET PONCTUATION** : Normaliser avant de comparer
+   - "1 rue de la Paix" = "1  rue de la Paix" (double espace) → IDENTIQUE si même contenu
+   - Ignorer les espaces en début/fin de texte
+
+4. **CONTACTS SYNTHÈSE (points 6, 7, 8)** : OPTIONNELS
+   - Si email/téléphone/contact non présent dans la Synthèse → niveau "info" (PAS "majeur")
+   - Detail: "Donnée non présente dans le document (optionnel)"
 
 IMPORTANT - LOCALISATION PRÉCISE DES ERREURS :
 - Pour chaque check, tu DOIS indiquer où il se trouve exactement dans le document
 - Format attendu : "Nom du document + page + section si possible"
 - Exemples : "Audit page 1, en-tête" / "Synthèse page 2, tableau des LED" / "Dossier CEE page 5, informations bénéficiaire"
-- Dans "valeur_trouvee", copie EXACTEMENT le texte tel qu'il apparaît dans le PDF (même avec fautes de frappe, espaces, casse, etc.)
-- Si tu détectes une différence subtile (espace en trop, casse différente), mets le texte exact entre guillemets dans "detail"
-- ATTENTION : Si les valeurs sont identiques (même en ignorant la casse), c'est CONFORME (niveau: "ok")
+- Dans "valeur_trouvee", copie EXACTEMENT le texte tel qu'il apparaît dans le PDF
 
 INSTRUCTIONS POUR LE MESSAGE AUDITEUR
 - Commencer par l'identification du dossier (nom client)
