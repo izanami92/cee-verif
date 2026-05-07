@@ -1662,11 +1662,22 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
       return result;
     }
 
-    // Comparer deux dates (nettoie les espaces : "08 / 10 / 2025" → "08/10/2025")
+    // Comparer deux dates (gère les formats JJ/MM/AAAA et AAAA-MM-JJ)
     function compareDate(date1, date2) {
-      const clean = (d) => String(d || '').replace(/\s+/g, '').toLowerCase();
-      const clean1 = clean(date1);
-      const clean2 = clean(date2);
+      // Nettoyer : supprimer espaces
+      const clean = (d) => String(d || '').replace(/\s+/g, '');
+      let clean1 = clean(date1);
+      let clean2 = clean(date2);
+
+      // Convertir AAAA-MM-JJ en JJ/MM/AAAA pour uniformiser
+      const isoToFr = (d) => {
+        const match = d.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+        return match ? `${match[3]}/${match[2]}/${match[1]}` : d;
+      };
+
+      clean1 = isoToFr(clean1);
+      clean2 = isoToFr(clean2);
+
       const result = clean1 === clean2;
       console.log(`[compareDate] "${date1}" (→ "${clean1}") vs "${date2}" (→ "${clean2}") → ${result}`);
       return result;
