@@ -163,9 +163,12 @@ ADRESSES DANS LE DOSSIER CEE :
 - Adresse SIÈGE SOCIAL : en haut à DROITE du CEE (avec coordonnées client)
 - Adresse CHANTIER : en haut à GAUCHE du CEE (ou dans la facture si plusieurs chantiers)
 
-SURFACES :
-- Si plusieurs surfaces mentionnées dans l'Audit (ex: "850 m² 456 m²"), les extraire séparément en tableau
-- Chercher "ATTESTATION SUR L'HONNEUR Existence d'un entrepôt" dans le CEE → extraire toutes les surfaces de bâtiments
+SURFACES (TRÈS IMPORTANT) :
+- Dans l'AUDIT, section "Description" > "Observations préliminaires" : extraire TOUTES les surfaces mentionnées (tableau)
+- Dans le CEE, chercher "ATTESTATION SUR L'HONNEUR Existence d'un entrepôt de stockage non agricole" :
+  - Indiquer si présente (true/false)
+  - Si présente, extraire TOUTES les surfaces de bâtiments (tableau)
+- Dans la SYNTHÈSE, "Fiche d'identité du site" > "Surface éclairée" : extraire la surface totale
 
 MENTIONS AGRICOLES :
 - Chercher toute mention de "agri", "agricole", "agriculture", "agriculteur" dans TOUS les documents
@@ -220,7 +223,8 @@ FORMAT DE RÉPONSE (JSON uniquement) :
     "resteAPayer": "Reste à payer / reste à charge",
     "secteurActivite": "Secteur d'activité / type de local",
     "parcelles": "Parcelles cadastrales",
-    "surfacesBatiments": ["surface batiment 1 depuis attestation honneur", "surface batiment 2"],
+    "attestationHonneurPresente": true,
+    "surfacesBatiments": ["850", "456"],
     "mentionsAgricoles": {
       "trouvee": false,
       "localisation": null
