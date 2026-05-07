@@ -3390,9 +3390,9 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
                 champ: `Somme surfaces Audit = Somme attestation${chantierLabel}`,
                 localisation: `Total Audit observations vs Total attestation honneur chantier ${chantierIndex + 1}`,
                 detail: sommesAuditMatch ?
-                  `Somme Audit cohérente avec attestations : ${sommeAttestationTotale} m²` :
-                  `Somme Audit (${sommeAudit} m²) différente des attestations (${sommeAttestationTotale} m²). ${detailAttestation}.`,
-                valeur_attendue: surfacesAttestationGroupees.join(' + ') + ' = ' + sommeAttestationTotale.toString() + ' m²',
+                  `Somme Audit cohérente avec attestation : ${sommeAttestationTotale} m²` :
+                  `Somme Audit (${sommeAudit} m²) différente de l'attestation (${sommeAttestationTotale} m²)`,
+                valeur_attendue: surfacesAttestation.join(' + ') + ' = ' + sommeAttestationTotale.toString() + ' m²',
                 valeur_trouvee: surfacesAudit.join(' + ') + ' = ' + sommeAudit.toString() + ' m²'
               });
             }
@@ -3405,12 +3405,26 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
               categorie: 'synthese',
               niveau: 'majeur',
               champ: `Synthèse correspondante${chantierLabel}`,
-              localisation: `Attestation(s) adresse ${chantierAdresse}`,
-              detail: `⚠️ Aucune synthèse trouvée pour l'adresse ${chantierAdresse}`,
-              valeur_attendue: chantierAdresse,
-              valeur_trouvee: 'Synthèse non trouvée'
+              localisation: `Chantier ${chantierIndex + 1} - ${chantierAdresse}`,
+              detail: `⚠️ Synthèse manquante : attendue à la position ${chantierIndex + 1} mais non extraite par Claude`,
+              valeur_attendue: `Synthèse ${chantierIndex + 1} pour ${chantierAdresse}`,
+              valeur_trouvee: 'Synthèse non extraite'
             });
           } else {
+            // Check 44a : Adresse synthèse correspond à l'adresse CEE
+            const adresseMatch = compareAddress(syntheseCorrespondante.adresse, chantierAdresse);
+            if (!adresseMatch) {
+              checks.push({
+                id: `check_44a_${chantierIndex}`,
+                categorie: 'synthese',
+                niveau: 'majeur',
+                champ: `Adresse Synthèse${chantierLabel}`,
+                localisation: `Synthèse ${chantierIndex + 1}, fiche identité`,
+                detail: `❌ Adresse synthèse différente de l'adresse chantier CEE`,
+                valeur_attendue: chantierAdresse,
+                valeur_trouvee: syntheseCorrespondante.adresse || ''
+              });
+            }
             const surfaceSynthese = syntheseCorrespondante.surfaceEclairee || '';
             const surfaceSyntheseNum = parseFloat(String(surfaceSynthese).replace(/\s+/g, '').replace(/m²/g, '').replace(/,/g, '.')) || 0;
 
