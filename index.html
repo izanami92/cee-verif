@@ -3572,6 +3572,11 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
 
       if (check.niveau === 'ok') {
         valuesHTML = `<span class="check-chip conforme">✓ ${check.valeur_trouvee || check.valeur_attendue || 'Conforme'}</span>`;
+      } else if (check.niveau === 'info') {
+        // Pour les infos : afficher seulement ce qui est trouvé (pas d'attendu pour les optionnels)
+        if (check.valeur_trouvee !== undefined && check.valeur_trouvee !== '') {
+          valuesHTML += `<span class="check-chip found">Trouvé: ${check.valeur_trouvee}</span>`;
+        }
       } else {
         // Pour les erreurs/majeurs : TOUJOURS afficher Attendu ET Trouvé (même si vide)
         if (check.valeur_attendue !== undefined) {
@@ -3603,9 +3608,10 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
 
     // Regroupe les erreurs et conformes similaires par document
     function groupSimilarErrors(checks) {
-      // Regrouper les erreurs ET les conformes
+      // Regrouper les erreurs, conformes et infos séparément
       const errors = checks.filter(c => c.niveau === 'bloquant' || c.niveau === 'majeur');
-      const conformes = checks.filter(c => c.niveau === 'ok' || c.niveau === 'info');
+      const conformes = checks.filter(c => c.niveau === 'ok');
+      const infos = checks.filter(c => c.niveau === 'info');
 
       // Map pour regrouper : clé = document + valeur_attendue + valeur_trouvee
       const groupMap = new Map();
@@ -3717,7 +3723,8 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
         return !groupedConformeKeys.has(key);
       });
 
-      return { groups, individualChecks, conformeGroups, individualConformes };
+      // Les infos ne sont pas regroupés, tous individuels
+      return { groups, individualChecks, conformeGroups, individualConformes, individualInfos: infos };
     }
 
     // Crée le HTML d'un groupe d'erreurs ou conformes
@@ -3780,7 +3787,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
 
     // Affiche les checks avec regroupement
     function renderChecksWithGroups(checks, container) {
-      const { groups, individualChecks, conformeGroups, individualConformes } = groupSimilarErrors(checks);
+      const { groups, individualChecks, conformeGroups, individualConformes, individualInfos } = groupSimilarErrors(checks);
 
       // Trier par gravité : bloquants d'abord
       const sortByGravity = (a, b) => {
@@ -3800,8 +3807,9 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
       const individualsHTML = individualChecks.map(c => createCheckCard(c)).join('');
       const conformeGroupsHTML = conformeGroups.map(g => createErrorGroupCard(g)).join('');
       const conformesHTML = individualConformes.map(c => createCheckCard(c)).join('');
+      const infosHTML = individualInfos.map(c => createCheckCard(c)).join('');
 
-      container.innerHTML = groupsHTML + individualsHTML + conformeGroupsHTML + conformesHTML;
+      container.innerHTML = groupsHTML + individualsHTML + conformeGroupsHTML + conformesHTML + infosHTML;
     }
 
     // Fonction de filtrage par niveau
