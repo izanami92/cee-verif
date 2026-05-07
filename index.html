@@ -2611,7 +2611,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
       });
       console.log('Synthèses extraites:', norm.syntheses.length);
       norm.syntheses.forEach((synthese, i) => {
-        console.log(`  Synthèse ${i + 1}:`, { nom: synthese.nom, adresse: synthese.adresse, ledTotal: synthese.ledTotal });
+        console.log(`  Synthèse ${i + 1} (COMPLET):`, synthese);
       });
       console.log('Adresses chantiers CEE:', norm.cee?.adressesChantiers || []);
 
