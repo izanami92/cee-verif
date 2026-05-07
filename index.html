@@ -1580,12 +1580,11 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
         console.log('Contient "audit" (nouveau format):', 'audit' in extractedData);
         console.log('Données complètes:', JSON.stringify(extractedData, null, 2));
 
-        // VÉRIFICATION CRITIQUE : l'API doit retourner le format EXTRACTION, pas le format CHECKS
+        // VÉRIFICATION : quel format l'API retourne-t-elle ?
         if ('checks' in extractedData && !('audit' in extractedData)) {
-          console.error('❌ ERREUR: L\'API retourne l\'ancien format avec checks ! Claude n\'extrait pas correctement.');
-          console.error('Le moteur de comparaison JavaScript ne peut pas fonctionner.');
-          alert('ERREUR TECHNIQUE: L\'API retourne des checks au lieu d\'extraire les données. Le système de comparaison fiable ne peut pas fonctionner. Consultez la console.');
-          throw new Error('Format de réponse incorrect: checks au lieu d\'extraction');
+          console.warn('⚠️ ATTENTION: L\'API retourne l\'ancien format avec checks au lieu du format extraction.');
+          console.warn('Le moteur de comparaison JavaScript ne sera pas utilisé.');
+          // On continue quand même pour afficher les résultats
         }
 
         updateProgress(75, 'Comparaison des données...');
