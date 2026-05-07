@@ -537,6 +537,7 @@
     .counter.bloquant .counter-value { color: var(--color-bloquant); }
     .counter.majeur .counter-value { color: var(--color-majeur); }
     .counter.conforme .counter-value { color: var(--color-conforme); }
+    .counter.info .counter-value { color: var(--color-info); }
 
     /* Checklist manuelle */
     .manual-checklist {
@@ -1179,6 +1180,10 @@
             <div class="counter-value" id="counterConforme">0</div>
             <div class="counter-label">Conformes</div>
           </div>
+          <div class="counter info">
+            <div class="counter-value" id="counterInfo">0</div>
+            <div class="counter-label">Info</div>
+          </div>
         </div>
 
         <!-- Onglets -->
@@ -1289,6 +1294,7 @@
       counterBloquant: document.getElementById('counterBloquant'),
       counterMajeur: document.getElementById('counterMajeur'),
       counterConforme: document.getElementById('counterConforme'),
+      counterInfo: document.getElementById('counterInfo'),
 
       tabs: document.querySelectorAll('.tab'),
       tabPanels: document.querySelectorAll('.tab-panel'),
@@ -3537,10 +3543,12 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
       const bloquants = checks.filter(c => c.niveau === 'bloquant').length;
       const majeurs = checks.filter(c => c.niveau === 'majeur').length;
       const conformes = checks.filter(c => c.niveau === 'ok').length;
+      const infos = checks.filter(c => c.niveau === 'info').length;
 
       elements.counterBloquant.textContent = bloquants;
       elements.counterMajeur.textContent = majeurs;
       elements.counterConforme.textContent = conformes;
+      elements.counterInfo.textContent = infos;
 
       // Enlever la classe active de tous les compteurs
       document.querySelectorAll('.counter').forEach(c => c.classList.remove('active'));
@@ -3808,7 +3816,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
         document.querySelectorAll('.counter').forEach(c => c.classList.remove('active'));
 
         // Mapping niveau → classe CSS
-        const cssClass = niveau === 'ok' ? 'conforme' : niveau;
+        const cssClass = niveau === 'ok' ? 'conforme' : niveau; // ok → conforme, info → info, bloquant → bloquant, majeur → majeur
         const counterElement = document.querySelector(`.counter.${cssClass}`);
         if (counterElement) counterElement.classList.add('active');
       }
@@ -3880,6 +3888,10 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
 
     elements.counterConforme.parentElement.addEventListener('click', () => {
       filterChecksByLevel('ok');
+    });
+
+    elements.counterInfo.parentElement.addEventListener('click', () => {
+      filterChecksByLevel('info');
     });
 
     // ========== CHECKLIST MANUELLE ==========
