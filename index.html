@@ -1707,6 +1707,23 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
         console.log('Clés présentes:', Object.keys(extractedData));
         console.log('Format:', 'audit' in extractedData ? '✅ NOUVEAU (extraction)' : '⚠️ ANCIEN (checks)');
 
+        // Log détaillé du CEE extrait pour debug
+        if (extractedData.cee) {
+          console.log('=== CEE EXTRAIT PAR CLAUDE ===');
+          console.log('Nom:', extractedData.cee.nom);
+          console.log('SIRET:', extractedData.cee.siret);
+          console.log('Adresses chantiers:', extractedData.cee.adressesChantiers || extractedData.cee.adresseChantier);
+          console.log('Attestations:', extractedData.cee.attestations || extractedData.cee.surfacesBatiments);
+          console.log('Total LED:', extractedData.cee.totalLed);
+        }
+        if (extractedData.audits || extractedData.audit) {
+          console.log('=== AUDITS EXTRAITS ===');
+          console.log('Nombre:', (extractedData.audits || [extractedData.audit]).length);
+          (extractedData.audits || [extractedData.audit]).forEach((audit, i) => {
+            console.log(`Audit ${i+1} - Nom:`, audit.nom, '- Adresse:', audit.adresse, '- LED:', audit.ledTotal);
+          });
+        }
+
         updateProgress(75, 'Comparaison des données...');
 
         let result;
@@ -2024,6 +2041,37 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
         }
       }
 
+      // CEE : rétrocompatibilité ancien format
+      if (normalized.cee) {
+        // Adresses chantiers : ancien format (string) → nouveau format (array)
+        if (!Array.isArray(normalized.cee.adressesChantiers)) {
+          if (normalized.cee.adresseChantier) {
+            // Ancien format : une seule adresse (string)
+            normalized.cee.adressesChantiers = [normalized.cee.adresseChantier];
+          } else {
+            normalized.cee.adressesChantiers = [];
+          }
+        }
+
+        // Attestations : ancien format (surfacesBatiments) → nouveau format (attestations avec adresses)
+        if (!Array.isArray(normalized.cee.attestations)) {
+          if (normalized.cee.surfacesBatiments && Array.isArray(normalized.cee.surfacesBatiments)) {
+            // Ancien format : juste les surfaces, sans adresse
+            // Utiliser la première adresse de chantier comme fallback
+            const adresseFallback = normalized.cee.adressesChantiers?.[0] || '';
+            normalized.cee.attestations = [{
+              adresse: adresseFallback,
+              surfaces: normalized.cee.surfacesBatiments
+            }];
+          } else if (normalized.cee.attestationHonneurPresente === true) {
+            // Ancien format avec attestationHonneurPresente mais sans surfaces
+            normalized.cee.attestations = [];
+          } else {
+            normalized.cee.attestations = [];
+          }
+        }
+      }
+
       return normalized;
     }
 
@@ -2151,16 +2199,24 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
           valeur_trouvee: audit.nom || ''
         });
 
-        // Check 2 : Adresse chantier Audit
-        const adresseAuditOk = compareAddress(audit.adresse, references.adresse);
+        // Check 2 : Adresse chantier Audit (doit correspondre à une des adresses du CEE)
+        const adressesCEE = norm.cee?.adressesChantiers || [];
+        const adresseAuditMatchCEE = adressesCEE.some(adresseCEE =>
+          compareAddress(audit.adresse, adresseCEE)
+        );
+        // Trouver l'adresse CEE correspondante pour l'affichage
+        const adresseCEECorrespondante = adressesCEE.find(adresseCEE =>
+          compareAddress(audit.adresse, adresseCEE)
+        ) || adressesCEE[0] || references.adresse;
+
         checks.push({
           id: `check_02${idSuffix}`,
           categorie: 'garde',
-          niveau: adresseAuditOk ? 'ok' : 'bloquant',
+          niveau: adresseAuditMatchCEE ? 'ok' : 'bloquant',
           champ: `Adresse chantier Audit page 1${suffix}`,
           localisation: `Audit${suffix} page 1, en-tête`,
-          detail: adresseAuditOk ? 'Adresse conforme' : 'Adresse différente de la référence',
-          valeur_attendue: references.adresse || '',
+          detail: adresseAuditMatchCEE ? 'Adresse conforme avec une adresse CEE' : 'Adresse ne correspond à aucune adresse du CEE',
+          valeur_attendue: adresseCEECorrespondante || '',
           valeur_trouvee: audit.adresse || ''
         });
 
@@ -2335,15 +2391,24 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
         valeur_trouvee: firstSynthese.siret || ''
       });
 
+      // Check 12 : Adresse synthèse (doit correspondre à une des adresses du CEE)
+      const adressesCEE12 = norm.cee?.adressesChantiers || [];
+      const adresseSyntheseMatchCEE = adressesCEE12.some(adresseCEE =>
+        compareAddress(firstSynthese.adresse, adresseCEE)
+      );
+      const adresseCEECorrespondanteSynthese = adressesCEE12.find(adresseCEE =>
+        compareAddress(firstSynthese.adresse, adresseCEE)
+      ) || adressesCEE12[0] || references.adresse;
+
       checks.push({
         id: 'check_12',
         categorie: 'synthese',
-        niveau: compareAddress(firstSynthese.adresseChantier, references.adresse) ? 'ok' : 'majeur',
+        niveau: adresseSyntheseMatchCEE ? 'ok' : 'majeur',
         champ: 'Adresse chantier Synthèse fiche identité',
         localisation: 'Synthèse, fiche identité du site',
-        detail: 'Vérification adresse chantier',
-        valeur_attendue: references.adresse || '',
-        valeur_trouvee: firstSynthese.adresseChantier || ''
+        detail: adresseSyntheseMatchCEE ? 'Adresse conforme avec une adresse CEE' : 'Adresse ne correspond à aucune adresse du CEE',
+        valeur_attendue: adresseCEECorrespondanteSynthese || '',
+        valeur_trouvee: firstSynthese.adresse || ''
       });
 
       checks.push({
@@ -2661,112 +2726,170 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
 
       // ========== VÉRIFICATIONS ATTESTATIONS SUR L'HONNEUR + SURFACES ==========
 
-      // Check 41 : Attestation sur l'honneur présente (check manuel si absente)
-      const attestationPresente = norm.cee.attestationHonneurPresente === true;
+      // Fonction pour calculer la somme des surfaces
+      const sumSurfaces = (surfaces) => {
+        return surfaces
+          .map(s => parseFloat(String(s).replace(/\s+/g, '').replace(/m²/g, '').replace(/,/g, '.')))
+          .filter(n => !isNaN(n))
+          .reduce((sum, n) => sum + n, 0);
+      };
+
+      // Check 41 : Attestation(s) sur l'honneur présente(s) (check manuel si absente)
+      const attestations = norm.cee?.attestations || [];
+      const attestationsPresentes = attestations.length > 0;
       checks.push({
         id: 'check_41',
         categorie: 'audit',
-        niveau: attestationPresente ? 'ok' : 'info',
-        champ: 'Attestation sur l\'honneur',
+        niveau: attestationsPresentes ? 'ok' : 'info',
+        champ: 'Attestation(s) sur l\'honneur',
         localisation: 'Dossier CEE, attestation entrepôt non agricole BAT-EQ-127',
-        detail: attestationPresente ?
-          'Attestation sur l\'honneur présente et surfaces détectées' :
+        detail: attestationsPresentes ?
+          `${attestations.length} attestation(s) sur l'honneur présente(s) et surfaces détectées` :
           '⚠️ Check manuel requis : vérifier si attestation sur l\'honneur nécessaire',
-        valeur_attendue: attestationPresente ? 'Présent' : 'Check manuel',
-        valeur_trouvee: attestationPresente ? 'Présent' : 'Non détecté'
+        valeur_attendue: attestationsPresentes ? 'Présent' : 'Check manuel',
+        valeur_trouvee: attestationsPresentes ? `${attestations.length} attestation(s)` : 'Non détecté'
       });
 
-      // Si attestation présente, vérifier les surfaces
-      if (attestationPresente) {
-        const surfacesAttestation = norm.cee.surfacesBatiments || [];
-        const surfacesAudit = firstAudit.surfaces || [];
-        const surfaceSynthese = firstSynthese.surfaceEclairee || '';
+      // Si attestations présentes, grouper par adresse puis vérifier les surfaces
+      if (attestationsPresentes) {
+        // Grouper les attestations par adresse (même adresse = même chantier)
+        const attestationsParChantier = {};
+        attestations.forEach(attestation => {
+          const adresse = attestation.adresse || '';
+          if (!attestationsParChantier[adresse]) {
+            attestationsParChantier[adresse] = {
+              adresse: adresse,
+              attestations: [],
+              toutesLesSurfaces: []
+            };
+          }
+          attestationsParChantier[adresse].attestations.push(attestation);
+          attestationsParChantier[adresse].toutesLesSurfaces.push(...(attestation.surfaces || []));
+        });
 
-        // Fonction pour calculer la somme des surfaces
-        const sumSurfaces = (surfaces) => {
-          return surfaces
-            .map(s => parseFloat(String(s).replace(/\s+/g, '').replace(/m²/g, '').replace(/,/g, '.')))
-            .filter(n => !isNaN(n))
-            .reduce((sum, n) => sum + n, 0);
-        };
+        // Pour chaque chantier (= groupe d'attestations avec même adresse)
+        Object.values(attestationsParChantier).forEach((chantier, chantierIndex) => {
+          const chantierAdresse = chantier.adresse;
+          const surfacesAttestationGroupees = chantier.toutesLesSurfaces; // Toutes les surfaces des attestations de ce chantier
+          const sommeAttestationTotale = sumSurfaces(surfacesAttestationGroupees);
+          const nbAttestations = chantier.attestations.length;
 
-        const sommeAttestation = sumSurfaces(surfacesAttestation);
-        const sommeAudit = sumSurfaces(surfacesAudit);
-        const surfaceSyntheseNum = parseFloat(String(surfaceSynthese).replace(/\s+/g, '').replace(/m²/g, '').replace(/,/g, '.')) || 0;
+          // Trouver l'audit correspondant (même adresse)
+          const auditCorrespondant = norm.audits.find(audit =>
+            compareAddress(audit.adresse, chantierAdresse)
+          );
 
-        // Checks 42-43 seulement si surfaces audit trouvées
-        if (surfacesAudit.length === 0 || sommeAudit === 0) {
-          // Surfaces audit non trouvées → check manuel
-          checks.push({
-            id: 'check_42',
-            categorie: 'audit',
-            niveau: 'info',
-            champ: 'Surfaces Audit observations préliminaires',
-            localisation: 'Audit description observations préliminaires',
-            detail: '⚠️ Check manuel requis : surfaces non trouvées dans observations préliminaires de l\'audit. Vérifier manuellement.',
-            valeur_attendue: 'Check manuel',
-            valeur_trouvee: 'Non trouvées'
-          });
-        } else {
-          // Check 42 : Surfaces Audit = Surfaces attestations (attestations = référence)
-          const surfacesListMatch = JSON.stringify(surfacesAttestation.sort()) === JSON.stringify(surfacesAudit.sort());
-          checks.push({
-            id: 'check_42',
-            categorie: 'audit',
-            niveau: surfacesListMatch ? 'ok' : 'majeur',
-            champ: 'Surfaces Audit = Surfaces attestations',
-            localisation: 'Audit observations préliminaires vs Attestations honneur (référence)',
-            detail: surfacesListMatch ?
-              'Surfaces individuelles cohérentes avec attestations' :
-              'Surfaces Audit différentes des attestations (référence)',
-            valeur_attendue: surfacesAttestation.join(', ') + ' m²',  // Référence = attestations
-            valeur_trouvee: surfacesAudit.join(', ') + ' m²'           // Trouvé = audit
-          });
+          // Trouver la synthèse correspondante (même adresse)
+          const syntheseCorrespondante = norm.syntheses.find(synthese =>
+            compareAddress(synthese.adresse, chantierAdresse)
+          );
 
-          // Check 43 : Somme Audit = Somme attestations (attestations = référence)
-          const sommesAuditMatch = Math.abs(sommeAttestation - sommeAudit) < 1; // Tolérance 1 m²
-          checks.push({
-            id: 'check_43',
-            categorie: 'audit',
-            niveau: sommesAuditMatch ? 'ok' : 'majeur',
-            champ: 'Somme surfaces Audit = Somme attestations',
-            localisation: 'Total Audit observations préliminaires vs Total attestations honneur (référence)',
-            detail: sommesAuditMatch ?
-              `Somme Audit cohérente avec attestations : ${sommeAttestation} m²` :
-              `Somme Audit (${sommeAudit} m²) différente des attestations (${sommeAttestation} m²)`,
-            valeur_attendue: sommeAttestation.toString() + ' m²',  // Référence = attestations
-            valeur_trouvee: sommeAudit.toString() + ' m²'           // Trouvé = audit
-          });
-        }
+          const chantierLabel = Object.keys(attestationsParChantier).length > 1 ?
+            ` (Chantier ${chantierIndex + 1} : ${chantierAdresse.substring(0, 30)}...)` :
+            '';
 
-        // Check 44 : Somme surfaces attestations = surface éclairée synthèse
-        if (!surfaceSynthese || surfaceSyntheseNum === 0) {
-          // Surface éclairée non trouvée → check manuel
-          checks.push({
-            id: 'check_44',
-            categorie: 'synthese',
-            niveau: 'info',
-            champ: 'Surface éclairée Synthèse',
-            localisation: 'Synthèse fiche identité surface éclairée',
-            detail: '⚠️ Check manuel requis : surface éclairée non trouvée dans la synthèse. Vérifier manuellement.',
-            valeur_attendue: 'Check manuel',
-            valeur_trouvee: 'Non trouvée'
-          });
-        } else {
-          const sommeSyntheseMatch = Math.abs(sommeAttestation - surfaceSyntheseNum) < 1; // Tolérance 1 m²
-          checks.push({
-            id: 'check_44',
-            categorie: 'synthese',
-            niveau: sommeSyntheseMatch ? 'ok' : 'majeur',
-            champ: 'Surface Synthèse = Somme attestations',
-            localisation: 'Synthèse fiche identité surface éclairée vs Total attestations honneur (référence)',
-            detail: sommeSyntheseMatch ?
-              `Surface Synthèse cohérente avec attestations : ${sommeAttestation} m²` :
-              `Surface Synthèse (${surfaceSyntheseNum} m²) différente des attestations (${sommeAttestation} m²)`,
-            valeur_attendue: sommeAttestation.toString() + ' m²',  // Référence = attestations
-            valeur_trouvee: surfaceSyntheseNum.toString() + ' m²'   // Trouvé = synthèse
-          });
-        }
+          // Check 42 : Audit trouvé pour ce chantier
+          if (!auditCorrespondant) {
+            checks.push({
+              id: `check_42_${chantierIndex}`,
+              categorie: 'audit',
+              niveau: 'majeur',
+              champ: `Audit correspondant${chantierLabel}`,
+              localisation: `Attestation(s) adresse ${chantierAdresse}`,
+              detail: `⚠️ Aucun audit trouvé pour l'adresse ${chantierAdresse}`,
+              valeur_attendue: chantierAdresse,
+              valeur_trouvee: 'Audit non trouvé'
+            });
+          } else {
+            const surfacesAudit = auditCorrespondant.surfaces || [];
+            const sommeAudit = sumSurfaces(surfacesAudit);
+
+            if (surfacesAudit.length === 0 || sommeAudit === 0) {
+              // Surfaces audit non trouvées → check manuel
+              checks.push({
+                id: `check_42_${chantierIndex}`,
+                categorie: 'audit',
+                niveau: 'info',
+                champ: `Surfaces Audit observations préliminaires${chantierLabel}`,
+                localisation: 'Audit description observations préliminaires',
+                detail: '⚠️ Check manuel requis : surfaces non trouvées dans observations préliminaires de l\'audit. Vérifier manuellement.',
+                valeur_attendue: 'Check manuel',
+                valeur_trouvee: 'Non trouvées'
+              });
+            } else {
+              // Check 42 : NE PLUS comparer les listes (car audit peut ne pas avoir toutes les surfaces)
+              // On compare SEULEMENT les sommes maintenant
+
+              // Check 43 : Somme Audit = Somme TOTALE attestations (groupées par chantier)
+              const sommesAuditMatch = Math.abs(sommeAttestationTotale - sommeAudit) < 1; // Tolérance 1 m²
+              const detailAttestation = nbAttestations > 1 ?
+                `${nbAttestations} attestations groupées (même adresse)` :
+                'Attestation unique';
+
+              checks.push({
+                id: `check_43_${chantierIndex}`,
+                categorie: 'audit',
+                niveau: sommesAuditMatch ? 'ok' : 'majeur',
+                champ: `Somme surfaces Audit = Somme attestations${chantierLabel}`,
+                localisation: `Total Audit observations vs Total attestations honneur (${detailAttestation})`,
+                detail: sommesAuditMatch ?
+                  `Somme Audit cohérente avec attestations : ${sommeAttestationTotale} m²` :
+                  `Somme Audit (${sommeAudit} m²) différente des attestations (${sommeAttestationTotale} m²). ${detailAttestation}.`,
+                valeur_attendue: surfacesAttestationGroupees.join(' + ') + ' = ' + sommeAttestationTotale.toString() + ' m²',
+                valeur_trouvee: surfacesAudit.join(' + ') + ' = ' + sommeAudit.toString() + ' m²'
+              });
+            }
+          }
+
+          // Check 44 : Somme surfaces attestations = surface éclairée synthèse (par chantier)
+          if (!syntheseCorrespondante) {
+            checks.push({
+              id: `check_44_${chantierIndex}`,
+              categorie: 'synthese',
+              niveau: 'majeur',
+              champ: `Synthèse correspondante${chantierLabel}`,
+              localisation: `Attestation(s) adresse ${chantierAdresse}`,
+              detail: `⚠️ Aucune synthèse trouvée pour l'adresse ${chantierAdresse}`,
+              valeur_attendue: chantierAdresse,
+              valeur_trouvee: 'Synthèse non trouvée'
+            });
+          } else {
+            const surfaceSynthese = syntheseCorrespondante.surfaceEclairee || '';
+            const surfaceSyntheseNum = parseFloat(String(surfaceSynthese).replace(/\s+/g, '').replace(/m²/g, '').replace(/,/g, '.')) || 0;
+
+            if (!surfaceSynthese || surfaceSyntheseNum === 0) {
+              // Surface éclairée non trouvée → check manuel
+              checks.push({
+                id: `check_44_${chantierIndex}`,
+                categorie: 'synthese',
+                niveau: 'info',
+                champ: `Surface éclairée Synthèse${chantierLabel}`,
+                localisation: 'Synthèse fiche identité surface éclairée',
+                detail: '⚠️ Check manuel requis : surface éclairée non trouvée dans la synthèse. Vérifier manuellement.',
+                valeur_attendue: 'Check manuel',
+                valeur_trouvee: 'Non trouvée'
+              });
+            } else {
+              const sommeSyntheseMatch = Math.abs(sommeAttestationTotale - surfaceSyntheseNum) < 1; // Tolérance 1 m²
+              const detailAttestation = nbAttestations > 1 ?
+                `${nbAttestations} attestations groupées (même adresse)` :
+                'Attestation unique';
+
+              checks.push({
+                id: `check_44_${chantierIndex}`,
+                categorie: 'synthese',
+                niveau: sommeSyntheseMatch ? 'ok' : 'majeur',
+                champ: `Surface Synthèse = Somme attestations${chantierLabel}`,
+                localisation: `Synthèse fiche identité vs Total attestations honneur (${detailAttestation})`,
+                detail: sommeSyntheseMatch ?
+                  `Surface Synthèse cohérente avec attestations : ${sommeAttestationTotale} m²` :
+                  `Surface Synthèse (${surfaceSyntheseNum} m²) différente des attestations (${sommeAttestationTotale} m²). ${detailAttestation}.`,
+                valeur_attendue: surfacesAttestationGroupees.join(' + ') + ' = ' + sommeAttestationTotale.toString() + ' m²',
+                valeur_trouvee: surfaceSyntheseNum.toString() + ' m²'
+              });
+            }
+          }
+        });
       }
 
       return checks;

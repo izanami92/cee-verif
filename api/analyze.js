@@ -165,15 +165,29 @@ RÈGLES D'EXTRACTION CRITIQUES :
 4. Valeurs manquantes :
    - Si une valeur n'existe pas dans le document : mettre null (pas la chaîne "null")
 
-ADRESSES DANS LE DOSSIER CEE :
+ADRESSES DANS LE DOSSIER CEE (TRÈS IMPORTANT) :
 - Adresse SIÈGE SOCIAL : en haut à DROITE du CEE (avec coordonnées client)
-- Adresse CHANTIER : en haut à GAUCHE du CEE (ou dans la facture si plusieurs chantiers)
+- Adresses CHANTIERS (CRITIQUE - lire TOUT le document) :
+  * PARCOURIR ENTIÈREMENT le dossier CEE pour identifier TOUTES les adresses de chantiers
+  * Chercher dans :
+    1. En haut à GAUCHE (première page) : adresse chantier principal
+    2. Dans CHAQUE page "ATTESTATION SUR L'HONNEUR" : adresse en haut de l'attestation
+    3. Dans les factures : adresses mentionnées
+    4. Dans toute section mentionnant une adresse de travaux/chantier/site
+  * IMPORTANT : Si tu trouves 2 attestations sur l'honneur → extraire les 2 adresses
+  * IMPORTANT : Si tu trouves 3 attestations sur l'honneur → extraire les 3 adresses
+  * Retourner un tableau avec TOUTES les adresses trouvées : ["adresse 1", "adresse 2", ...]
+  * NE PAS déduire le nombre d'adresses du nombre d'audits/synthèses - lire le CEE lui-même
 
-SURFACES (TRÈS IMPORTANT) :
+SURFACES ET ATTESTATIONS (TRÈS IMPORTANT) :
 - Dans l'AUDIT, section "Description" > "Observations préliminaires" : extraire TOUTES les surfaces mentionnées (tableau)
 - Dans le CEE, chercher "ATTESTATION SUR L'HONNEUR Existence d'un entrepôt de stockage non agricole" :
-  - Indiquer si présente (true/false)
-  - Si présente, extraire TOUTES les surfaces de bâtiments (tableau)
+  - PARCOURIR TOUT LE DOCUMENT pour trouver TOUTES les attestations (il peut y en avoir 2, 3 ou plus)
+  - Pour CHAQUE attestation trouvée (ne pas s'arrêter à la première) :
+    - Extraire l'ADRESSE COMPLÈTE du chantier (numéro, rue, CP, ville - généralement en haut de l'attestation)
+    - Extraire TOUTES les surfaces de bâtiments listées dans cette attestation (tableau)
+  - Retourner un tableau d'objets : [{adresse: "adresse complète 1", surfaces: ["850", "456"]}, {adresse: "adresse complète 2", surfaces: ["1240"]}, ...]
+  - Si aucune attestation trouvée : retourner un tableau vide []
 - Dans la SYNTHÈSE, "Fiche d'identité du site" > "Surface éclairée" : extraire la surface totale
 
 MENTIONS AGRICOLES :
@@ -211,7 +225,7 @@ FORMAT DE RÉPONSE (JSON uniquement) :
   "cee": {
     "nom": "Nom société bénéficiaire",
     "siret": "SIRET (14 chiffres)",
-    "adresseChantier": "Adresse du chantier (haut gauche ou facture)",
+    "adressesChantiers": ["1 rue Example 60000 VILLE1", "25 avenue Test 60130 VILLE2"],
     "adresseSiege": "Adresse siège social (haut droite)",
     "totalLed": "Nombre total LED",
     "dateDevis": "Date envoi devis",
@@ -219,8 +233,16 @@ FORMAT DE RÉPONSE (JSON uniquement) :
     "resteAPayer": "Reste à payer / reste à charge",
     "secteurActivite": "Secteur d'activité / type de local",
     "parcelles": "Parcelles cadastrales",
-    "attestationHonneurPresente": true,
-    "surfacesBatiments": ["850", "456"],
+    "attestations": [
+      {
+        "adresse": "1 rue Example 60000 VILLE1",
+        "surfaces": ["850", "456"]
+      },
+      {
+        "adresse": "25 avenue Test 60130 VILLE2",
+        "surfaces": ["1240"]
+      }
+    ],
     "mentionsAgricoles": {
       "trouvee": false,
       "localisation": null
@@ -232,6 +254,12 @@ FORMAT DE RÉPONSE (JSON uniquement) :
   }
 }
 \`\`\`
+
+RAPPEL MULTI-CHANTIERS :
+- Si le dossier CEE contient 2 attestations sur l'honneur → extraire 2 adresses dans "adressesChantiers" ET 2 objets dans "attestations"
+- Si le dossier CEE contient 3 attestations sur l'honneur → extraire 3 adresses dans "adressesChantiers" ET 3 objets dans "attestations"
+- Chaque attestation DOIT avoir son adresse complète (celle écrite en haut de l'attestation)
+- NE JAMAIS mettre qu'une seule adresse si le document contient plusieurs chantiers
 
 IMPORTANT : Retourner UNIQUEMENT le JSON, sans texte avant ou après.`;
 }
