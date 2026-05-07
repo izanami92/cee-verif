@@ -207,13 +207,22 @@ MENTIONS AGRICOLES :
 - SAUF dans le nom de la société (le nom peut contenir "agricole")
 - Retourner true si trouvé, false sinon
 
+6. AUDIT - RÈGLE CRITIQUE EXTRACTION :
+   Pour CHAQUE audit, extraire UNIQUEMENT depuis la PAGE 1 (page de garde) :
+   - nom : nom de l'entreprise (haut de page)
+   - adresse : adresse EXACTEMENT comme écrite (format : "numéro rue CP ville" SANS virgule)
+   - date : date visible en haut
+   - SIRET : 14 chiffres
+
+   NE PAS prendre l'adresse ou le code postal depuis d'autres pages de l'audit !
+
 FORMAT DE RÉPONSE (JSON uniquement) :
 \`\`\`json
 {
   "audits": [
     {
       "nom": "Nom entreprise page 1",
-      "adresse": "Adresse chantier complète page 1",
+      "adresse": "Adresse EXACTE page 1 (numéro rue CP ville, PAS de virgule)",
       "date": "Date page 1",
       "siret": "SIRET sans espaces",
       "surfaces": ["850", "456"],

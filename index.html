@@ -2319,7 +2319,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
       return month <= 12; // Format JJ/MM/AAAA acceptable si mois ≤ 12
     }
 
-    // Comparer deux adresses (ordre flexible, ignore "France", tirets, etc.)
+    // Comparer deux adresses (ordre flexible, ignore "France", tirets, virgules, etc.)
     function compareAddress(addr1, addr2) {
       const clean = (a) => {
         let cleaned = normalize(String(a || ''));
@@ -2328,7 +2328,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
         cleaned = cleaned
           .replace(/\b(bat|batiment|bâtiment|batiments|bâtiments)\s*\d+\b/gi, '')
           .replace(/\b(bat|batiment|bâtiment|batiments|bâtiments)\b/gi, '')
-          .replace(/,/g, ' ')
+          .replace(/,/g, ' ')  // Supprimer virgules (déjà présent mais critique)
           .replace(/\bfrance\b/gi, '')
           .replace(/–/g, ' ')  // Supprimer tirets longs
           .replace(/-/g, ' ')  // Supprimer tirets (SAINT-JEAN → SAINT JEAN)
