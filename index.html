@@ -1687,19 +1687,33 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
     function compareStrings(val1, val2) {
       const norm1 = normalize(val1);
       const norm2 = normalize(val2);
-      const result = norm1 === norm2;
 
-      // Log ULTRA-détaillé pour déboguer caractère par caractère
-      if (!result) {
-        console.log(`[compareStrings] ÉCHEC: "${val1}" vs "${val2}"`);
-        console.log(`  Normalisé 1: ${JSON.stringify(norm1)} (longueur: ${norm1.length})`);
-        console.log(`  Normalisé 2: ${JSON.stringify(norm2)} (longueur: ${norm2.length})`);
-        console.log(`  Codes char 1:`, Array.from(norm1).map(c => c.charCodeAt(0)).join(','));
-        console.log(`  Codes char 2:`, Array.from(norm2).map(c => c.charCodeAt(0)).join(','));
-        console.log(`  === retourne:`, norm1 === norm2);
+      // Comparaison directe
+      if (norm1 === norm2) return true;
+
+      // Tolérance singulier/pluriel : si la seule différence est un 's' final
+      const removePlural = (str) => {
+        if (str.endsWith('s')) return str.slice(0, -1);
+        if (str.endsWith('x')) return str.slice(0, -1);
+        return str;
+      };
+
+      const singular1 = removePlural(norm1);
+      const singular2 = removePlural(norm2);
+
+      if (singular1 === singular2) {
+        console.log(`[compareStrings] OK (singulier/pluriel): "${val1}" ≈ "${val2}"`);
+        return true;
       }
 
-      return result;
+      // Log ULTRA-détaillé pour déboguer les vrais échecs
+      console.log(`[compareStrings] ÉCHEC: "${val1}" vs "${val2}"`);
+      console.log(`  Normalisé 1: ${JSON.stringify(norm1)} (longueur: ${norm1.length})`);
+      console.log(`  Normalisé 2: ${JSON.stringify(norm2)} (longueur: ${norm2.length})`);
+      console.log(`  Codes char 1:`, Array.from(norm1).map(c => c.charCodeAt(0)).join(','));
+      console.log(`  Codes char 2:`, Array.from(norm2).map(c => c.charCodeAt(0)).join(','));
+
+      return false;
     }
 
     // Comparer deux dates (gère les formats JJ/MM/AAAA et AAAA-MM-JJ)
