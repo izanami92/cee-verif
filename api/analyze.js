@@ -255,6 +255,7 @@ Tu dois retourner UNIQUEMENT un JSON valide (sans texte avant ou après) avec ce
 IMPORTANT - RETOUR DE TOUS LES 40 CHECKS OBLIGATOIRES :
 - Tu DOIS retourner EXACTEMENT 40 checks (un pour chaque point de la checklist ci-dessus)
 - JAMAIS moins de 40 checks, même si tout est conforme
+- ⚠️ AVANT TOUTE COMPARAISON : Convertir TOUTES les valeurs en minuscules pour ignorer la casse
 - Pour chaque point numéroté (1 à 40), crée UN check avec :
   * id: "check_01", "check_02", ..., "check_40"
   * niveau: "bloquant" (points 1-3, 31-34, 38-39) | "majeur" (points 4-5, 9-12, 14-16, 19-21, 23-30, 35-37, 40) | "ok" (si conforme) | "info" (si check manuel requis OU si donnée absente mais optionnelle)
@@ -262,16 +263,19 @@ IMPORTANT - RETOUR DE TOUS LES 40 CHECKS OBLIGATOIRES :
   * localisation: Page et section EXACTE dans le document
   * valeur_attendue: Valeur de référence
   * valeur_trouvee: Valeur EXACTE dans le document
-- Ne marque JAMAIS "bloquant" ou "majeur" si les valeurs sont IDENTIQUES
+- Ne marque JAMAIS "bloquant" ou "majeur" si les valeurs sont IDENTIQUES (après conversion en minuscules)
 - Si check manuel requis (points 13, 17, 18, 22) → niveau = "info", detail = "Vérification manuelle requise"
 - Si donnée absente mais optionnelle (points 6, 7, 8 : contacts Synthèse) → niveau = "info", detail = "Donnée non présente dans le document (optionnel)"
 
 RÈGLES STRICTES DE COMPARAISON :
-1. **MAJUSCULES/MINUSCULES** : TOUJOURS IGNORER LA CASSE
+1. **MAJUSCULES/MINUSCULES** : TOUJOURS IGNORER LA CASSE - RÈGLE ABSOLUE
+   - ⚠️ CRITIQUE : Avant TOUTE comparaison, convertir en MINUSCULES les deux valeurs
+   - "COPPIN JEAN BAPTISTE" = "Coppin Jean Baptiste" = "coppin jean baptiste" → IDENTIQUE (niveau: "ok")
    - "ENTREPÔT" = "Entrepôt" = "entrepôt" → IDENTIQUE (niveau: "ok")
-   - ⚠️ EXCEPTION : L'ORTHOGRAPHE DES NOMS PROPRES (noms de personnes) DOIT ÊTRE EXACTE
-   - "Coppin" ≠ "Coopin" → ERREUR (faute d'orthographe)
-   - Mais "COPPIN" = "Coppin" = "coppin" → IDENTIQUE (casse ignorée)
+   - Ne JAMAIS signaler d'erreur pour une différence de casse uniquement
+   - EXCEPTION : L'ORTHOGRAPHE (lettres) DOIT ÊTRE EXACTE
+   - "Coppin" (2 p) ≠ "Copin" (1 p) → ERREUR (lettres différentes)
+   - "coppin" = "COPPIN" = "Coppin" → IDENTIQUE (même lettres, casse différente = OK)
 
 2. **ADRESSES** : Vérifier les composants, pas l'ordre exact
    - Composants obligatoires : numéro + rue + code postal + ville
@@ -288,11 +292,13 @@ RÈGLES STRICTES DE COMPARAISON :
    - Les dates doivent être identiques chiffre par chiffre ET au format JJ/MM/AAAA
    - ⚠️ ERREUR BLOQUANTE sur page de garde Audit (points 3, 5) si format incorrect
 
-4. **SURFACES MULTIPLES** : ADDITIONNER avant de comparer
-   - Si plusieurs surfaces dans l'Audit → FAIRE L'ADDITION
+4. **SURFACES** : EXACTITUDE OBLIGATOIRE - AUCUN ÉCART ACCEPTABLE
+   - Si plusieurs surfaces dans l'Audit → FAIRE L'ADDITION d'abord
    - Exemple : "850 m² 456 m²" → 850 + 456 = 1306 m²
-   - Puis comparer avec le total attendu : 1306 ≠ 1277 → ERREUR
-   - Surfaces par bâtiment : comparer avec attestation sur l'honneur CEE si présente
+   - Comparer avec le total attendu : 1306 ≠ 1277 → ERREUR (même 1 m² d'écart = ERREUR)
+   - ⚠️ AUCUN écart toléré : les surfaces doivent être EXACTEMENT identiques
+   - Surfaces par bâtiment : chercher "ATTESTATION SUR L'HONNEUR Existence d'un entrepôt de stockage non agricole" dans CEE
+   - Si attestation présente → comparer surfaces bâtiment par bâtiment avec Audit observations préliminaires
 
 5. **ESPACES ET PONCTUATION** : Normaliser avant de comparer
    - "1 rue de la Paix" = "1  rue de la Paix" (double espace) → IDENTIQUE
