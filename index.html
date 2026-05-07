@@ -1689,11 +1689,14 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
       const norm2 = normalize(val2);
       const result = norm1 === norm2;
 
-      // Log détaillé pour déboguer
+      // Log ULTRA-détaillé pour déboguer caractère par caractère
       if (!result) {
-        console.log(`[compareStrings] ÉCHEC: "${val1}" (→ "${norm1}") vs "${val2}" (→ "${norm2}")`);
-        console.log(`  Longueurs: ${norm1.length} vs ${norm2.length}`);
-        console.log(`  Identiques: ${norm1 === norm2}`);
+        console.log(`[compareStrings] ÉCHEC: "${val1}" vs "${val2}"`);
+        console.log(`  Normalisé 1: ${JSON.stringify(norm1)} (longueur: ${norm1.length})`);
+        console.log(`  Normalisé 2: ${JSON.stringify(norm2)} (longueur: ${norm2.length})`);
+        console.log(`  Codes char 1:`, Array.from(norm1).map(c => c.charCodeAt(0)).join(','));
+        console.log(`  Codes char 2:`, Array.from(norm2).map(c => c.charCodeAt(0)).join(','));
+        console.log(`  === retourne:`, norm1 === norm2);
       }
 
       return result;
