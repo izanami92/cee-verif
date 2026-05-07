@@ -1637,40 +1637,23 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
     // ========== MOTEUR DE COMPARAISON ==========
 
     // Normaliser une chaîne : minuscules, espaces nettoyés, trim
-    // Normaliser une chaîne : minuscules, espaces nettoyés, trim, Unicode normalisé
     function normalize(str) {
       if (!str) return '';
 
-      const strVal = String(str).trim();
-
       // Traiter "null" (string) comme vide
-      if (strVal.toLowerCase() === 'null' || strVal.toLowerCase() === 'undefined') return '';
+      const strVal = String(str).trim();
+      if (strVal === 'null' || strVal === 'undefined') return '';
 
       const normalized = strVal
-        .normalize('NFD')           // Décomposer Unicode
-        .replace(/[\u0300-\u036f]/g, '')  // Supprimer accents
         .toLowerCase()
-        .replace(/\s+/g, ' ')       // Espaces multiples → 1 espace
+        .replace(/ /g, ' ')  // Espace insécable → espace normal
+        .replace(/\s+/g, ' ')     // Espaces multiples → 1 espace
         .trim();
 
       return normalized;
     }
 
     // Comparer deux chaînes après normalisation
-    // Comparer deux nombres ou pourcentages (supprime TOUS les espaces)
-    function compareNumber(val1, val2) {
-      const clean = (v) => String(v || '').replace(/\s+/g, '').replace(/%/g, '').replace(/,/g, '.').toLowerCase();
-      const clean1 = clean(val1);
-      const clean2 = clean(val2);
-      const result = clean1 === clean2;
-
-      if (!result) {
-        console.log(`[compareNumber] ÉCHEC: "${val1}" (→ "${clean1}") vs "${val2}" (→ "${clean2}")`);
-      }
-
-      return result;
-    }
-
     function compareStrings(val1, val2) {
       const norm1 = normalize(val1);
       const norm2 = normalize(val2);
@@ -2241,7 +2224,10 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
 
       // ========== CHECKS 35-37 : THD, Fiche technique, Référence ==========
       // Check 35 : THD Synthèse = 3,7%
-      const thdOk = compareNumber(extracted.synthese?.thd, '3.7%');
+      const thdOk = compareStrings(extracted.synthese?.thd, '3,7%') ||
+                    compareStrings(extracted.synthese?.thd, '3.7%') ||
+                    compareStrings(extracted.synthese?.thd, '3,7') ||
+                    compareStrings(extracted.synthese?.thd, '3.7');
       checks.push({
         id: 'check_35',
         categorie: 'synthese',
@@ -2255,7 +2241,10 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
 
       // Check 36 : Fiche technique présente
       const ficheTechOk = extracted.ficheTechnique?.reference || extracted.ficheTechnique?.thd;
-      const ficheTechThdOk = compareNumber(extracted.ficheTechnique?.thd, '3.7%');
+      const ficheTechThdOk = compareStrings(extracted.ficheTechnique?.thd, '3,7%') ||
+                             compareStrings(extracted.ficheTechnique?.thd, '3.7%') ||
+                             compareStrings(extracted.ficheTechnique?.thd, '3,7') ||
+                             compareStrings(extracted.ficheTechnique?.thd, '3.7');
       checks.push({
         id: 'check_36',
         categorie: 'synthese',
