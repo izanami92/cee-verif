@@ -1834,35 +1834,11 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
 
         updateProgress(10, 'Extraction des PDFs en cours...');
 
-        // Extraire le texte de tous les PDFs chargés
+        // NOUVELLE ARCHITECTURE : Extraire les textes par chantier
         const extractionPromises = [];
 
-        // Audits (plusieurs possibles)
-        if (state.files.audits && state.files.audits.length > 0) {
-          state.extractedTexts.audits = [];
-          state.files.audits.forEach((file, index) => {
-            extractionPromises.push(
-              extractTextFromPDF(file).then(text => {
-                state.extractedTexts.audits[index] = { filename: file.name, text };
-              })
-            );
-          });
-        }
-
-        // Synthèses (plusieurs possibles)
-        if (state.files.syntheses && state.files.syntheses.length > 0) {
-          state.extractedTexts.syntheses = [];
-          state.files.syntheses.forEach((file, index) => {
-            extractionPromises.push(
-              extractTextFromPDF(file).then(text => {
-                state.extractedTexts.syntheses[index] = { filename: file.name, text };
-              })
-            );
-          });
-        }
-
-        // Dossier CEE (1 seul)
-        if (state.files.dossier) {
+        // Dossier CEE (déjà extrait lors de la détection)
+        if (state.files.dossier && !state.extractedTexts.dossier) {
           extractionPromises.push(
             extractTextFromPDF(state.files.dossier).then(text => {
               state.extractedTexts.dossier = text;
@@ -1870,17 +1846,32 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
           );
         }
 
-        // Fiches techniques (plusieurs possibles)
-        if (state.files.fiches && state.files.fiches.length > 0) {
-          state.extractedTexts.fiches = [];
-          state.files.fiches.forEach((file, index) => {
+        // Extraire les textes pour chaque chantier
+        state.chantiers.forEach((chantier, index) => {
+          if (chantier.audit) {
             extractionPromises.push(
-              extractTextFromPDF(file).then(text => {
-                state.extractedTexts.fiches[index] = { filename: file.name, text };
+              extractTextFromPDF(chantier.audit).then(text => {
+                state.chantiers[index].auditText = text;
               })
             );
-          });
-        }
+          }
+
+          if (chantier.synthese) {
+            extractionPromises.push(
+              extractTextFromPDF(chantier.synthese).then(text => {
+                state.chantiers[index].syntheseText = text;
+              })
+            );
+          }
+
+          if (chantier.fiche) {
+            extractionPromises.push(
+              extractTextFromPDF(chantier.fiche).then(text => {
+                state.chantiers[index].ficheText = text;
+              })
+            );
+          }
+        });
 
         await Promise.all(extractionPromises);
 
@@ -1899,36 +1890,34 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
           parcelles: elements.refParcelles.value.trim()
         };
 
-        // Construire le message pour Claude
-        let userMessage = 'Voici les documents à analyser:\n\n';
+        // Construire le message pour Claude (NOUVELLE STRUCTURE PAR CHANTIER)
+        let userMessage = 'Voici les documents à analyser (organisés par chantier):\n\n';
 
-        // Audits (plusieurs possibles)
-        if (state.extractedTexts.audits && state.extractedTexts.audits.length > 0) {
-          state.extractedTexts.audits.forEach((audit, index) => {
-            userMessage += `=== AUDIT DIALUX #${index + 1} (${audit.filename}) ===\n${audit.text}\n\n`;
-          });
-        }
-
-        // Synthèses (plusieurs possibles)
-        if (state.extractedTexts.syntheses && state.extractedTexts.syntheses.length > 0) {
-          state.extractedTexts.syntheses.forEach((synthese, index) => {
-            userMessage += `=== SYNTHÈSE #${index + 1} (${synthese.filename}) ===\n${synthese.text}\n\n`;
-          });
-        }
-
-        // Dossier CEE (1 seul)
+        // Dossier CEE (1 seul, contient tous les chantiers)
         if (state.extractedTexts.dossier) {
-          userMessage += `=== DOSSIER CEE ===\n${state.extractedTexts.dossier}\n\n`;
+          userMessage += `=== DOSSIER CEE (${state.chantiers.length} chantier(s)) ===\n${state.extractedTexts.dossier}\n\n`;
         }
 
-        // Fiches techniques (plusieurs possibles)
-        if (state.extractedTexts.fiches && state.extractedTexts.fiches.length > 0) {
-          state.extractedTexts.fiches.forEach((fiche, index) => {
-            userMessage += `=== FICHE TECHNIQUE #${index + 1} (${fiche.filename}) ===\n${fiche.text}\n\n`;
-          });
-        }
+        // Documents par chantier
+        state.chantiers.forEach((chantier, index) => {
+          userMessage += `=== CHANTIER ${index + 1} - ${chantier.adresse} ===\n\n`;
 
-        // Appeler l'API d'extraction (Claude devient extracteur uniquement)
+          if (chantier.auditText) {
+            userMessage += `= AUDIT DIALUX =\n${chantier.auditText}\n\n`;
+          }
+
+          if (chantier.syntheseText) {
+            userMessage += `= SYNTHÈSE =\n${chantier.syntheseText}\n\n`;
+          }
+
+          if (chantier.ficheText) {
+            userMessage += `= FICHE TECHNIQUE =\n${chantier.ficheText}\n\n`;
+          }
+
+          userMessage += `---\n\n`;
+        });
+
+        // Appeler l'API d'extraction
         const response = await fetch('/api/analyze', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -1945,70 +1934,19 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
         }
 
         const extractedData = await response.json();
-        console.log('=== DONNÉES BRUTES REÇUES DE L\'API ===');
-        console.log('Clés présentes:', Object.keys(extractedData));
-        console.log('Format:', 'audit' in extractedData ? '✅ NOUVEAU (extraction)' : '⚠️ ANCIEN (checks)');
+        console.log('=== DONNÉES EXTRAITES PAR CLAUDE ===');
+        console.log(JSON.stringify(extractedData, null, 2));
 
-        // Log détaillé du CEE extrait pour debug
-        if (extractedData.cee) {
-          console.log('=== CEE EXTRAIT PAR CLAUDE (BRUT) ===');
-          console.log('CEE complet:', JSON.stringify(extractedData.cee, null, 2));
-          console.log('---');
-          console.log('Nom:', extractedData.cee.nom);
-          console.log('SIRET:', extractedData.cee.siret);
-          console.log('adressesChantiers (nouveau):', extractedData.cee.adressesChantiers);
-          console.log('adresseChantier (ancien):', extractedData.cee.adresseChantier);
-          console.log('attestations (nouveau):', extractedData.cee.attestations);
-          console.log('surfacesBatiments (ancien):', extractedData.cee.surfacesBatiments);
-          console.log('Total LED:', extractedData.cee.totalLed);
-        }
-        if (extractedData.audits || extractedData.audit) {
-          console.log('=== AUDITS EXTRAITS ===');
-          console.log('Nombre:', (extractedData.audits || [extractedData.audit]).length);
-          (extractedData.audits || [extractedData.audit]).forEach((audit, i) => {
-            console.log(`Audit ${i+1} - Nom:`, audit.nom, '- Adresse:', audit.adresse, '- LED:', audit.ledTotal);
-          });
-        }
+        updateProgress(100, 'Extraction terminée !');
 
-        updateProgress(75, 'Comparaison des données...');
-
-        let result;
-
-        // VÉRIFICATION : quel format l'API retourne-t-elle ?
-        if ('checks' in extractedData && !('audit' in extractedData)) {
-          console.warn('⚠️ ATTENTION: L\'API retourne l\'ancien format avec checks (Claude fait les comparaisons).');
-          console.warn('On utilise directement ces checks au lieu du moteur JavaScript.');
-
-          // Ancien format : utiliser directement les checks retournés par Claude
-          result = {
-            checks: extractedData.checks || [],
-            page_garde_ok: extractedData.page_garde_ok || false,
-            message_auditeur: extractedData.message_auditeur || ''
-          };
-
-        } else {
-          console.log('✅ Nouveau format détecté. Génération des 40 checks JavaScript...');
-
-          // Nouveau format : générer les checks via JavaScript (fiabilité 100%)
-          const checks = generateChecks(extractedData, references);
-          console.log(`✅ ${checks.length} checks générés. Seuls les ÉCHECS de comparaison seront affichés ci-dessous.`);
-
-          // Vérifier page de garde (checks 1-3)
-          const pageGardeChecks = checks.slice(0, 3);
-          const pageGardeOk = pageGardeChecks.every(c => c.niveau === 'ok');
-
-          // Construire le message auditeur
-          const messageAuditeur = buildMessageAuditeur(checks);
-
-          // Résultat final
-          result = {
-            checks: checks,
-            page_garde_ok: pageGardeOk,
-            message_auditeur: messageAuditeur
-          };
-        }
-
-        updateProgress(100, 'Analyse terminée !');
+        // TODO: Adapter la logique de vérification pour la nouvelle architecture par chantier
+        // Pour l'instant, affichage simple des données extraites
+        const result = {
+          checks: [],
+          page_garde_ok: true,
+          message_auditeur: '⚠️ Architecture multi-chantiers activée.\n\nLa logique de vérification des 40 points sera adaptée prochainement.\n\nPour l\'instant, vérifiez les données extraites dans la console (F12).',
+          extractedData: extractedData
+        };
 
         // Afficher les résultats
         setTimeout(() => {
