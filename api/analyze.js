@@ -209,12 +209,23 @@ MENTIONS AGRICOLES :
 
 6. AUDIT - RÈGLE CRITIQUE EXTRACTION :
    Pour CHAQUE audit, extraire UNIQUEMENT depuis la PAGE 1 (page de garde) :
-   - nom : nom de l'entreprise (haut de page)
-   - adresse : adresse EXACTEMENT comme écrite (format : "numéro rue CP ville" SANS virgule)
-   - date : date visible en haut
-   - SIRET : 14 chiffres
+
+   ⚠️ ATTENTION - Ne pas confondre :
+   - CLIENT/BÉNÉFICIAIRE : c'est lui qu'on veut extraire (ex: COPPIN, SCEA TROIS, etc.)
+   - PRIME EVOLUTION : bureau d'études qui fait l'audit (NE PAS extraire ses coordonnées)
+   - TOTAL ENERGIES : délégataire CEE (NE PAS extraire ses coordonnées)
+
+   À extraire (coordonnées du CLIENT uniquement) :
+   - nom : nom de l'entreprise CLIENTE (généralement en haut/centre de la page 1, PAS "Prime Evolution")
+   - adresse : adresse du CHANTIER du client EXACTEMENT comme écrite (l'ordre CP/ville peut varier, pas d'importance)
+   - date : date de l'audit (visible en haut de page 1)
+   - SIRET : SIRET du CLIENT (14 chiffres, PAS celui de Prime Evolution)
+   - surfaces : surfaces des bâtiments si mentionnées
+   - ledTotal : nombre total de LED
+   - profilUtilisation : profil d'utilisation (entrepôt, logistique, etc.)
 
    NE PAS prendre l'adresse ou le code postal depuis d'autres pages de l'audit !
+   NE PAS extraire "123 Rue Victor Hugo 92300 LEVALLOIS PERRET" (adresse Prime Evolution) !
 
 FORMAT DE RÉPONSE (JSON uniquement) :
 \`\`\`json
