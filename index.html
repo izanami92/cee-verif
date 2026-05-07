@@ -3451,12 +3451,52 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
 
       // Si attestations présentes, vérifier les surfaces par chantier
       if (attestationsPresentes) {
-        // Pour chaque chantier (= attestation)
-        // Utiliser l'INDEX : attestations[0] → audits[0], attestations[1] → audits[1]
-        (norm.cee?.attestations || []).forEach((attestation, chantierIndex) => {
-          const chantierAdresse = attestation.adresse || '';
-          const surfacesAttestation = attestation.surfaces || [];
-          const sommeAttestationTotale = sumSurfaces(surfacesAttestation);
+        // NOUVELLE LOGIQUE : Grouper les attestations par adresse (chantier)
+        // Car plusieurs attestations peuvent avoir la MÊME adresse (même chantier, bâtiments différents)
+
+        // Normaliser les adresses des attestations (comme pour la détection des chantiers)
+        const attestationsNormalized = attestations.map((att, idx) => {
+          const cleaned = (att.adresse || '')
+            .replace(/\s*-?\s*(BAT|Bat|bât|bat|BATIMENT|Batiment|Bâtiment|bâtiment)\s*\d+\s*/gi, ' ')
+            .trim();
+          return {
+            original: att,
+            normalizedAddress: cleaned.toLowerCase(),
+            index: idx
+          };
+        });
+
+        // Grouper par adresse normalisée
+        const attestationsByChantier = new Map();
+        attestationsNormalized.forEach(attNorm => {
+          if (!attestationsByChantier.has(attNorm.normalizedAddress)) {
+            attestationsByChantier.set(attNorm.normalizedAddress, []);
+          }
+          attestationsByChantier.get(attNorm.normalizedAddress).push(attNorm);
+        });
+
+        console.log(`\n=== GROUPEMENT DES ATTESTATIONS PAR CHANTIER ===`);
+        console.log(`Total attestations: ${attestations.length}`);
+        console.log(`Chantiers uniques: ${attestationsByChantier.size}`);
+
+        // Pour chaque chantier unique
+        let chantierIndex = 0;
+        attestationsByChantier.forEach((attestationsGroupe, adresseNormalisee) => {
+          const chantierAdresse = attestationsGroupe[0].original.adresse || '';
+
+          // SOMMER TOUTES les surfaces des attestations de ce chantier
+          const toutesLesSurfaces = [];
+          attestationsGroupe.forEach(attNorm => {
+            const surfaces = attNorm.original.surfaces || [];
+            toutesLesSurfaces.push(...surfaces);
+          });
+          const sommeAttestationTotale = sumSurfaces(toutesLesSurfaces);
+
+          console.log(`\nChantier ${chantierIndex + 1} : ${chantierAdresse}`);
+          console.log(`  - Nombre d'attestations pour ce chantier: ${attestationsGroupe.length}`);
+          console.log(`  - Surfaces combinées: ${toutesLesSurfaces.join(' + ')} = ${sommeAttestationTotale} m²`);
+
+          const surfacesAttestation = toutesLesSurfaces;
 
           // Trouver l'audit correspondant PAR INDEX (pas par adresse)
           const auditCorrespondant = norm.audits[chantierIndex] || null;
@@ -3595,6 +3635,9 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
               });
             }
           }
+
+          // Incrémenter l'index du chantier pour le prochain
+          chantierIndex++;
         });
       }
 
