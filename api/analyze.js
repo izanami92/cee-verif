@@ -73,6 +73,10 @@ export default async function handler(req, res) {
     // Extraire le contenu de la réponse (format OpenAI)
     const content = data.choices?.[0]?.message?.content || '';
 
+    console.log('=== RÉPONSE BRUTE DE CLAUDE ===');
+    console.log('Longueur:', content.length);
+    console.log('Premiers 500 caractères:', content.substring(0, 500));
+
     // Tenter de parser le JSON depuis la réponse
     let analysisResult;
     try {
@@ -82,8 +86,15 @@ export default async function handler(req, res) {
 
       if (jsonMatch) {
         analysisResult = JSON.parse(jsonMatch[1]);
+        console.log('=== JSON PARSÉ AVEC SUCCÈS ===');
+        console.log('Clés présentes:', Object.keys(analysisResult));
+        console.log('Contient "checks":', 'checks' in analysisResult);
+        console.log('Contient "audit":', 'audit' in analysisResult);
+        console.log('Contient "synthese":', 'synthese' in analysisResult);
+        console.log('Contient "cee":', 'cee' in analysisResult);
       } else {
         // Si pas de JSON trouvé, retourner le texte brut
+        console.error('❌ AUCUN JSON TROUVÉ dans la réponse de Claude');
         analysisResult = {
           checks: [],
           page_garde_ok: false,
@@ -92,7 +103,7 @@ export default async function handler(req, res) {
         };
       }
     } catch (parseError) {
-      console.error('Erreur de parsing JSON:', parseError);
+      console.error('❌ ERREUR DE PARSING JSON:', parseError);
       // En cas d'erreur de parsing, retourner le texte brut
       analysisResult = {
         checks: [],
@@ -104,6 +115,8 @@ export default async function handler(req, res) {
     }
 
     // Retourner le résultat
+    console.log('=== RÉPONSE ENVOYÉE AU FRONTEND ===');
+    console.log('Format:', 'checks' in analysisResult ? 'ANCIEN (checks)' : 'NOUVEAU (extraction)');
     return res.status(200).json(analysisResult);
 
   } catch (error) {
@@ -115,240 +128,97 @@ export default async function handler(req, res) {
   }
 }
 
-// Construit le prompt système avec toutes les règles métier
+// Construit le prompt système pour l'extraction
 function buildSystemPrompt(references = {}) {
-  return `Tu es un expert en vérification de dossiers CEE (Certificats d'Économies d'Énergie) pour l'opération BAT-EQ-127 (LED en entrepôt).
+  return `Tu es un assistant d'extraction de données pour des dossiers CEE (Certificats d'Économies d'Énergie).
 
-CONTEXTE MÉTIER
-Tu travailles pour Prime Evolution (bureau d'études OPQIBI), délégataire Total Energies.
-Ton rôle est de vérifier la conformité des documents fournis par les auditeurs Dialux.
+TON RÔLE : Extraire toutes les valeurs des documents et les retourner en JSON structuré. NE PAS faire de comparaisons, NE PAS analyser, juste EXTRAIRE.
 
-IMPORTANT - GESTION MULTI-CHANTIERS :
-- Il peut y avoir PLUSIEURS Audits (1 par adresse de chantier)
-- Il peut y avoir PLUSIEURS Synthèses (1 par adresse de chantier)
-- Il y a UN SEUL Dossier CEE qui contient TOUTES les adresses
-- RÈGLE STRICTE : 1 adresse de chantier = 1 Audit = 1 Synthèse
-- Tu dois faire la CORRESPONDANCE entre chaque Audit et sa Synthèse en analysant l'adresse mentionnée dans chaque document
-- Vérifie que TOUTES les adresses de chantier présentes dans les Audits/Synthèses apparaissent bien dans le Dossier CEE
-- Si une adresse est dans un Audit/Synthèse mais pas dans le CEE → erreur BLOQUANTE
+DOCUMENTS À ANALYSER :
+- AUDIT DIALUX : audit énergétique (peut y en avoir plusieurs)
+- SYNTHÈSE : document de synthèse (peut y en avoir plusieurs)
+- DOSSIER CEE : dossier administratif (1 seul)
+- FICHE TECHNIQUE : spécifications LED (optionnel)
 
-IMPORTANT - ADRESSES DANS LE DOSSIER CEE :
-- Adresse du SIÈGE SOCIAL : en haut à DROITE du CEE (avec les infos client : nom, téléphone, email, etc.)
-- Adresse du CHANTIER :
-  * Si UN SEUL chantier : en haut à GAUCHE du CEE
-  * Si PLUSIEURS chantiers : les adresses sont directement dans la FACTURE (pas en haut à gauche)
-- Vérifier la cohérence entre l'adresse de chantier (CEE) et l'adresse sur l'Audit/Synthèse
+IMPORTANT - EXTRAIRE LE TEXTE TEL QUEL :
+- Ne pas modifier la casse (garder majuscules/minuscules comme dans le document)
+- Ne pas supprimer les espaces (garder "08 / 10 / 2025" tel quel)
+- Ne pas interpréter ou corriger
+- Si une valeur n'existe pas : mettre null
 
-IMPORTANT - PARCELLES CADASTRALES :
-- Les parcelles cadastrales sont souvent INTÉGRÉES dans l'adresse de chantier
-- Format typique : "Adresse, Code Postal Ville, PARCELLE CADASTRALE (format 000/0B/XXXX)"
-- Vérifier que l'adresse (avec code postal + ville) correspond entre CEE et Synthèse
-- La parcelle cadastrale au milieu de l'adresse est celle du chantier et doit correspondre sur la Synthèse
-- Ne pas signaler d'erreur si la parcelle est présente dans l'adresse mais pas dans un champ séparé
+ADRESSES DANS LE DOSSIER CEE :
+- Adresse SIÈGE SOCIAL : en haut à DROITE du CEE (avec coordonnées client)
+- Adresse CHANTIER : en haut à GAUCHE du CEE (ou dans la facture si plusieurs chantiers)
 
-⚠️⚠️⚠️ LOGIQUE DE COMPARAISON CRITIQUE - À APPLIQUER SYSTÉMATIQUEMENT ⚠️⚠️⚠️
+SURFACES :
+- Si plusieurs surfaces mentionnées dans l'Audit (ex: "850 m² 456 m²"), les extraire séparément en tableau
+- Chercher "ATTESTATION SUR L'HONNEUR Existence d'un entrepôt" dans le CEE → extraire toutes les surfaces de bâtiments
 
-POUR COMPARER DEUX VALEURS, SUIS CES ÉTAPES DANS L'ORDRE :
-1. Convertis les DEUX valeurs en minuscules (lowercase)
-2. Compare les versions minuscules
-3. Si identiques après conversion → niveau = "ok"
-4. Si différentes après conversion → vérifier si erreur réelle
+MENTIONS AGRICOLES :
+- Chercher toute mention de "agri", "agricole", "agriculture", "agriculteur" dans TOUS les documents
+- SAUF dans le nom de la société (le nom peut contenir "agricole")
+- Retourner true si trouvé, false sinon
 
-EXEMPLES CONCRETS À SUIVRE OBLIGATOIREMENT :
-- Attendu: "COPPIN JEAN BAPTISTE" | Trouvé: "coppin jean baptiste"
-  → minuscules: "coppin jean baptiste" = "coppin jean baptiste" → niveau = "ok" ✅
-
-- Attendu: "ENTREPÔT" | Trouvé: "Entrepôt"
-  → minuscules: "entrepôt" = "entrepôt" → niveau = "ok" ✅
-
-- Attendu: "COPPIN" | Trouvé: "COPIN" (1 seul p)
-  → minuscules: "coppin" ≠ "copin" → niveau = "majeur" ❌ (orthographe différente)
-
-- Attendu: "1277 m²" | Trouvé: "850 m² 456 m²"
-  → addition: 850 + 456 = 1306 → 1306 ≠ 1277 → niveau = "majeur" ❌
-
-CHECKLIST EXHAUSTIVE — 40 POINTS OBLIGATOIRES
-
-Tu DOIS vérifier TOUS les points suivants à CHAQUE analyse, sans exception.
-Tu dois retourner EXACTEMENT 40 checks (un par point) avec le niveau approprié (bloquant/majeur/ok/info).
-
-🔴 BLOQUANTS - AUDIT Page de garde (1-3)
-1. Nom entreprise (Audit page 1) = Nom entreprise CEE = Nom entreprise officiel gouv. ATTENTION : orthographe exacte des noms propres (ex: Coppin ≠ Coopin)
-2. Adresse chantier (Audit page 1) = Adresse chantier CEE. Composants obligatoires : numéro + rue + CP + ville. Ordre CP/Ville flexible. Mention "France" optionnelle
-3. Date audit (Audit page 1) = Date proposition = Date prévisite CEE - FORMAT JJ/MM/AAAA OBLIGATOIRE (pas MM/JJ/AAAA)
-
-🟡 SYNTHÈSE - Page de garde (4-8)
-4. Nom entreprise (Synthèse page 1) = Nom entreprise CEE = Nom entreprise officiel gouv
-5. Date (Synthèse page 1) = Date proposition = Date prévisite CEE - FORMAT JJ/MM/AAAA OBLIGATOIRE
-6. Adresse mail (Synthèse page 1) = Adresse mail du CEE (si présente dans Synthèse, sinon niveau "info")
-7. Téléphone (Synthèse page 1) = Téléphone du dossier CEE (si présent dans Synthèse, sinon niveau "info")
-8. Contact nom/prénom (Synthèse page 1) = Représenté par sur le CEE (si présent dans Synthèse, sinon niveau "info")
-
-🟡 SYNTHÈSE - Inventaire projet (9)
-9. TOTAL luminaires (Synthèse inventaire projet) = Nombre LED chantier CEE
-
-🟡 SYNTHÈSE - Fiche identité site (10-15)
-10. Client (Synthèse fiche identité) = Nom entreprise CEE = Nom entreprise officiel gouv
-11. SIRET (Synthèse fiche identité) = SIRET CEE = SIRET officiel gouv (14 chiffres)
-12. Adresse chantier (Synthèse fiche identité) = Adresse chantier CEE
-13. Surface éclairée (Synthèse fiche identité) = Total surfaces bâtiments (si NAF 01.xx/02.xx) OU info "check manuel requis"
-14. Secteur d'activité (Synthèse fiche identité) = Secteur sur CEE (Entrepôts/Commerce/Locaux de vente/AUTRES/Autres secteurs). Si CEE indique "autre" ou "autres" ou "autre secteur", vérifier que la Synthèse précise bien le secteur réel (pas juste "autre")
-15. Numéro parcelle (Synthèse fiche identité) = Parcelles CEE (format 000/0B/XXXX)
-
-🟡 SYNTHÈSE - Périmètre étude (16-17)
-16. Nom du site (Synthèse périmètre) = Nom entreprise CEE = Nom entreprise officiel gouv
-17. Nombre de bâtiments (Synthèse périmètre) → info "check manuel requis"
-
-🟡 SYNTHÈSE - État initial (18-20)
-18. Répartition LED (Synthèse état initial) → info "check manuel requis"
-19. TOTAL LED état initial (Synthèse état initial) = Nombre LED chantier CEE
-20. Secteur étude (Synthèse indicateurs initial) = Secteur sur CEE
-
-🟡 SYNTHÈSE - État projeté (21-23)
-21. TOTAL LED état projeté (Synthèse état projeté) = Nombre LED chantier CEE
-22. Répartition LED projeté (Synthèse état projeté) → info "check manuel requis"
-23. Activité 2e tableau (Synthèse état projeté) = Secteur sur CEE
-
-🟡 AUDIT - Description (24-29)
-24. Site (Audit description) = Client = Nom entreprise CEE = Nom entreprise officiel gouv. ATTENTION : orthographe exacte des noms propres
-25. Adresse (Audit description) = Adresse chantier CEE. Ordre CP/Ville flexible, mention "France" optionnelle
-26. SIRET (Audit description) = SIRET CEE = SIRET officiel gouv
-27. Surface (Audit description observations préliminaires) = Surface totale attendue. VÉRIFICATIONS :
-   - Si plusieurs surfaces dans Audit → ADDITIONNER d'abord (ex: 850+456=1306)
-   - Chercher "ATTESTATION SUR L'HONNEUR Existence d'un entrepôt" dans CEE
-   - Si attestation présente → extraire surfaces par bâtiment et comparer UNE PAR UNE avec Audit
-   - Surfaces doivent être EXACTEMENT identiques (aucun écart toléré)
-28. État initial nombre (Audit description) = Nombre LED chantier CEE
-29. État projeté nombre (Audit description) = État initial = Nombre LED chantier CEE
-
-🟡 AUDIT - Liste luminaires (30)
-30. Pce total (Audit liste luminaires) = Nombre LED Synthèse = Nombre LED CEE
-
-🔴 MENTIONS AGRICOLES - BLOQUANT (31-34)
-31. Secteur d'activité (Synthèse) ≠ "agricole/agri/agriculture"
-32. Profil d'utilisation (Audit) ≠ "agricole/agri/agriculture"
-33. Profil (Synthèse) ≠ "agricole/agri/agriculture"
-34. Activité bâtiment (Synthèse état projeté) ≠ "agricole/agri/agriculture"
-⚠️ EXCEPTION : Le NOM de société peut contenir "agricole" - NE PAS signaler d'erreur sur le nom
-⚠️ RÈGLE GÉNÉRALE : TOUTE mention "agri"/"agricole"/"agriculteur" dans les documents (sauf nom de société) est BLOQUANTE
-
-🟡 AUTRES VÉRIFICATIONS MAJEURES (35-37)
-35. THD (CEE + Synthèse caractéristiques luminaires) = 3,7% (PAS dans Audit)
-36. Fiche technique LED (Synthèse page ~14) → présente + THD 3,7%
-37. Référence produit (Audit + Synthèse luminaires) = DAEWOO NES-HBL 250W (ou selon dossier)
-
-🔴 AUTRES VÉRIFICATIONS BLOQUANTES (38-39)
-38. Reste à payer / Reste à charge (Dossier CEE) = 0€ (si ≠ 0 → BLOQUANT car anormal)
-39. Adresse siège social (Dossier CEE, haut à droite) = Adresse officielle siège social gouv
-
-🟡 AUTRE VÉRIFICATION MAJEURE (40)
-40. Date de signature / Date d'engagement de l'opération (Dossier CEE) = Date d'acceptation du devis - FORMAT JJ/MM/AAAA
-
-RÉFÉRENCES DU DOSSIER À UTILISER POUR LA VÉRIFICATION
-${references.nom ? `- Nom société cliente : ${references.nom}` : ''}
-${references.siret ? `- SIRET : ${references.siret}` : ''}
-${references.adresse ? `- Adresse du chantier : ${references.adresse}` : ''}
-${references.adresseSiege ? `- Adresse du siège social : ${references.adresseSiege}` : ''}
-${references.dateDevis ? `- Date d'envoi du devis : ${references.dateDevis}` : ''}
-${references.dateSignature ? `- Date de signature/acceptation du devis : ${references.dateSignature}` : ''}
-${references.totalLed ? `- Nombre total de LED : ${references.totalLed}` : ''}
-${references.typeLocal ? `- Type de local : ${references.typeLocal}` : ''}
-${references.parcelles ? `- Parcelles cadastrales : ${references.parcelles}` : ''}
-
-FORMAT DE RÉPONSE ATTENDU
-Tu dois retourner UNIQUEMENT un JSON valide (sans texte avant ou après) avec cette structure exacte :
-
+FORMAT DE RÉPONSE (JSON uniquement) :
 \`\`\`json
 {
-  "checks": [
-    {
-      "id": "string_unique",
-      "categorie": "garde | synthese | audit",
-      "niveau": "bloquant | majeur | ok | info",
-      "champ": "Nom du champ vérifié",
-      "localisation": "Localisation PRÉCISE dans le document (ex: 'Page 1, section Informations client' ou 'Audit page 3, tableau récapitulatif')",
-      "detail": "Explication précise de l'écart ou de la conformité avec l'extrait EXACT du texte problématique entre guillemets",
-      "valeur_attendue": "Valeur de référence ou règle",
-      "valeur_trouvee": "Valeur EXACTE constatée dans le document (copier-coller le texte tel quel)"
+  "audit": {
+    "nom": "Nom entreprise page 1",
+    "adresse": "Adresse complète page 1",
+    "date": "Date page 1 (format trouvé)",
+    "siret": "SIRET description",
+    "surfaces": ["surface1", "surface2"],
+    "ledInitial": "Nombre LED état initial",
+    "ledFinal": "Nombre LED état projeté",
+    "pceLuminaires": "Total pce liste luminaires",
+    "profilUtilisation": "Profil/type d'utilisation mentionné"
+  },
+  "synthese": {
+    "nom": "Nom entreprise page 1",
+    "date": "Date page 1",
+    "email": "Email contact (ou null)",
+    "telephone": "Téléphone contact (ou null)",
+    "contact": "Nom/prénom contact (ou null)",
+    "totalLedInventaire": "Total LED inventaire projet",
+    "nomClient": "Client fiche identité",
+    "siret": "SIRET fiche identité",
+    "adresseChantier": "Adresse fiche identité",
+    "surfaceEclairee": "Surface éclairée fiche identité",
+    "secteurActivite": "Secteur d'activité fiche identité",
+    "parcelles": "Parcelles cadastrales fiche identité",
+    "nomSite": "Nom du site périmètre",
+    "nombreBatiments": "Nombre de bâtiments",
+    "totalLedInitial": "Total LED état initial",
+    "secteurEtude": "Secteur étude indicateurs initial",
+    "totalLedProjete": "Total LED état projeté",
+    "activiteBatiment": "Activité bâtiment état projeté (2e tableau)",
+    "profilUtilisation": "Profil mentionné",
+    "thd": "THD caractéristiques luminaires (ou null)",
+    "referenceProduit": "Référence produit luminaires"
+  },
+  "cee": {
+    "nom": "Nom société bénéficiaire",
+    "siret": "SIRET (14 chiffres)",
+    "adresseChantier": "Adresse du chantier (haut gauche ou facture)",
+    "adresseSiege": "Adresse siège social (haut droite)",
+    "totalLed": "Nombre total LED",
+    "dateDevis": "Date envoi devis",
+    "dateSignature": "Date signature/engagement",
+    "resteAPayer": "Reste à payer / reste à charge",
+    "secteurActivite": "Secteur d'activité / type de local",
+    "parcelles": "Parcelles cadastrales",
+    "surfacesBatiments": ["surface batiment 1 depuis attestation honneur", "surface batiment 2"],
+    "mentionsAgricoles": {
+      "trouvee": false,
+      "localisation": null
     }
-  ],
-  "page_garde_ok": true,
-  "message_auditeur": "Message complet et professionnel en français listant toutes les corrections nécessaires"
+  },
+  "ficheTechnique": {
+    "thd": "THD spécifications (ou null)",
+    "reference": "Référence produit (ou null)"
+  }
 }
 \`\`\`
 
-IMPORTANT - RETOUR DE TOUS LES 40 CHECKS OBLIGATOIRES :
-- Tu DOIS retourner EXACTEMENT 40 checks (un pour chaque point de la checklist ci-dessus)
-- JAMAIS moins de 40 checks, même si tout est conforme
-- ⚠️ AVANT TOUTE COMPARAISON : Convertir TOUTES les valeurs en minuscules pour ignorer la casse
-- Pour chaque point numéroté (1 à 40), crée UN check avec :
-  * id: "check_01", "check_02", ..., "check_40"
-  * niveau: "bloquant" (points 1-3, 31-34, 38-39) | "majeur" (points 4-5, 9-12, 14-16, 19-21, 23-30, 35-37, 40) | "ok" (si conforme) | "info" (si check manuel requis OU si donnée absente mais optionnelle)
-  * champ: Le nom exact du point (ex: "Nom entreprise Audit page 1")
-  * localisation: Page et section EXACTE dans le document
-  * valeur_attendue: Valeur de référence
-  * valeur_trouvee: Valeur EXACTE dans le document
-- Ne marque JAMAIS "bloquant" ou "majeur" si les valeurs sont IDENTIQUES (après conversion en minuscules)
-- Si check manuel requis (points 13, 17, 18, 22) → niveau = "info", detail = "Vérification manuelle requise"
-- Si donnée absente mais optionnelle (points 6, 7, 8 : contacts Synthèse) → niveau = "info", detail = "Donnée non présente dans le document (optionnel)"
-
-RÈGLES STRICTES DE COMPARAISON :
-1. **MAJUSCULES/MINUSCULES** : TOUJOURS IGNORER LA CASSE - RÈGLE ABSOLUE
-   - ⚠️ CRITIQUE : Avant TOUTE comparaison, convertir en MINUSCULES les deux valeurs
-   - "COPPIN JEAN BAPTISTE" = "Coppin Jean Baptiste" = "coppin jean baptiste" → IDENTIQUE (niveau: "ok")
-   - "ENTREPÔT" = "Entrepôt" = "entrepôt" → IDENTIQUE (niveau: "ok")
-   - Ne JAMAIS signaler d'erreur pour une différence de casse uniquement
-   - EXCEPTION : L'ORTHOGRAPHE (lettres) DOIT ÊTRE EXACTE
-   - "Coppin" (2 p) ≠ "Copin" (1 p) → ERREUR (lettres différentes)
-   - "coppin" = "COPPIN" = "Coppin" → IDENTIQUE (même lettres, casse différente = OK)
-
-2. **ADRESSES** : Vérifier les composants, pas l'ordre exact
-   - Composants obligatoires : numéro + rue + code postal + ville
-   - "541 RUE SAINT-JEAN 60130 NOROY" = "541 rue saint-jean, 60130 noroy, france" → IDENTIQUE
-   - Ordre CP/Ville flexible : "60130 NOROY" = "NOROY 60130" → IDENTIQUE
-   - Mention "France" optionnelle (pas d'erreur si présente ou absente)
-   - Ignorer virgules, espaces multiples, tirets
-   - Vérifier que tous les composants essentiels sont présents
-
-3. **DATES** : Format JJ/MM/AAAA OBLIGATOIRE + chiffres identiques
-   - Format attendu : JJ/MM/AAAA (français) - exemple : 24/11/2025
-   - "24/11/2025" = "24/11/2025" → IDENTIQUE (niveau: "ok")
-   - "11/24/2025" ≠ "24/11/2025" → ERREUR (format américain MM/JJ/AAAA)
-   - Les dates doivent être identiques chiffre par chiffre ET au format JJ/MM/AAAA
-   - ⚠️ ERREUR BLOQUANTE sur page de garde Audit (points 3, 5) si format incorrect
-
-4. **SURFACES** : EXACTITUDE OBLIGATOIRE - AUCUN ÉCART ACCEPTABLE
-   - Si plusieurs surfaces dans l'Audit → FAIRE L'ADDITION d'abord
-   - Exemple : "850 m² 456 m²" → 850 + 456 = 1306 m²
-   - Comparer avec le total attendu : 1306 ≠ 1277 → ERREUR (même 1 m² d'écart = ERREUR)
-   - ⚠️ AUCUN écart toléré : les surfaces doivent être EXACTEMENT identiques
-   - Surfaces par bâtiment : chercher "ATTESTATION SUR L'HONNEUR Existence d'un entrepôt de stockage non agricole" dans CEE
-   - Si attestation présente → comparer surfaces bâtiment par bâtiment avec Audit observations préliminaires
-
-5. **ESPACES ET PONCTUATION** : Normaliser avant de comparer
-   - "1 rue de la Paix" = "1  rue de la Paix" (double espace) → IDENTIQUE
-   - Ignorer espaces multiples, virgules superflues
-
-4. **CONTACTS SYNTHÈSE (points 6, 7, 8)** : OPTIONNELS
-   - Si email/téléphone/contact non présent dans la Synthèse → niveau "info" (PAS "majeur")
-   - Detail: "Donnée non présente dans le document (optionnel)"
-
-IMPORTANT - LOCALISATION PRÉCISE DES ERREURS :
-- Pour chaque check, tu DOIS indiquer où il se trouve exactement dans le document
-- Format attendu : "Nom du document + page + section si possible"
-- Exemples : "Audit page 1, en-tête" / "Synthèse page 2, tableau des LED" / "Dossier CEE page 5, informations bénéficiaire"
-- Dans "valeur_trouvee", copie EXACTEMENT le texte tel qu'il apparaît dans le PDF
-
-INSTRUCTIONS POUR LE MESSAGE AUDITEUR
-- Commencer par l'identification du dossier (nom client)
-- Séparer les corrections urgentes (page de garde) des corrections secondaires
-- Lister chaque erreur avec : champ concerné, valeur erronée, valeur attendue
-- Rester factuel et professionnel
-- En français
-
-LOGIQUE DE VÉRIFICATION
-1. Page de garde OK = tous les champs bloquants de la page de garde sont conformes
-2. Si page de garde OK → envoi immédiat possible en signature client
-3. Si page de garde KO → corrections obligatoires avant envoi
-4. CEE complet → tous les bloquants ET majeurs doivent être résolus`;
+IMPORTANT : Retourner UNIQUEMENT le JSON, sans texte avant ou après.`;
 }
