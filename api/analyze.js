@@ -233,12 +233,24 @@ FORMAT DE RÉPONSE (JSON uniquement) :
   "syntheses": [
     {
       "nom": "Nom entreprise page 1",
+      "nomClient": "Client fiche identité site",
+      "nomSite": "Nom du site périmètre étude",
       "adresse": "Adresse chantier fiche identité",
       "date": "Date page 1",
-      "ledTotal": "Total LED inventaire projet",
+      "email": "Email contact client page 1",
+      "telephone": "Téléphone contact client page 1",
+      "contact": "Contact nom/prénom page 1",
+      "siret": "SIRET fiche identité (14 chiffres)",
       "surfaceEclairee": "Surface éclairée fiche identité",
-      "secteurActivite": "Secteur d'activité",
-      "profilUtilisation": "Profil mentionné",
+      "secteurActivite": "Secteur d'activité fiche identité",
+      "secteurEtude": "Secteur étude indicateurs éclairage initial",
+      "parcelles": "Parcelles cadastrales fiche identité",
+      "nombreBatiments": "Nombre de bâtiments périmètre étude",
+      "ledTotal": "Total LED inventaire projet",
+      "totalLedInitial": "Total LED état initial",
+      "totalLedProjete": "Total LED état projeté",
+      "activiteBatiment": "Activité bâtiment état projeté",
+      "profilUtilisation": "Profil utilisation",
       "thd": "THD caractéristiques luminaires",
       "referenceProduit": "Référence produit"
     }
