@@ -187,8 +187,19 @@ RÈGLES D'EXTRACTION CRITIQUES :
 4. Valeurs manquantes :
    - Si une valeur n'existe pas dans le document : mettre null (pas la chaîne "null")
 
-CEE - ADRESSES ET ATTESTATIONS :
-- adressesChantiers : TOUTES les adresses trouvées (page 1, attestations, factures)
+5. ADRESSES DE CHANTIERS (CEE) - RÈGLE CRITIQUE :
+   - adressesChantiers est un TABLEAU avec une entrée séparée pour CHAQUE adresse
+   - NE JAMAIS concaténer plusieurs adresses en une seule chaîne
+   - Chercher CHAQUE "ATTESTATION SUR L'HONNEUR" dans le CEE
+   - CHAQUE attestation a UNE adresse → créer UNE entrée dans le tableau
+
+   EXEMPLE CORRECT (2 attestations = 2 adresses) :
+   ✅ "adressesChantiers": ["route de la raimbaudiere 49380 bellevigne-en-layon", "10 la brosse de chanzeaux 49750 chemillé-en-anjou"]
+
+   EXEMPLE INCORRECT (2 adresses mélangées en une) :
+   ❌ "adressesChantiers": ["route de la raimbaudiere 49380 bellevigne-en-layon 10 la brosse de chanzeaux 49750 chemillé-en-anjou"]
+
+CEE - ATTESTATIONS :
 - attestations : Pour CHAQUE "ATTESTATION SUR L'HONNEUR", extraire {adresse: "...", surfaces: ["850", "456"]}
 
 MENTIONS AGRICOLES :
