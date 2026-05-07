@@ -1538,7 +1538,8 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
             elements.refSiret.classList.add('auto-filled');
           }
           if (extracted.adresses && Array.isArray(extracted.adresses)) {
-            elements.refAdresse.value = extracted.adresses.join('\n');
+            // Prendre seulement la première adresse pour éviter les doublons
+            elements.refAdresse.value = extracted.adresses[0] || '';
             elements.refAdresse.classList.add('auto-filled');
           } else if (extracted.adresse) {
             // Compatibilité avec l'ancien format (string simple)
@@ -1925,12 +1926,22 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
 
     // Comparer deux adresses (ordre flexible, ignore "France", tirets, etc.)
     function compareAddress(addr1, addr2) {
-      const clean = (a) => normalize(String(a || ''))
-        .replace(/,/g, ' ')
-        .replace(/\bfrance\b/gi, '')
-        .replace(/-/g, ' ')  // Supprimer tirets (SAINT-JEAN → SAINT JEAN)
-        .replace(/\s+/g, ' ')
-        .trim();
+      const clean = (a) => {
+        let cleaned = normalize(String(a || ''));
+
+        // Supprimer les mentions de bâtiment : "BAT 2", "batiment 1", "bâtiment 3", etc.
+        cleaned = cleaned
+          .replace(/\b(bat|batiment|bâtiment|batiments|bâtiments)\s*\d+\b/gi, '')
+          .replace(/\b(bat|batiment|bâtiment|batiments|bâtiments)\b/gi, '')
+          .replace(/,/g, ' ')
+          .replace(/\bfrance\b/gi, '')
+          .replace(/–/g, ' ')  // Supprimer tirets longs
+          .replace(/-/g, ' ')  // Supprimer tirets (SAINT-JEAN → SAINT JEAN)
+          .replace(/\s+/g, ' ')
+          .trim();
+
+        return cleaned;
+      };
 
       const clean1 = clean(addr1);
       const clean2 = clean(addr2);
@@ -2719,6 +2730,15 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
       const count = group.occurrences.length;
       const locations = group.occurrences.map(o => o.champ).join(', ');
 
+      // Nettoyer les valeurs pour l'affichage (supprimer mentions bâtiment)
+      const cleanForDisplay = (val) => {
+        if (!val) return 'N/A';
+        return String(val)
+          .replace(/\b(bat|batiment|bâtiment|batiments|bâtiments)\s*\d+\b/gi, '')
+          .replace(/\s+/g, ' ')
+          .trim();
+      };
+
       const occurrencesHTML = group.occurrences.map(occ => `
         <div class="error-occurrence">
           <div class="error-occurrence-location">📍 ${occ.localisation || occ.champ}</div>
@@ -2727,10 +2747,10 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
       `).join('');
 
       const summaryHTML = isConforme
-        ? `<div class="error-group-summary">Valeur conforme: <strong>${group.valeur || 'N/A'}</strong></div>`
+        ? `<div class="error-group-summary">Valeur conforme: <strong>${cleanForDisplay(group.valeur)}</strong></div>`
         : `<div class="error-group-summary">
-             Attendu: <strong>${group.valeur_attendue || 'N/A'}</strong> |
-             Trouvé: <strong>${group.valeur_trouvee || 'N/A'}</strong>
+             Attendu: <strong>${cleanForDisplay(group.valeur_attendue)}</strong> |
+             Trouvé: <strong>${cleanForDisplay(group.valeur_trouvee)}</strong>
            </div>`;
 
       const titleText = isConforme ? 'Valeurs conformes' : 'Valeur incorrecte';
