@@ -1616,6 +1616,10 @@ Extrait les informations suivantes du document et retourne-les en JSON :
 6. totalLed : nombre total de LED installées
 7. dateDevis : date d'envoi du devis (si présente)
 8. dateSignature : date de signature / date d'engagement de l'opération / date d'acceptation du devis (si présente)
+9. referenceLed : référence LED détectée dans la FACTURE (colonne "Référence")
+   - Si "DAEWOO" ou "NES-HBL" trouvé → retourner "DAEWOO"
+   - Si "TECH" ou "HIGH BAY" trouvé → retourner "TECH"
+   - Si aucun match → retourner null
 
 Format de réponse attendu (JSON uniquement) :
 \`\`\`json
@@ -1627,7 +1631,8 @@ Format de réponse attendu (JSON uniquement) :
   "parcelles": ["...", "..."],
   "totalLed": 0,
   "dateDevis": "YYYY-MM-DD",
-  "dateSignature": "YYYY-MM-DD"
+  "dateSignature": "YYYY-MM-DD",
+  "referenceLed": "DAEWOO ou TECH ou null"
 }
 \`\`\`
 
@@ -1745,6 +1750,13 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
           if (extracted.secteurActivite) {
             elements.refTypeLocal.value = extracted.secteurActivite;
             elements.refTypeLocal.classList.add('auto-filled');
+          }
+          if (extracted.referenceLed) {
+            const refLedSelect = document.getElementById('refLed');
+            if (refLedSelect && (extracted.referenceLed === 'DAEWOO' || extracted.referenceLed === 'TECH')) {
+              refLedSelect.value = extracted.referenceLed;
+              refLedSelect.classList.add('auto-filled');
+            }
           }
 
           const nbChantiers = state.chantiers.length;
