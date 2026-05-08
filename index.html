@@ -2926,6 +2926,64 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
         });
       }
 
+      // Check 9d : LED par chantier vs CEE (si attestations ont ledTotal)
+      const attestations = norm.cee?.attestations || [];
+      const attestationsAvecLed = attestations.filter(att => att.ledTotal);
+
+      if (attestationsAvecLed.length > 0) {
+        const chantiers = matchChantiers(norm.audits, norm.syntheses);
+
+        chantiers.forEach((chantier, index) => {
+          // Trouver l'attestation CEE correspondante à ce chantier
+          const attestationCorrespondante = attestationsAvecLed.find(att =>
+            compareAddress(chantier.adresse, att.adresse)
+          );
+
+          if (attestationCorrespondante) {
+            const ledCEE = parseFloat(String(attestationCorrespondante.ledTotal || 0).replace(/\s+/g, '')) || 0;
+            const ledAudit = chantier.audit ? parseFloat(String(chantier.audit.ledTotal || 0).replace(/\s+/g, '')) || 0 : null;
+            const ledSynthese = chantier.synthese ? parseFloat(String(chantier.synthese.ledTotal || 0).replace(/\s+/g, '')) || 0 : null;
+
+            // Vérifier cohérence Audit vs CEE
+            if (ledAudit !== null) {
+              const auditOk = Math.abs(ledAudit - ledCEE) < 0.1;
+              checks.push({
+                id: `check_09d_audit_ch${index + 1}`,
+                categorie: 'synthese',
+                niveau: auditOk ? 'ok' : 'majeur',
+                champ: `LED chantier ${index + 1} : Audit vs CEE`,
+                localisation: `Chantier ${index + 1} (${chantier.adresse || 'adresse non trouvée'})`,
+                detail: auditOk ?
+                  `LED Audit conforme au CEE : ${ledAudit}` :
+                  `LED différentes : ${ledCEE} attendues (CEE) vs ${ledAudit} trouvées (Audit)`,
+                valeur_attendue: ledCEE.toString(),
+                valeur_trouvee: ledAudit.toString()
+              });
+            }
+
+            // Vérifier cohérence Synthèse vs CEE
+            if (ledSynthese !== null) {
+              const syntheseOk = Math.abs(ledSynthese - ledCEE) < 0.1;
+              checks.push({
+                id: `check_09d_synthese_ch${index + 1}`,
+                categorie: 'synthese',
+                niveau: syntheseOk ? 'ok' : 'majeur',
+                champ: `LED chantier ${index + 1} : Synthèse vs CEE`,
+                localisation: `Chantier ${index + 1} (${chantier.adresse || 'adresse non trouvée'})`,
+                detail: syntheseOk ?
+                  `LED Synthèse conforme au CEE : ${ledSynthese}` :
+                  `LED différentes : ${ledCEE} attendues (CEE) vs ${ledSynthese} trouvées (Synthèse)`,
+                valeur_attendue: ledCEE.toString(),
+                valeur_trouvee: ledSynthese.toString()
+              });
+            }
+          } else {
+            // Attestation CEE non trouvée pour ce chantier
+            console.warn(`⚠️ Aucune attestation CEE trouvée pour le chantier ${index + 1} : ${chantier.adresse}`);
+          }
+        });
+      }
+
       // Checks 10-15 : Fiche identité Synthèse
       checks.push({
         id: 'check_10',

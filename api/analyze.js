@@ -199,8 +199,13 @@ RÈGLES D'EXTRACTION CRITIQUES :
    EXEMPLE INCORRECT (2 adresses mélangées en une) :
    ❌ "adressesChantiers": ["route de la raimbaudiere 49380 bellevigne-en-layon 10 la brosse de chanzeaux 49750 chemillé-en-anjou"]
 
-CEE - ATTESTATIONS :
-- attestations : Pour CHAQUE "ATTESTATION SUR L'HONNEUR", extraire {adresse: "...", surfaces: ["850", "456"]}
+CEE - FACTURE ET ATTESTATIONS :
+- Dans la FACTURE, pour CHAQUE ligne "Mise en place de luminaires à modules LED" :
+  - Identifier l'adresse du chantier dans le détail (ex: "route de la raimbaudière - 066/ZA/0006")
+  - Extraire la quantité dans la colonne "Quantité" (ex: "35,00 U" → "35")
+  - Associer cette quantité LED à l'adresse correspondante
+- Pour CHAQUE "ATTESTATION SUR L'HONNEUR", extraire les surfaces : {adresse: "...", surfaces: ["850", "456"]}
+- COMBINER facture + attestations pour obtenir : {adresse: "...", surfaces: ["850"], ledTotal: "35"}
 
 MENTIONS AGRICOLES :
 - Chercher toute mention de "agri", "agricole", "agriculture", "agriculteur" dans TOUS les documents
@@ -280,11 +285,13 @@ FORMAT DE RÉPONSE (JSON uniquement) :
     "attestations": [
       {
         "adresse": "1 rue Example 60000 VILLE1",
-        "surfaces": ["850", "456"]
+        "surfaces": ["850", "456"],
+        "ledTotal": "35"
       },
       {
         "adresse": "25 avenue Test 60130 VILLE2",
-        "surfaces": ["1240"]
+        "surfaces": ["1240"],
+        "ledTotal": "31"
       }
     ],
     "mentionsAgricoles": {
