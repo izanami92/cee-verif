@@ -2932,7 +2932,6 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
 
       if (attestationsAvecLed.length > 0) {
         const chantiers = matchChantiers(norm.audits, norm.syntheses);
-        let chantierNumero = 0; // Compteur pour chantiers avec attestation CEE
 
         chantiers.forEach((chantier, index) => {
           // Trouver l'attestation CEE correspondante à ce chantier
@@ -2941,7 +2940,9 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
           );
 
           if (attestationCorrespondante) {
-            chantierNumero++; // Incrémenter seulement si attestation trouvée
+            // Utiliser l'index de l'attestation dans le tableau (ordre de la facture CEE)
+            const indexAttestation = attestationsAvecLed.indexOf(attestationCorrespondante);
+            const chantierNumero = indexAttestation + 1; // 0 → 1, 1 → 2, etc.
             const ledCEE = parseFloat(String(attestationCorrespondante.ledTotal || 0).replace(/\s+/g, '')) || 0;
             const ledAudit = chantier.audit ? parseFloat(String(chantier.audit.ledTotal || 0).replace(/\s+/g, '')) || 0 : null;
             const ledSynthese = chantier.synthese ? parseFloat(String(chantier.synthese.ledTotal || 0).replace(/\s+/g, '')) || 0 : null;
