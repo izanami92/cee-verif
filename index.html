@@ -2940,9 +2940,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
           );
 
           if (attestationCorrespondante) {
-            // Utiliser l'index de l'attestation dans le tableau (ordre de la facture CEE)
-            const indexAttestation = attestationsAvecLed.indexOf(attestationCorrespondante);
-            const chantierNumero = indexAttestation + 1; // 0 → 1, 1 → 2, etc.
+            const adresseCEE = attestationCorrespondante.adresse; // Adresse de référence du CEE
             const ledCEE = parseFloat(String(attestationCorrespondante.ledTotal || 0).replace(/\s+/g, '')) || 0;
             const ledAudit = chantier.audit ? parseFloat(String(chantier.audit.ledTotal || 0).replace(/\s+/g, '')) || 0 : null;
             const ledSynthese = chantier.synthese ? parseFloat(String(chantier.synthese.ledTotal || 0).replace(/\s+/g, '')) || 0 : null;
@@ -2951,11 +2949,11 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
             if (ledAudit !== null) {
               const auditOk = Math.abs(ledAudit - ledCEE) < 0.1;
               checks.push({
-                id: `check_09d_audit_ch${chantierNumero}`,
+                id: `check_09d_audit_${adresseCEE.replace(/[^a-z0-9]/gi, '_')}`,
                 categorie: 'synthese',
                 niveau: auditOk ? 'ok' : 'majeur',
-                champ: `LED chantier ${chantierNumero} : Audit vs CEE`,
-                localisation: `Chantier ${chantierNumero} (${chantier.adresse || 'adresse non trouvée'})`,
+                champ: `LED ${adresseCEE} : Audit vs CEE`,
+                localisation: `${adresseCEE}`,
                 detail: auditOk ?
                   `LED Audit conforme au CEE : ${ledAudit}` :
                   `LED différentes : ${ledCEE} attendues (CEE) vs ${ledAudit} trouvées (Audit)`,
@@ -2968,11 +2966,11 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
             if (ledSynthese !== null) {
               const syntheseOk = Math.abs(ledSynthese - ledCEE) < 0.1;
               checks.push({
-                id: `check_09d_synthese_ch${chantierNumero}`,
+                id: `check_09d_synthese_${adresseCEE.replace(/[^a-z0-9]/gi, '_')}`,
                 categorie: 'synthese',
                 niveau: syntheseOk ? 'ok' : 'majeur',
-                champ: `LED chantier ${chantierNumero} : Synthèse vs CEE`,
-                localisation: `Chantier ${chantierNumero} (${chantier.adresse || 'adresse non trouvée'})`,
+                champ: `LED ${adresseCEE} : Synthèse vs CEE`,
+                localisation: `${adresseCEE}`,
                 detail: syntheseOk ?
                   `LED Synthèse conforme au CEE : ${ledSynthese}` :
                   `LED différentes : ${ledCEE} attendues (CEE) vs ${ledSynthese} trouvées (Synthèse)`,
@@ -2982,7 +2980,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
             }
           } else {
             // Attestation CEE non trouvée pour ce chantier
-            console.warn(`⚠️ Aucune attestation CEE trouvée pour le chantier ${index + 1} : ${chantier.adresse}`);
+            console.warn(`⚠️ Aucune attestation CEE trouvée pour l'adresse : ${chantier.adresse}`);
           }
         });
       }
