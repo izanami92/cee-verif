@@ -232,6 +232,14 @@ MENTIONS AGRICOLES :
    NE PAS prendre l'adresse ou le code postal depuis d'autres pages de l'audit !
    NE PAS extraire "123 Rue Victor Hugo 92300 LEVALLOIS PERRET" (adresse Prime Evolution) !
 
+7. SYNTHÈSE - EXTRACTION DURÉE DE VIE :
+   Pour CHAQUE synthèse, extraire la durée de vie des luminaires :
+
+   - dureeVie : durée de vie en heures (ex: "54000", "50000")
+   - Chercher dans la section "1. Inventaire du projet" ou "Caractéristiques techniques des luminaires"
+   - Format attendu : nombre entier en heures (sans espaces, ex: "54000")
+   - Si non trouvé : mettre null
+
 FORMAT DE RÉPONSE (JSON uniquement) :
 \`\`\`json
 {
@@ -268,7 +276,8 @@ FORMAT DE RÉPONSE (JSON uniquement) :
       "activiteBatiment": "Activité bâtiment état projeté",
       "profilUtilisation": "Profil utilisation",
       "thd": "THD caractéristiques luminaires",
-      "referenceProduit": "Référence produit"
+      "referenceProduit": "Référence produit",
+      "dureeVie": "Durée de vie luminaires (heures)"
     }
   ],
   "cee": {
