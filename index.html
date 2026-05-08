@@ -2932,6 +2932,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
 
       if (attestationsAvecLed.length > 0) {
         const chantiers = matchChantiers(norm.audits, norm.syntheses);
+        let chantierNumero = 0; // Compteur pour chantiers avec attestation CEE
 
         chantiers.forEach((chantier, index) => {
           // Trouver l'attestation CEE correspondante à ce chantier
@@ -2940,6 +2941,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
           );
 
           if (attestationCorrespondante) {
+            chantierNumero++; // Incrémenter seulement si attestation trouvée
             const ledCEE = parseFloat(String(attestationCorrespondante.ledTotal || 0).replace(/\s+/g, '')) || 0;
             const ledAudit = chantier.audit ? parseFloat(String(chantier.audit.ledTotal || 0).replace(/\s+/g, '')) || 0 : null;
             const ledSynthese = chantier.synthese ? parseFloat(String(chantier.synthese.ledTotal || 0).replace(/\s+/g, '')) || 0 : null;
@@ -2948,11 +2950,11 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
             if (ledAudit !== null) {
               const auditOk = Math.abs(ledAudit - ledCEE) < 0.1;
               checks.push({
-                id: `check_09d_audit_ch${index + 1}`,
+                id: `check_09d_audit_ch${chantierNumero}`,
                 categorie: 'synthese',
                 niveau: auditOk ? 'ok' : 'majeur',
-                champ: `LED chantier ${index + 1} : Audit vs CEE`,
-                localisation: `Chantier ${index + 1} (${chantier.adresse || 'adresse non trouvée'})`,
+                champ: `LED chantier ${chantierNumero} : Audit vs CEE`,
+                localisation: `Chantier ${chantierNumero} (${chantier.adresse || 'adresse non trouvée'})`,
                 detail: auditOk ?
                   `LED Audit conforme au CEE : ${ledAudit}` :
                   `LED différentes : ${ledCEE} attendues (CEE) vs ${ledAudit} trouvées (Audit)`,
@@ -2965,11 +2967,11 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
             if (ledSynthese !== null) {
               const syntheseOk = Math.abs(ledSynthese - ledCEE) < 0.1;
               checks.push({
-                id: `check_09d_synthese_ch${index + 1}`,
+                id: `check_09d_synthese_ch${chantierNumero}`,
                 categorie: 'synthese',
                 niveau: syntheseOk ? 'ok' : 'majeur',
-                champ: `LED chantier ${index + 1} : Synthèse vs CEE`,
-                localisation: `Chantier ${index + 1} (${chantier.adresse || 'adresse non trouvée'})`,
+                champ: `LED chantier ${chantierNumero} : Synthèse vs CEE`,
+                localisation: `Chantier ${chantierNumero} (${chantier.adresse || 'adresse non trouvée'})`,
                 detail: syntheseOk ?
                   `LED Synthèse conforme au CEE : ${ledSynthese}` :
                   `LED différentes : ${ledCEE} attendues (CEE) vs ${ledSynthese} trouvées (Synthèse)`,
