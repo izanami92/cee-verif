@@ -207,6 +207,13 @@ CEE - FACTURE ET ATTESTATIONS :
 - Pour CHAQUE "ATTESTATION SUR L'HONNEUR", extraire les surfaces : {adresse: "...", surfaces: ["850", "456"]}
 - COMBINER facture + attestations pour obtenir : {adresse: "...", surfaces: ["850"], ledTotal: "35"}
 
+CEE - RÉFÉRENCE LED (DÉTECTION AUTOMATIQUE) :
+- Dans la FACTURE, colonne "Référence", identifier la référence LED utilisée
+- Chercher les mentions : "DAEWOO", "NES-HBL", "TECH", "HIGH BAY"
+- Si "DAEWOO" ou "NES-HBL" trouvé → referenceLed: "DAEWOO"
+- Si "TECH" ou "HIGH BAY" trouvé → referenceLed: "TECH"
+- Si aucun match → referenceLed: null
+
 MENTIONS AGRICOLES :
 - Chercher toute mention de "agri", "agricole", "agriculture", "agriculteur" dans TOUS les documents
 - SAUF dans le nom de la société (le nom peut contenir "agricole")
@@ -291,6 +298,7 @@ FORMAT DE RÉPONSE (JSON uniquement) :
     "resteAPayer": "Reste à payer / reste à charge",
     "secteurActivite": "Secteur d'activité / type de local",
     "parcelles": "Parcelles cadastrales",
+    "referenceLed": "DAEWOO ou TECH (détecté depuis facture)",
     "attestations": [
       {
         "adresse": "1 rue Example 60000 VILLE1",
