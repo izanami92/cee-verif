@@ -1035,6 +1035,20 @@
         </div>
 
         <div class="ref-input">
+          <label>Référence LED</label>
+          <div style="display: flex; gap: var(--spacing-md); margin-top: var(--spacing-sm);">
+            <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+              <input type="radio" name="refLed" value="DAEWOO" id="refLedDaewoo" checked style="cursor: pointer;">
+              <span style="font-size: 0.875rem;">DAEWOO NES-HBL250W</span>
+            </label>
+            <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+              <input type="radio" name="refLed" value="TECH" id="refLedTech" style="cursor: pointer;">
+              <span style="font-size: 0.875rem;">TECH HIGH BAY TECH-03 250W</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="ref-input">
           <label for="refParcelles">Parcelles cadastrales</label>
           <textarea id="refParcelles" placeholder="000/0B/0001, 000/0B/0002..." rows="2" style="resize: vertical;"></textarea>
         </div>
@@ -1256,6 +1270,28 @@
   <script>
     // ========== CONFIGURATION PDF.JS ==========
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+    // ========== FICHES TECHNIQUES LED ==========
+    const FICHES_TECHNIQUES = {
+      DAEWOO: {
+        nom: "DAEWOO NES-HBL250W",
+        reference: "NES-HBL250W",
+        dureeVie: "54000",
+        thd: "3.7",
+        efficacite: "185",
+        irc: "71",
+        ik: "9"
+      },
+      TECH: {
+        nom: "TECH HIGH BAY TECH-03 250W",
+        reference: "HIGH BAY TECH-03 250W",
+        dureeVie: "50000",
+        thd: "4.65",
+        efficacite: "185",
+        irc: "80",
+        ik: "8"
+      }
+    };
 
     // ========== ÉTAT DE L'APPLICATION ==========
     const state = {
