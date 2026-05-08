@@ -1035,17 +1035,11 @@
         </div>
 
         <div class="ref-input">
-          <label>Référence LED</label>
-          <div style="display: flex; flex-direction: column; gap: var(--spacing-sm); margin-top: var(--spacing-sm);">
-            <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
-              <input type="radio" name="refLed" value="DAEWOO" id="refLedDaewoo" checked style="cursor: pointer;">
-              <span style="font-size: 0.875rem;">DAEWOO NES-HBL250W</span>
-            </label>
-            <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
-              <input type="radio" name="refLed" value="TECH" id="refLedTech" style="cursor: pointer;">
-              <span style="font-size: 0.875rem;">TECH HIGH BAY TECH-03 250W</span>
-            </label>
-          </div>
+          <label for="refLed">Référence LED</label>
+          <select id="refLed">
+            <option value="DAEWOO">DAEWOO NES-HBL250W</option>
+            <option value="TECH">TECH HIGH BAY TECH-03 250W</option>
+          </select>
         </div>
 
         <div class="ref-input">
@@ -2176,7 +2170,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
         updateProgress(50, 'Analyse en cours avec Claude...');
 
         // Préparer les références
-        const refLedSelected = document.querySelector('input[name="refLed"]:checked')?.value || 'DAEWOO';
+        const refLedSelected = document.getElementById('refLed')?.value || 'DAEWOO';
         const references = {
           nom: elements.refNom.value.trim(),
           siret: elements.refSiret.value.trim(),
