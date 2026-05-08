@@ -2176,6 +2176,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
         updateProgress(50, 'Analyse en cours avec Claude...');
 
         // Préparer les références
+        const refLedSelected = document.querySelector('input[name="refLed"]:checked')?.value || 'DAEWOO';
         const references = {
           nom: elements.refNom.value.trim(),
           siret: elements.refSiret.value.trim(),
@@ -2185,7 +2186,8 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
           adresseSiege: elements.refAdresseSiege.value.trim(),
           totalLed: elements.refTotalLed.value,
           typeLocal: elements.refTypeLocal.value,
-          parcelles: elements.refParcelles.value.trim()
+          parcelles: elements.refParcelles.value.trim(),
+          refLed: refLedSelected
         };
 
         // Construire le message pour Claude (NOUVELLE STRUCTURE PAR CHANTIER)
@@ -3312,37 +3314,68 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
         });
       }
 
-      // ========== CHECKS 35-37 : THD, Fiche technique, Référence ==========
-      // Check 35 : THD Synthèse = 3,7%
-      const thdOk = compareNumber(firstSynthese.thd, '3.7%');
-      checks.push({
-        id: 'check_35',
-        categorie: 'synthese',
-        niveau: thdOk ? 'ok' : 'majeur',
-        champ: 'THD Synthèse caractéristiques luminaires',
-        localisation: `Synthèse + CEE, caractéristiques luminaires${chantierSuffix}`,
-        detail: thdOk ? 'THD = 3,7% conforme' : 'THD différent de 3,7%',
-        valeur_attendue: '3,7%',
-        valeur_trouvee: firstSynthese.thd || ''
-      });
+      // ========== CHECKS 35-38 : THD, Fiche technique, Référence, Durée de vie ==========
+      // Récupérer la fiche technique sélectionnée
+      const ficheSelected = FICHES_TECHNIQUES[references.refLed] || FICHES_TECHNIQUES.DAEWOO;
+
+      // Check 35 : THD Synthèse (seulement pour DAEWOO)
+      if (references.refLed === 'DAEWOO') {
+        const thdOk = compareNumber(firstSynthese.thd, ficheSelected.thd + '%');
+        checks.push({
+          id: 'check_35',
+          categorie: 'synthese',
+          niveau: thdOk ? 'ok' : 'majeur',
+          champ: 'THD Synthèse caractéristiques luminaires',
+          localisation: `Synthèse + CEE, caractéristiques luminaires${chantierSuffix}`,
+          detail: thdOk ? `THD = ${ficheSelected.thd}% conforme` : `THD différent de ${ficheSelected.thd}%`,
+          valeur_attendue: `${ficheSelected.thd}%`,
+          valeur_trouvee: firstSynthese.thd || ''
+        });
+      } else {
+        // Pour TECH : pas de vérification THD
+        checks.push({
+          id: 'check_35',
+          categorie: 'synthese',
+          niveau: 'info',
+          champ: 'THD Synthèse caractéristiques luminaires',
+          localisation: `Synthèse + CEE, caractéristiques luminaires${chantierSuffix}`,
+          detail: 'Pas de vérification THD pour référence TECH',
+          valeur_attendue: 'N/A',
+          valeur_trouvee: firstSynthese.thd || 'N/A'
+        });
+      }
 
       // Check 36 : Fiche technique présente
       const ficheTechOk = extracted.ficheTechnique?.reference || extracted.ficheTechnique?.thd;
-      const ficheTechThdOk = compareNumber(extracted.ficheTechnique?.thd, '3.7%');
-      checks.push({
-        id: 'check_36',
-        categorie: 'synthese',
-        niveau: (ficheTechOk && ficheTechThdOk) ? 'ok' : 'majeur',
-        champ: 'Fiche technique LED',
-        localisation: 'Synthèse page ~14',
-        detail: ficheTechOk ? (ficheTechThdOk ? 'Fiche présente + THD 3,7%' : 'Fiche présente mais THD incorrect') : 'Fiche technique non trouvée',
-        valeur_attendue: 'Présente + THD 3,7%',
-        valeur_trouvee: `${extracted.ficheTechnique?.reference || 'N/A'} | THD: ${extracted.ficheTechnique?.thd || 'N/A'}`
-      });
+      if (references.refLed === 'DAEWOO') {
+        const ficheTechThdOk = compareNumber(extracted.ficheTechnique?.thd, ficheSelected.thd + '%');
+        checks.push({
+          id: 'check_36',
+          categorie: 'synthese',
+          niveau: (ficheTechOk && ficheTechThdOk) ? 'ok' : 'majeur',
+          champ: 'Fiche technique LED',
+          localisation: 'Synthèse page ~14',
+          detail: ficheTechOk ? (ficheTechThdOk ? `Fiche présente + THD ${ficheSelected.thd}%` : 'Fiche présente mais THD incorrect') : 'Fiche technique non trouvée',
+          valeur_attendue: `Présente + THD ${ficheSelected.thd}%`,
+          valeur_trouvee: `${extracted.ficheTechnique?.reference || 'N/A'} | THD: ${extracted.ficheTechnique?.thd || 'N/A'}`
+        });
+      } else {
+        // Pour TECH : juste vérifier présence
+        checks.push({
+          id: 'check_36',
+          categorie: 'synthese',
+          niveau: ficheTechOk ? 'ok' : 'majeur',
+          champ: 'Fiche technique LED',
+          localisation: 'Synthèse page ~14',
+          detail: ficheTechOk ? 'Fiche technique présente' : 'Fiche technique non trouvée',
+          valeur_attendue: 'Présente',
+          valeur_trouvee: extracted.ficheTechnique?.reference || 'N/A'
+        });
+      }
 
-      // Check 37 : Référence produit DAEWOO NES-HBL 250W
-      const refProduitOk = compareProductRef(firstSynthese.referenceProduit, 'DAEWOO NES-HBL 250W') ||
-                          compareProductRef(firstAudit.pceLuminaires, 'DAEWOO NES-HBL 250W');
+      // Check 37 : Référence produit
+      const refProduitOk = compareProductRef(firstSynthese.referenceProduit, ficheSelected.nom) ||
+                          compareProductRef(firstAudit.pceLuminaires, ficheSelected.nom);
       checks.push({
         id: 'check_37',
         categorie: 'audit',
@@ -3350,14 +3383,27 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
         champ: 'Référence produit',
         localisation: `Audit + Synthèse luminaires${chantierSuffix}`,
         detail: refProduitOk ? 'Référence produit conforme' : 'Référence produit différente',
-        valeur_attendue: 'DAEWOO NES-HBL 250W',
+        valeur_attendue: ficheSelected.nom,
         valeur_trouvee: firstSynthese.referenceProduit || firstAudit.pceLuminaires || ''
       });
 
-      // Checks 38-39 : BLOQUANTS reste à payer + adresse siège
+      // Check 38 : Durée de vie luminaires
+      const dureeVieOk = compareNumber(firstSynthese.dureeVie, ficheSelected.dureeVie);
+      checks.push({
+        id: 'check_38_duree_vie',
+        categorie: 'synthese',
+        niveau: dureeVieOk ? 'ok' : 'majeur',
+        champ: 'Durée de vie luminaires',
+        localisation: `Synthèse, inventaire du projet${chantierSuffix}`,
+        detail: dureeVieOk ? `Durée de vie conforme : ${ficheSelected.dureeVie}h` : `Durée de vie différente de ${ficheSelected.dureeVie}h`,
+        valeur_attendue: `${ficheSelected.dureeVie}h`,
+        valeur_trouvee: firstSynthese.dureeVie ? `${firstSynthese.dureeVie}h` : ''
+      });
+
+      // Checks 39-40 : BLOQUANTS reste à payer + adresse siège
       const resteAPayerOk = compareMoney(norm.cee.resteAPayer, '0');
       checks.push({
-        id: 'check_38',
+        id: 'check_39',
         categorie: 'audit',
         niveau: resteAPayerOk ? 'ok' : 'bloquant',
         champ: 'Reste à payer / Reste à charge Dossier CEE',
@@ -3369,7 +3415,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
 
       const adresseSiegeOk = compareAddress(norm.cee.adresseSiege, references.adresseSiege);
       checks.push({
-        id: 'check_39',
+        id: 'check_40',
         categorie: 'audit',
         niveau: adresseSiegeOk ? 'ok' : 'bloquant',
         champ: 'Adresse siège social Dossier CEE',
