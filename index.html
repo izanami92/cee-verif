@@ -2765,6 +2765,61 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
       return { found: false, location: null };
     }
 
+    // Configuration des groupes de checks
+    const GROUPES_CONFIG = {
+      'page-garde': { titre: 'Page de garde', ordre: 1 },
+      'siret': { titre: 'SIRET', ordre: 2 },
+      'led': { titre: 'Nombre de LED', ordre: 3 },
+      'surfaces': { titre: 'Surfaces', ordre: 4 },
+      'dates': { titre: 'Dates', ordre: 5 },
+      'parcelles': { titre: 'Parcelles cadastrales', ordre: 6 },
+      'secteur': { titre: 'Secteur d\'activité', ordre: 7 },
+      'contact': { titre: 'Informations contact', ordre: 8 },
+      'specs-led': { titre: 'Spécifications LED', ordre: 9 },
+      'admin': { titre: 'Financier & Administratif', ordre: 10 }
+    };
+
+    // Mapping ID de check → groupe (basé sur pattern ou ID exact)
+    function getGroupeForCheck(checkId) {
+      // Page de garde : checks 01, 02
+      if (checkId.match(/^check_0[12]/)) return 'page-garde';
+
+      // Dates : check 03 (date audit)
+      if (checkId.match(/^check_03/)) return 'dates';
+
+      // SIRET : checks 04-06
+      if (checkId.match(/^check_0[456]/)) return 'siret';
+
+      // Surfaces : checks 07-08
+      if (checkId.match(/^check_0[78]/)) return 'surfaces';
+
+      // LED : checks 09
+      if (checkId.match(/^check_09/)) return 'led';
+
+      // Parcelles : checks 10-12
+      if (checkId.match(/^check_1[012]/)) return 'parcelles';
+
+      // Secteur : checks 13-14, 16-20
+      if (checkId.match(/^check_1[3489]|^check_20|^check_1[67]/)) return 'secteur';
+
+      // Contact : checks 15 (nom, email, téléphone, contact)
+      if (checkId.match(/^check_15/)) return 'contact';
+
+      // Dates : checks 21-22 (dateDevis, dateSignature)
+      if (checkId.match(/^check_2[12]/)) return 'dates';
+
+      // LED : checks 23-34
+      if (checkId.match(/^check_[23]\d/)) return 'led';
+
+      // Spécifications LED : checks 35-38
+      if (checkId.match(/^check_3[5678]/)) return 'specs-led';
+
+      // Financier & Admin : checks 39-40
+      if (checkId.match(/^check_[34]0/)) return 'admin';
+
+      return null; // Pas de groupe
+    }
+
     // Générer les checks (adapté multi-chantiers)
     function generateChecks(extracted, references) {
       const checks = [];
@@ -3978,30 +4033,111 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
     }
 
     // Affiche les checks avec regroupement
-    function renderChecksWithGroups(checks, container) {
-      const { groups, individualChecks, conformeGroups, individualConformes, individualInfos } = groupSimilarErrors(checks);
+    // Nouveau groupement sémantique par catégorie
+    function groupChecksByCategory(checks) {
+      // 1. Extraire les bloquants (affichés séparément en haut)
+      const bloquants = checks.filter(c => c.niveau === 'bloquant');
+      const nonBloquants = checks.filter(c => c.niveau !== 'bloquant');
 
-      // Trier par gravité : bloquants d'abord
-      const sortByGravity = (a, b) => {
-        const order = { bloquant: 0, majeur: 1 };
-        const levelA = a.niveau || (a.occurrences && a.occurrences[0].niveau);
-        const levelB = b.niveau || (b.occurrences && b.occurrences[0].niveau);
-        return order[levelA] - order[levelB];
-      };
+      // 2. Grouper les non-bloquants par groupe sémantique
+      const groupesMap = new Map();
+      const checksOrphelins = []; // Checks sans groupe
 
-      groups.sort(sortByGravity);
-      individualChecks.sort((a, b) => {
-        const order = { bloquant: 0, majeur: 1, ok: 2, info: 3 };
-        return order[a.niveau] - order[b.niveau];
+      nonBloquants.forEach(check => {
+        const groupeKey = getGroupeForCheck(check.id);
+        if (!groupeKey) {
+          checksOrphelins.push(check);
+          return;
+        }
+
+        if (!groupesMap.has(groupeKey)) {
+          groupesMap.set(groupeKey, {
+            key: groupeKey,
+            titre: GROUPES_CONFIG[groupeKey].titre,
+            ordre: GROUPES_CONFIG[groupeKey].ordre,
+            checks: []
+          });
+        }
+
+        groupesMap.get(groupeKey).checks.push(check);
       });
 
-      const groupsHTML = groups.map(g => createErrorGroupCard(g)).join('');
-      const individualsHTML = individualChecks.map(c => createCheckCard(c)).join('');
-      const conformeGroupsHTML = conformeGroups.map(g => createErrorGroupCard(g)).join('');
-      const conformesHTML = individualConformes.map(c => createCheckCard(c)).join('');
-      const infosHTML = individualInfos.map(c => createCheckCard(c)).join('');
+      // 3. Déterminer le niveau de chaque groupe (max des enfants)
+      const groupes = Array.from(groupesMap.values()).map(groupe => {
+        const niveaux = groupe.checks.map(c => c.niveau);
+        const niveau = niveaux.includes('majeur') ? 'majeur' :
+                      niveaux.includes('ok') ? 'ok' : 'info';
+        return { ...groupe, niveau };
+      });
 
-      container.innerHTML = groupsHTML + individualsHTML + conformeGroupsHTML + conformesHTML + infosHTML;
+      // 4. Trier les groupes par ordre défini
+      groupes.sort((a, b) => a.ordre - b.ordre);
+
+      return { bloquants, groupes, checksOrphelins };
+    }
+
+    function renderChecksWithGroups(checks, container) {
+      const { bloquants, groupes, checksOrphelins } = groupChecksByCategory(checks);
+
+      let html = '';
+
+      // 1. Section BLOQUANTS (si présents)
+      if (bloquants.length > 0) {
+        html += `<div class="bloquants-section" style="margin-bottom: var(--spacing-lg);">
+          <h3 style="color: var(--color-error); font-size: 1.125rem; margin-bottom: var(--spacing-md); display: flex; align-items: center; gap: 0.5rem;">
+            <span>⚠️</span>
+            <span>BLOQUANTS (${bloquants.length})</span>
+          </h3>
+          ${bloquants.map(c => createCheckCard(c)).join('')}
+        </div>`;
+      }
+
+      // 2. Groupes sémantiques
+      groupes.forEach(groupe => {
+        const nbOk = groupe.checks.filter(c => c.niveau === 'ok').length;
+        const nbTotal = groupe.checks.length;
+        const niveauLabel = groupe.niveau === 'majeur' ? 'MAJEUR' :
+                           groupe.niveau === 'ok' ? 'OK' : 'INFO';
+        const niveauColor = groupe.niveau === 'majeur' ? 'var(--color-warning)' :
+                           groupe.niveau === 'ok' ? 'var(--color-success)' : 'var(--color-info)';
+
+        html += `
+          <div class="groupe-checks" style="margin-bottom: var(--spacing-md); border: 1px solid rgba(255,255,255,0.1); border-radius: var(--radius-md); overflow: hidden;">
+            <div class="groupe-header" style="background: rgba(255,255,255,0.05); padding: var(--spacing-md); cursor: pointer; display: flex; justify-content: space-between; align-items: center;"
+                 onclick="this.parentElement.querySelector('.groupe-content').classList.toggle('collapsed')">
+              <div style="display: flex; align-items: center; gap: var(--spacing-md);">
+                <span class="niveau-badge ${groupe.niveau}" style="background: ${niveauColor}; color: white; padding: 0.25rem 0.5rem; border-radius: var(--radius-sm); font-size: 0.75rem; font-weight: 600;">${niveauLabel}</span>
+                <h4 style="margin: 0; font-size: 1rem;">${groupe.titre}</h4>
+              </div>
+              <div style="display: flex; align-items: center; gap: var(--spacing-sm);">
+                <span style="font-size: 0.875rem; color: var(--color-text-secondary);">${nbOk}/${nbTotal} conformes</span>
+                <span class="toggle-icon">▼</span>
+              </div>
+            </div>
+            <div class="groupe-content" style="padding: var(--spacing-sm);">
+              ${groupe.checks.map(c => createCheckCard(c)).join('')}
+            </div>
+          </div>
+        `;
+      });
+
+      // 3. Checks orphelins (sans groupe)
+      if (checksOrphelins.length > 0) {
+        html += checksOrphelins.map(c => createCheckCard(c)).join('');
+      }
+
+      container.innerHTML = html;
+
+      // Ajouter le style pour collapsed
+      if (!document.getElementById('groupe-collapsed-style')) {
+        const style = document.createElement('style');
+        style.id = 'groupe-collapsed-style';
+        style.textContent = `
+          .groupe-content.collapsed { display: none; }
+          .groupe-content.collapsed + .groupe-header .toggle-icon { transform: rotate(-90deg); }
+        `;
+        document.head.appendChild(style);
+      }
     }
 
     // Fonction de filtrage par niveau
