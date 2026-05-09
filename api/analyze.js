@@ -199,13 +199,17 @@ RÈGLES D'EXTRACTION CRITIQUES :
    EXEMPLE INCORRECT (2 adresses mélangées en une) :
    ❌ "adressesChantiers": ["route de la raimbaudiere 49380 bellevigne-en-layon 10 la brosse de chanzeaux 49750 chemillé-en-anjou"]
 
-CEE - FACTURE ET ATTESTATIONS :
+CEE - FACTURE ET ATTESTATIONS (EXTRACTION PAR CHANTIER) :
 - Dans la FACTURE, pour CHAQUE ligne "Mise en place de luminaires à modules LED" :
   - Identifier l'adresse du chantier dans le détail (ex: "route de la raimbaudière - 066/ZA/0006")
   - Extraire la quantité dans la colonne "Quantité" (ex: "35,00 U" → "35")
   - Associer cette quantité LED à l'adresse correspondante
-- Pour CHAQUE "ATTESTATION SUR L'HONNEUR", extraire les surfaces : {adresse: "...", surfaces: ["850", "456"]}
-- COMBINER facture + attestations pour obtenir : {adresse: "...", surfaces: ["850"], ledTotal: "35"}
+- Pour CHAQUE "ATTESTATION SUR L'HONNEUR", extraire :
+  - adresse : adresse du chantier
+  - surfaces : tableau des surfaces ["850", "456"]
+  - ledTotal : nombre de LED (depuis facture)
+  - secteurActivite : secteur d'activité SPÉCIFIQUE à ce chantier (voir section suivante)
+- COMBINER facture + attestations pour obtenir : {adresse: "...", surfaces: ["850"], ledTotal: "35", secteurActivite: "Entrepôts"}
 
 CEE - RÉFÉRENCE LED (DÉTECTION AUTOMATIQUE) :
 - Dans la FACTURE, colonne "Référence", identifier la référence LED utilisée
@@ -214,14 +218,16 @@ CEE - RÉFÉRENCE LED (DÉTECTION AUTOMATIQUE) :
 - Si "TECH" ou "HIGH BAY" trouvé → referenceLed: "TECH"
 - Si aucun match → referenceLed: null
 
-CEE - SECTEUR D'ACTIVITÉ / TYPE DE LOCAL (DÉTECTION AUTOMATIQUE) :
-- Pour CHAQUE attestation sur l'honneur, chercher sous l'adresse du chantier
+CEE - SECTEUR D'ACTIVITÉ PAR CHANTIER (CRITIQUE) :
+- Pour CHAQUE attestation sur l'honneur, extraire le secteur SPÉCIFIQUE à ce chantier
+- Chercher SOUS l'adresse du chantier dans l'attestation
 - Format typique : "Bâtiment tertiaire / Secteur d'activité : Entrepôts"
 - Extraire la valeur après "Secteur d'activité :" (exemple : "Entrepôts")
-- Si trouvé pour plusieurs chantiers et identique → mettre cette valeur dans cee.secteurActivite
-- Si différent entre chantiers → prendre le premier trouvé
-- Si non trouvé → mettre null
-- IMPORTANT : Chercher aussi les variantes "Type de local", "Activité", etc.
+- Chercher aussi variantes : "Type de local", "Activité"
+- IMPORTANT : Chaque chantier peut avoir un secteur DIFFÉRENT
+- Exemple : Chantier 1 = "Entrepôts", Chantier 2 = "Autres secteurs"
+- Si non trouvé pour un chantier → mettre null pour ce chantier
+- Retourner le secteur dans attestations[].secteurActivite (pas dans cee.secteurActivite global)
 
 MENTIONS AGRICOLES :
 - Chercher toute mention de "agri", "agricole", "agriculture", "agriculteur" dans TOUS les documents
@@ -305,19 +311,20 @@ FORMAT DE RÉPONSE (JSON uniquement) :
     "dateDevis": "Date envoi devis",
     "dateSignature": "Date signature/engagement",
     "resteAPayer": "Reste à payer / reste à charge",
-    "secteurActivite": "Secteur d'activité / type de local",
     "parcelles": "Parcelles cadastrales",
     "referenceLed": "DAEWOO ou TECH (détecté depuis facture)",
     "attestations": [
       {
         "adresse": "1 rue Example 60000 VILLE1",
         "surfaces": ["850", "456"],
-        "ledTotal": "35"
+        "ledTotal": "35",
+        "secteurActivite": "Entrepôts"
       },
       {
         "adresse": "25 avenue Test 60130 VILLE2",
         "surfaces": ["1240"],
-        "ledTotal": "31"
+        "ledTotal": "31",
+        "secteurActivite": "Entrepôts"
       }
     ],
     "mentionsAgricoles": {
