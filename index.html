@@ -2316,6 +2316,80 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
           const checks = generateChecks(extractedData, references);
           console.log(`✅ ${checks.length} checks générés. Seuls les ÉCHECS de comparaison seront affichés ci-dessous.`);
 
+          // ========== VÉRIFICATION SECTEUR D'ACTIVITÉ PAR CHANTIER ==========
+          if (extractedData.cee?.attestations) {
+            console.log('\n=== ANALYSE SECTEURS PAR CHANTIER ===');
+
+            // Fonction helper pour mapper secteur
+            const mapSecteurActivite = (secteur) => {
+              if (!secteur) return null;
+              const secteurNormalized = secteur.toLowerCase().trim();
+              const entrepotKeywords = [
+                'entrepôt', 'entrepot', 'entrepôts', 'entrepots',
+                'logistique', 'logistiques',
+                'commerce', 'commerces', 'commercial',
+                'vente', 'ventes', 'locaux de vente'
+              ];
+              return entrepotKeywords.some(keyword => secteurNormalized.includes(keyword))
+                ? 'Entrepôt'
+                : 'Autres secteurs';
+            };
+
+            const secteursByChantier = [];
+            const autresSecteurs = [];
+
+            extractedData.cee.attestations.forEach((attestation, index) => {
+              const secteurBrut = attestation.secteurActivite || null;
+              const secteurMapped = mapSecteurActivite(secteurBrut);
+
+              secteursByChantier.push({
+                index: index + 1,
+                adresse: attestation.adresse,
+                secteurBrut,
+                secteurMapped
+              });
+
+              console.log(`Chantier ${index + 1}: "${secteurBrut}" → ${secteurMapped}`);
+
+              if (secteurMapped === 'Autres secteurs') {
+                autresSecteurs.push({
+                  index: index + 1,
+                  adresse: attestation.adresse,
+                  secteur: secteurBrut
+                });
+              }
+            });
+
+            // Stocker les secteurs par chantier dans state pour utilisation ultérieure
+            state.chantiers.forEach((chantier, index) => {
+              if (secteursByChantier[index]) {
+                chantier.secteurActivite = secteursByChantier[index].secteurMapped;
+                chantier.secteurActiviteBrut = secteursByChantier[index].secteurBrut;
+              }
+            });
+
+            // ALERTE si "Autres secteurs" détecté
+            if (autresSecteurs.length > 0) {
+              const msg = `⚠️ ATTENTION : Secteur d'activité "Autres secteurs" détecté\n\n` +
+                autresSecteurs.map(s =>
+                  `Chantier ${s.index} : "${s.secteur}"\n${s.adresse.substring(0, 50)}...`
+                ).join('\n\n') +
+                `\n\n⚠️ Normalement, les dossiers CEE LED doivent avoir le secteur "Entrepôts".\n\n` +
+                `Êtes-vous sûr que ce(s) chantier(s) ${autresSecteurs.length > 1 ? 'sont' : 'est'} bien éligible${autresSecteurs.length > 1 ? 's' : ''} ?\n\n` +
+                `Si OUI → Cliquez OK pour continuer l'analyse\n` +
+                `Si NON → Cliquez Annuler pour arrêter`;
+
+              if (!confirm(msg)) {
+                updateProgress(0, 'Analyse annulée par l\'utilisateur');
+                return; // Arrêter l'analyse
+              } else {
+                console.log('✅ Utilisateur a confirmé que les chantiers "Autres secteurs" sont éligibles');
+              }
+            }
+
+            console.log('=== FIN ANALYSE SECTEURS ===\n');
+          }
+
           // Vérifier page de garde (checks 1-3)
           const pageGardeChecks = checks.slice(0, 3);
           const pageGardeOk = pageGardeChecks.every(c => c.niveau === 'ok');
