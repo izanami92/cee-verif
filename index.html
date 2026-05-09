@@ -1633,6 +1633,14 @@ Extrait les informations suivantes du document et retourne-les en JSON :
    - Si "DAEWOO" ou "NES-HBL" trouvé → retourner "DAEWOO"
    - Si "TECH" ou "HIGH BAY" trouvé → retourner "TECH"
    - Si aucun match → retourner null
+10. secteurActivite : secteur d'activité / type de local
+   - Chercher dans les ATTESTATIONS SUR L'HONNEUR, sous les adresses de chantiers
+   - Format typique : "Bâtiment tertiaire / Secteur d'activité : Entrepôts"
+   - Extraire la valeur après "Secteur d'activité :" (exemple : "Entrepôts")
+   - Chercher aussi variantes : "Type de local", "Activité"
+   - Si plusieurs chantiers avec même valeur → retourner cette valeur
+   - Si différent entre chantiers → retourner le premier trouvé
+   - Si non trouvé → retourner null
 
 Format de réponse attendu (JSON uniquement) :
 \`\`\`json
@@ -1645,7 +1653,8 @@ Format de réponse attendu (JSON uniquement) :
   "totalLed": 0,
   "dateDevis": "YYYY-MM-DD",
   "dateSignature": "YYYY-MM-DD",
-  "referenceLed": "DAEWOO ou TECH ou null"
+  "referenceLed": "DAEWOO ou TECH ou null",
+  "secteurActivite": "Entrepôts ou autre type de local ou null"
 }
 \`\`\`
 
