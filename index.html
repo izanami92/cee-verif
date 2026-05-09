@@ -1026,10 +1026,6 @@
           <label for="refTypeLocal">Type de local</label>
           <select id="refTypeLocal">
             <option value="Entrepôt">Entrepôt</option>
-            <option value="Logistique">Logistique</option>
-            <option value="Commerce">Commerce</option>
-            <option value="Locaux de vente">Locaux de vente</option>
-            <option value="AUTRES">AUTRES</option>
             <option value="Autres secteurs">Autres secteurs</option>
           </select>
         </div>
@@ -1770,30 +1766,26 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
             elements.refAdresseSiege.classList.add('auto-filled');
           }
           if (extracted.secteurActivite) {
-            // Mapper le secteur d'activité extrait vers les valeurs du select
-            const secteurMap = {
-              'entrepôts': 'Entrepôt',
-              'entrepot': 'Entrepôt',
-              'entrepôt': 'Entrepôt',
-              'logistique': 'Logistique',
-              'commerce': 'Commerce',
-              'locaux de vente': 'Locaux de vente',
-              'vente': 'Locaux de vente',
-              'autres': 'AUTRES',
-              'autres secteurs': 'Autres secteurs'
-            };
-
+            // Mapper le secteur d'activité vers "Entrepôt" ou "Autres secteurs"
             const secteurNormalized = extracted.secteurActivite.toLowerCase().trim();
-            const secteurMatched = secteurMap[secteurNormalized] || extracted.secteurActivite;
 
-            // Vérifier si la valeur existe dans le select
-            const selectOptions = Array.from(elements.refTypeLocal.options).map(opt => opt.value);
-            if (selectOptions.includes(secteurMatched)) {
-              elements.refTypeLocal.value = secteurMatched;
-              elements.refTypeLocal.classList.add('auto-filled');
-            } else {
-              console.warn(`⚠️ Secteur d'activité "${extracted.secteurActivite}" non trouvé dans les options du select`);
-            }
+            // Mots-clés qui indiquent un entrepôt/logistique/commerce
+            const entrepotKeywords = [
+              'entrepôt', 'entrepot', 'entrepôts', 'entrepots',
+              'logistique', 'logistiques',
+              'commerce', 'commerces', 'commercial',
+              'vente', 'ventes', 'locaux de vente'
+            ];
+
+            // Vérifier si le secteur contient un mot-clé d'entrepôt
+            const isEntrepot = entrepotKeywords.some(keyword => secteurNormalized.includes(keyword));
+
+            const secteurMatched = isEntrepot ? 'Entrepôt' : 'Autres secteurs';
+
+            elements.refTypeLocal.value = secteurMatched;
+            elements.refTypeLocal.classList.add('auto-filled');
+
+            console.log(`✅ Secteur "${extracted.secteurActivite}" → "${secteurMatched}"`);
           }
           if (extracted.referenceLed) {
             const refLedSelect = document.getElementById('refLed');
