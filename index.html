@@ -2769,53 +2769,62 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
     const GROUPES_CONFIG = {
       'page-garde': { titre: 'Page de garde', ordre: 1 },
       'siret': { titre: 'SIRET', ordre: 2 },
-      'led': { titre: 'Nombre de LED', ordre: 3 },
-      'surfaces': { titre: 'Surfaces', ordre: 4 },
-      'dates': { titre: 'Dates', ordre: 5 },
+      'dates': { titre: 'Dates', ordre: 3 },
+      'led': { titre: 'Nombre de LED', ordre: 4 },
+      'surfaces': { titre: 'Surfaces', ordre: 5 },
       'parcelles': { titre: 'Parcelles cadastrales', ordre: 6 },
-      'secteur': { titre: 'Secteur d\'activité', ordre: 7 },
-      'contact': { titre: 'Informations contact', ordre: 8 },
-      'specs-led': { titre: 'Spécifications LED', ordre: 9 },
-      'admin': { titre: 'Financier & Administratif', ordre: 10 }
+      'infos-site': { titre: 'Informations site', ordre: 7 },
+      'secteur': { titre: 'Secteur d\'activité', ordre: 8 },
+      'contact': { titre: 'Informations contact', ordre: 9 },
+      'specs-led': { titre: 'Spécifications LED', ordre: 10 },
+      'admin': { titre: 'Financier & Administratif', ordre: 11 }
     };
 
-    // Mapping ID de check → groupe (basé sur pattern ou ID exact)
-    function getGroupeForCheck(checkId) {
-      // Page de garde : checks 01, 02
-      if (checkId.match(/^check_0[12]/)) return 'page-garde';
+    // Mapping check → groupe (basé sur le contenu du champ)
+    function getGroupeForCheck(check) {
+      const champ = (check.champ || '').toLowerCase();
+      const localisation = (check.localisation || '').toLowerCase();
+      const text = champ + ' ' + localisation;
 
-      // Dates : check 03 (date audit)
-      if (checkId.match(/^check_03/)) return 'dates';
+      // Page de garde : nom, adresse (audit page 1)
+      if (text.includes('nom entreprise') && text.includes('audit') && text.includes('page 1')) return 'page-garde';
+      if (text.includes('adresse chantier') && text.includes('audit') && text.includes('page 1')) return 'page-garde';
 
-      // SIRET : checks 04-06
-      if (checkId.match(/^check_0[456]/)) return 'siret';
+      // SIRET (tous les checks SIRET)
+      if (text.includes('siret')) return 'siret';
 
-      // Surfaces : checks 07-08
-      if (checkId.match(/^check_0[78]/)) return 'surfaces';
+      // LED (tout ce qui concerne les LED : total, par chantier, répartition)
+      if (text.includes('led') || text.includes('luminaire')) return 'led';
 
-      // LED : checks 09
-      if (checkId.match(/^check_09/)) return 'led';
+      // Surfaces
+      if (text.includes('surface')) return 'surfaces';
 
-      // Parcelles : checks 10-12
-      if (checkId.match(/^check_1[012]/)) return 'parcelles';
+      // Dates
+      if (text.includes('date')) return 'dates';
 
-      // Secteur : checks 13-14, 16-20
-      if (checkId.match(/^check_1[3489]|^check_20|^check_1[67]/)) return 'secteur';
+      // Parcelles cadastrales
+      if (text.includes('parcelle')) return 'parcelles';
 
-      // Contact : checks 15 (nom, email, téléphone, contact)
-      if (checkId.match(/^check_15/)) return 'contact';
+      // Informations contact (email, téléphone, contact)
+      if (text.includes('email') || text.includes('téléphone') || text.includes('telephone') ||
+          (text.includes('contact') && !text.includes('attestation'))) return 'contact';
 
-      // Dates : checks 21-22 (dateDevis, dateSignature)
-      if (checkId.match(/^check_2[12]/)) return 'dates';
+      // Secteur d'activité et mentions agricoles
+      if (text.includes('secteur') || text.includes('agricole') || text.includes('profil') ||
+          text.includes('activité') && !text.includes('surface')) return 'secteur';
 
-      // LED : checks 23-34
-      if (checkId.match(/^check_[23]\d/)) return 'led';
+      // Spécifications LED (THD, durée de vie, référence produit, fiche technique)
+      if (text.includes('thd') || text.includes('durée de vie') || text.includes('duree de vie') ||
+          text.includes('référence produit') || text.includes('reference produit') ||
+          text.includes('fiche technique')) return 'specs-led';
 
-      // Spécifications LED : checks 35-38
-      if (checkId.match(/^check_3[5678]/)) return 'specs-led';
+      // Financier & Administratif (reste à payer, adresse siège)
+      if (text.includes('reste à payer') || text.includes('reste a payer') ||
+          text.includes('adresse siège') || text.includes('adresse siege')) return 'admin';
 
-      // Financier & Admin : checks 39-40
-      if (checkId.match(/^check_[34]0/)) return 'admin';
+      // Informations générales (nom client, nom site, nombre bâtiments)
+      if (text.includes('nom client') || text.includes('nom du site') ||
+          text.includes('nombre de bâtiments') || text.includes('nombre de batiments')) return 'infos-site';
 
       return null; // Pas de groupe
     }
@@ -4044,7 +4053,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
       const checksOrphelins = []; // Checks sans groupe
 
       nonBloquants.forEach(check => {
-        const groupeKey = getGroupeForCheck(check.id);
+        const groupeKey = getGroupeForCheck(check);
         if (!groupeKey) {
           checksOrphelins.push(check);
           return;
