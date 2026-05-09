@@ -1683,6 +1683,8 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
           extracted = result;
         }
 
+        console.log('🔍 DEBUG - Données extraites depuis le CEE:', extracted);
+
         // Pré-remplir les champs
         if (extracted) {
           if (extracted.nom) {
