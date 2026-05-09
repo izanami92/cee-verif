@@ -214,6 +214,15 @@ CEE - RÉFÉRENCE LED (DÉTECTION AUTOMATIQUE) :
 - Si "TECH" ou "HIGH BAY" trouvé → referenceLed: "TECH"
 - Si aucun match → referenceLed: null
 
+CEE - SECTEUR D'ACTIVITÉ / TYPE DE LOCAL (DÉTECTION AUTOMATIQUE) :
+- Pour CHAQUE attestation sur l'honneur, chercher sous l'adresse du chantier
+- Format typique : "Bâtiment tertiaire / Secteur d'activité : Entrepôts"
+- Extraire la valeur après "Secteur d'activité :" (exemple : "Entrepôts")
+- Si trouvé pour plusieurs chantiers et identique → mettre cette valeur dans cee.secteurActivite
+- Si différent entre chantiers → prendre le premier trouvé
+- Si non trouvé → mettre null
+- IMPORTANT : Chercher aussi les variantes "Type de local", "Activité", etc.
+
 MENTIONS AGRICOLES :
 - Chercher toute mention de "agri", "agricole", "agriculture", "agriculteur" dans TOUS les documents
 - SAUF dans le nom de la société (le nom peut contenir "agricole")
