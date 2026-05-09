@@ -4272,13 +4272,16 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
       return checks.some(c => c.niveau === 'bloquant' || c.niveau === 'majeur');
     }
 
-    // Render hiérarchique avec structure CEE → Chantiers
+    // Variable globale pour la vue active (hierarchical)
+    let activeView = 'global'; // 'global', 'chantier-1', 'chantier-2', etc.
+
+    // Render hiérarchique avec boutons de navigation
     function renderChecksHierarchical(checks, container) {
       const { bloquants, majeurs, cee, chantiers } = groupChecksByHierarchy(checks);
 
       let html = '';
 
-      // ========== SECTION 1 : BLOQUANTS (toujours dépliée) ==========
+      // ========== SECTION 1 : BLOQUANTS (toujours visibles) ==========
       if (bloquants.length > 0) {
         html += `
           <div class="section-bloquants" style="margin-bottom: var(--spacing-lg); border: 2px solid var(--color-error); border-radius: var(--radius-md); overflow: hidden; background: rgba(239, 68, 68, 0.1);">
@@ -4305,20 +4308,21 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
         `;
       }
 
-      // ========== SECTION 2 : MAJEURS (pliable si > 5) ==========
+      // ========== SECTION 2 : MAJEURS (toujours visibles, pliable si > 5) ==========
       if (majeurs.length > 0) {
         const collapsed = majeurs.length > 5;
+        const majeursId = 'section-majeurs-' + Date.now();
         html += `
-          <div class="section-majeurs" style="margin-bottom: var(--spacing-lg); border: 2px solid var(--color-warning); border-radius: var(--radius-md); overflow: hidden; background: rgba(245, 158, 11, 0.1);">
+          <div class="section-majeurs" id="${majeursId}" style="margin-bottom: var(--spacing-lg); border: 2px solid var(--color-warning); border-radius: var(--radius-md); overflow: hidden; background: rgba(245, 158, 11, 0.1);">
             <div class="section-header" style="background: var(--color-warning); color: white; padding: var(--spacing-md); font-weight: 600; font-size: 1.125rem; display: flex; align-items: center; justify-content: space-between; cursor: pointer;"
-                 onclick="this.nextElementSibling.classList.toggle('collapsed'); this.querySelector('.toggle-icon').classList.toggle('rotated');">
+                 onclick="toggleMajeurs('${majeursId}')">
               <div style="display: flex; align-items: center; gap: 0.5rem;">
                 <span>⚡</span>
                 <span>POINTS MAJEURS (${majeurs.length})</span>
               </div>
-              <span class="toggle-icon ${collapsed ? '' : 'rotated'}" style="transform: ${collapsed ? 'rotate(0deg)' : 'rotate(180deg)'}; transition: transform 0.3s;">▼</span>
+              <span class="toggle-icon" style="transform: ${collapsed ? 'rotate(0deg)' : 'rotate(180deg)'}; transition: transform 0.3s;">▼</span>
             </div>
-            <div class="section-content ${collapsed ? 'collapsed' : ''}" style="${collapsed ? 'display: none;' : ''} padding: var(--spacing-md);">
+            <div class="section-content" style="${collapsed ? 'display: none;' : ''} padding: var(--spacing-md);">
               ${majeurs.map(check => {
                 const provLabel = check.provenance.type === 'cee' ? 'Dossier CEE' :
                                  check.provenance.type === 'audit' ? `Chantier ${check.provenance.chantierIndex} - Audit` :
@@ -4337,127 +4341,213 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
         `;
       }
 
-      // ========== SECTION 3 : VUE GLOBALE - DOSSIER CEE ==========
-      if (cee.length > 0) {
-        const ceeCounter = computeCounter(cee);
-        const ceeExpanded = shouldAutoExpand(cee);
+      // ========== SECTION 3 : BOUTONS DE NAVIGATION (si 2+ chantiers OU si CEE + 1 chantier) ==========
+      const showNavigation = chantiers.length > 0; // Afficher dès qu'il y a des chantiers détectés
 
+      if (showNavigation) {
         html += `
-          <div class="section-cee" style="margin-bottom: var(--spacing-md); border: 1px solid rgba(255,255,255,0.2); border-radius: var(--radius-md); overflow: hidden;">
-            <div class="section-header" style="background: rgba(59, 130, 246, 0.2); padding: var(--spacing-md); cursor: pointer; display: flex; justify-content: space-between; align-items: center;"
-                 onclick="this.nextElementSibling.classList.toggle('collapsed'); this.querySelector('.toggle-icon').classList.toggle('rotated');">
-              <div style="display: flex; align-items: center; gap: var(--spacing-md);">
-                <span style="font-size: 1.5rem;">📄</span>
-                <h3 style="margin: 0; font-size: 1.125rem;">Vue globale - Dossier CEE</h3>
-              </div>
-              <div style="display: flex; align-items: center; gap: var(--spacing-md);">
-                <div style="font-size: 0.875rem;">${createCounterHTML(ceeCounter)}</div>
-                <span class="toggle-icon ${ceeExpanded ? 'rotated' : ''}" style="transform: ${ceeExpanded ? 'rotate(180deg)' : 'rotate(0deg)'}; transition: transform 0.3s;">▼</span>
-              </div>
-            </div>
-            <div class="section-content ${ceeExpanded ? '' : 'collapsed'}" style="${ceeExpanded ? '' : 'display: none;'} padding: var(--spacing-md); background: rgba(255,255,255,0.02);">
-              ${cee.map(c => createCheckCard(c)).join('')}
+          <div class="chantiers-navigation" style="margin-bottom: var(--spacing-lg);">
+            <div style="display: flex; gap: var(--spacing-sm); flex-wrap: wrap; border-bottom: 2px solid var(--color-border); padding-bottom: var(--spacing-sm);">
+              <button class="nav-btn ${activeView === 'global' ? 'active' : ''}"
+                      onclick="switchView('global')"
+                      style="padding: var(--spacing-sm) var(--spacing-md); background: ${activeView === 'global' ? 'var(--color-sidebar)' : 'rgba(255,255,255,0.05)'}; border: 1px solid ${activeView === 'global' ? 'var(--color-sidebar)' : 'var(--color-border)'}; border-radius: var(--radius-sm); color: ${activeView === 'global' ? 'white' : 'var(--color-text)'}; font-weight: 600; cursor: pointer; transition: all 0.2s;">
+                📄 Vue globale
+              </button>
+              ${chantiers.map((chantier, idx) => {
+                const viewKey = `chantier-${chantier.index}`;
+                const isActive = activeView === viewKey;
+                const adresseShort = chantier.adresse ? chantier.adresse.substring(0, 30) + '...' : `Chantier ${chantier.index}`;
+                const counter = computeCounter([...chantier.audit, ...chantier.synthese]);
+                const hasErrors = counter.bloquants > 0 || counter.majeurs > 0;
+
+                return `
+                  <button class="nav-btn ${isActive ? 'active' : ''}"
+                          onclick="switchView('${viewKey}')"
+                          style="padding: var(--spacing-sm) var(--spacing-md); background: ${isActive ? 'var(--color-sidebar)' : 'rgba(255,255,255,0.05)'}; border: 1px solid ${isActive ? 'var(--color-sidebar)' : hasErrors ? 'var(--color-error)' : 'var(--color-border)'}; border-radius: var(--radius-sm); color: ${isActive ? 'white' : hasErrors ? 'var(--color-error)' : 'var(--color-text)'}; font-weight: 600; cursor: pointer; transition: all 0.2s; position: relative;">
+                    🏢 Chantier ${chantier.index}
+                    ${hasErrors ? `<span style="position: absolute; top: -5px; right: -5px; background: var(--color-error); color: white; border-radius: 999px; width: 18px; height: 18px; font-size: 0.625rem; display: flex; align-items: center; justify-content: center;">${counter.bloquants + counter.majeurs}</span>` : ''}
+                  </button>
+                `;
+              }).join('')}
             </div>
           </div>
         `;
       }
 
-      // ========== SECTION 4 : CHANTIERS ==========
-      chantiers.forEach((chantier, index) => {
-        const allChecks = [...chantier.audit, ...chantier.synthese];
-        const chantierCounter = computeCounter(allChecks);
-        const chantierExpanded = shouldAutoExpand(allChecks);
+      // ========== SECTION 4 : CONTENU CONDITIONNEL ==========
 
-        const adresseDisplay = chantier.adresse || `Chantier ${chantier.index}`;
-
-        html += `
-          <div class="section-chantier" style="margin-bottom: var(--spacing-md); border: 1px solid rgba(255,255,255,0.2); border-radius: var(--radius-md); overflow: hidden;">
-            <div class="section-header" style="background: rgba(16, 185, 129, 0.2); padding: var(--spacing-md); cursor: pointer; display: flex; justify-content: space-between; align-items: center;"
-                 onclick="this.nextElementSibling.classList.toggle('collapsed'); this.querySelector('.toggle-icon').classList.toggle('rotated');">
-              <div style="display: flex; align-items: center; gap: var(--spacing-md);">
-                <span style="font-size: 1.5rem;">🏢</span>
-                <h3 style="margin: 0; font-size: 1.125rem;">Chantier ${chantier.index} - ${adresseDisplay}</h3>
+      // Vue globale : Dossier CEE
+      const ceeCounter = computeCounter(cee);
+      const ceeExpanded = shouldAutoExpand(cee);
+      html += `
+        <div id="view-global" class="view-panel" style="${activeView === 'global' ? '' : 'display: none;'}">
+          ${cee.length > 0 ? `
+            <div class="section-cee" style="margin-bottom: var(--spacing-md); border: 1px solid rgba(255,255,255,0.2); border-radius: var(--radius-md); overflow: hidden;">
+              <div class="section-header" style="background: rgba(59, 130, 246, 0.2); padding: var(--spacing-md); cursor: pointer; display: flex; justify-content: space-between; align-items: center;"
+                   onclick="toggleSection(this)">
+                <div style="display: flex; align-items: center; gap: var(--spacing-md);">
+                  <span style="font-size: 1.5rem;">📄</span>
+                  <h3 style="margin: 0; font-size: 1.125rem;">Dossier CEE</h3>
+                </div>
+                <div style="display: flex; align-items: center; gap: var(--spacing-md);">
+                  <div style="font-size: 0.875rem;">${createCounterHTML(ceeCounter)}</div>
+                  <span class="toggle-icon" style="transform: ${ceeExpanded ? 'rotate(180deg)' : 'rotate(0deg)'}; transition: transform 0.3s;">▼</span>
+                </div>
               </div>
-              <div style="display: flex; align-items: center; gap: var(--spacing-md);">
-                <div style="font-size: 0.875rem;">${createCounterHTML(chantierCounter)}</div>
-                <span class="toggle-icon ${chantierExpanded ? 'rotated' : ''}" style="transform: ${chantierExpanded ? 'rotate(180deg)' : 'rotate(0deg)'}; transition: transform 0.3s;">▼</span>
+              <div class="section-content" style="${ceeExpanded ? '' : 'display: none;'} padding: var(--spacing-md); background: rgba(255,255,255,0.02);">
+                ${cee.map(c => createCheckCard(c)).join('')}
               </div>
             </div>
-            <div class="section-content ${chantierExpanded ? '' : 'collapsed'}" style="${chantierExpanded ? '' : 'display: none;'} padding: var(--spacing-sm); background: rgba(255,255,255,0.02);">
+          ` : '<p style="color: var(--color-text-light); text-align: center; padding: var(--spacing-lg);">Aucune vérification globale CEE</p>'}
+        </div>
+      `;
+
+      // Vues par chantier
+      chantiers.forEach((chantier, index) => {
+        const viewKey = `chantier-${chantier.index}`;
+        const adresseDisplay = chantier.adresse || `Chantier ${chantier.index}`;
+        const auditCounter = computeCounter(chantier.audit);
+        const syntheseCounter = computeCounter(chantier.synthese);
+        const auditExpanded = shouldAutoExpand(chantier.audit);
+        const syntheseExpanded = shouldAutoExpand(chantier.synthese);
+
+        html += `
+          <div id="view-${viewKey}" class="view-panel" style="${activeView === viewKey ? '' : 'display: none;'}">
+            <h3 style="margin-bottom: var(--spacing-md); color: var(--color-text); font-size: 1.25rem; display: flex; align-items: center; gap: var(--spacing-sm);">
+              <span>🏢</span>
+              <span>${adresseDisplay}</span>
+            </h3>
         `;
 
-        // Sous-section : Audit
+        // Sous-section Audit
         if (chantier.audit.length > 0) {
-          const auditCounter = computeCounter(chantier.audit);
-          const auditExpanded = shouldAutoExpand(chantier.audit);
-
           html += `
-            <div class="subsection-audit" style="margin-bottom: var(--spacing-sm); border: 1px solid rgba(255,255,255,0.1); border-radius: var(--radius-sm); overflow: hidden;">
-              <div class="subsection-header" style="background: rgba(255,255,255,0.05); padding: var(--spacing-sm); cursor: pointer; display: flex; justify-content: space-between; align-items: center;"
-                   onclick="this.nextElementSibling.classList.toggle('collapsed'); this.querySelector('.toggle-icon').classList.toggle('rotated');">
+            <div class="subsection-audit" style="margin-bottom: var(--spacing-md); border: 1px solid rgba(255,255,255,0.2); border-radius: var(--radius-md); overflow: hidden;">
+              <div class="subsection-header" style="background: rgba(255,255,255,0.05); padding: var(--spacing-md); cursor: pointer; display: flex; justify-content: space-between; align-items: center;"
+                   onclick="toggleSection(this)">
                 <div style="display: flex; align-items: center; gap: var(--spacing-sm);">
                   <span>📋</span>
                   <h4 style="margin: 0; font-size: 1rem;">Page de garde Audit</h4>
                 </div>
                 <div style="display: flex; align-items: center; gap: var(--spacing-sm);">
-                  <div style="font-size: 0.75rem;">${createCounterHTML(auditCounter)}</div>
-                  <span class="toggle-icon ${auditExpanded ? 'rotated' : ''}" style="font-size: 0.875rem; transform: ${auditExpanded ? 'rotate(180deg)' : 'rotate(0deg)'}; transition: transform 0.3s;">▼</span>
+                  <div style="font-size: 0.875rem;">${createCounterHTML(auditCounter)}</div>
+                  <span class="toggle-icon" style="transform: ${auditExpanded ? 'rotate(180deg)' : 'rotate(0deg)'}; transition: transform 0.3s;">▼</span>
                 </div>
               </div>
-              <div class="subsection-content ${auditExpanded ? '' : 'collapsed'}" style="${auditExpanded ? '' : 'display: none;'} padding: var(--spacing-sm);">
+              <div class="subsection-content" style="${auditExpanded ? '' : 'display: none;'} padding: var(--spacing-md); background: rgba(255,255,255,0.02);">
                 ${chantier.audit.map(c => createCheckCard(c)).join('')}
               </div>
             </div>
           `;
         }
 
-        // Sous-section : Synthèse
+        // Sous-section Synthèse
         if (chantier.synthese.length > 0) {
-          const syntheseCounter = computeCounter(chantier.synthese);
-          const syntheseExpanded = shouldAutoExpand(chantier.synthese);
-
           html += `
-            <div class="subsection-synthese" style="margin-bottom: var(--spacing-sm); border: 1px solid rgba(255,255,255,0.1); border-radius: var(--radius-sm); overflow: hidden;">
-              <div class="subsection-header" style="background: rgba(255,255,255,0.05); padding: var(--spacing-sm); cursor: pointer; display: flex; justify-content: space-between; align-items: center;"
-                   onclick="this.nextElementSibling.classList.toggle('collapsed'); this.querySelector('.toggle-icon').classList.toggle('rotated');">
+            <div class="subsection-synthese" style="margin-bottom: var(--spacing-md); border: 1px solid rgba(255,255,255,0.2); border-radius: var(--radius-md); overflow: hidden;">
+              <div class="subsection-header" style="background: rgba(255,255,255,0.05); padding: var(--spacing-md); cursor: pointer; display: flex; justify-content: space-between; align-items: center;"
+                   onclick="toggleSection(this)">
                 <div style="display: flex; align-items: center; gap: var(--spacing-sm);">
                   <span>📊</span>
                   <h4 style="margin: 0; font-size: 1rem;">Synthèse</h4>
                 </div>
                 <div style="display: flex; align-items: center; gap: var(--spacing-sm);">
-                  <div style="font-size: 0.75rem;">${createCounterHTML(syntheseCounter)}</div>
-                  <span class="toggle-icon ${syntheseExpanded ? 'rotated' : ''}" style="font-size: 0.875rem; transform: ${syntheseExpanded ? 'rotate(180deg)' : 'rotate(0deg)'}; transition: transform 0.3s;">▼</span>
+                  <div style="font-size: 0.875rem;">${createCounterHTML(syntheseCounter)}</div>
+                  <span class="toggle-icon" style="transform: ${syntheseExpanded ? 'rotate(180deg)' : 'rotate(0deg)'}; transition: transform 0.3s;">▼</span>
                 </div>
               </div>
-              <div class="subsection-content ${syntheseExpanded ? '' : 'collapsed'}" style="${syntheseExpanded ? '' : 'display: none;'} padding: var(--spacing-sm);">
+              <div class="subsection-content" style="${syntheseExpanded ? '' : 'display: none;'} padding: var(--spacing-md); background: rgba(255,255,255,0.02);">
                 ${chantier.synthese.map(c => createCheckCard(c)).join('')}
               </div>
             </div>
           `;
         }
 
-        html += `
-            </div>
-          </div>
-        `;
+        html += `</div>`; // Fin view-panel chantier
       });
 
       container.innerHTML = html;
 
-      // Ajouter le style pour collapsed et rotated
+      // Ajouter le style pour transitions
       if (!document.getElementById('hierarchical-style')) {
         const style = document.createElement('style');
         style.id = 'hierarchical-style';
         style.textContent = `
-          .section-content.collapsed,
-          .subsection-content.collapsed {
-            display: none !important;
+          .nav-btn:hover {
+            opacity: 0.9;
+            transform: translateY(-1px);
           }
-          .toggle-icon.rotated {
-            transform: rotate(180deg) !important;
+          .view-panel {
+            animation: fadeIn 0.3s ease-in-out;
+          }
+          @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
           }
         `;
         document.head.appendChild(style);
+      }
+    }
+
+    // Fonction pour basculer entre les vues
+    function switchView(viewKey) {
+      activeView = viewKey;
+
+      // Masquer toutes les vues
+      document.querySelectorAll('.view-panel').forEach(panel => {
+        panel.style.display = 'none';
+      });
+
+      // Afficher la vue sélectionnée
+      const targetPanel = document.getElementById(`view-${viewKey}`);
+      if (targetPanel) {
+        targetPanel.style.display = 'block';
+      }
+
+      // Mettre à jour les boutons
+      document.querySelectorAll('.nav-btn').forEach(btn => {
+        btn.classList.remove('active');
+        btn.style.background = 'rgba(255,255,255,0.05)';
+        btn.style.borderColor = 'var(--color-border)';
+      });
+
+      const activeBtn = document.querySelector(`.nav-btn[onclick="switchView('${viewKey}')"]`);
+      if (activeBtn) {
+        activeBtn.classList.add('active');
+        activeBtn.style.background = 'var(--color-sidebar)';
+        activeBtn.style.borderColor = 'var(--color-sidebar)';
+        activeBtn.style.color = 'white';
+      }
+    }
+
+    // Fonction pour toggle une section (Audit/Synthèse/CEE)
+    function toggleSection(header) {
+      const content = header.nextElementSibling;
+      const icon = header.querySelector('.toggle-icon');
+
+      if (content.style.display === 'none' || content.style.display === '') {
+        content.style.display = 'block';
+        icon.style.transform = 'rotate(180deg)';
+      } else {
+        content.style.display = 'none';
+        icon.style.transform = 'rotate(0deg)';
+      }
+    }
+
+    // Fonction pour toggle la section majeurs
+    function toggleMajeurs(sectionId) {
+      const section = document.getElementById(sectionId);
+      if (!section) return;
+
+      const content = section.querySelector('.section-content');
+      const icon = section.querySelector('.toggle-icon');
+
+      if (content.style.display === 'none' || content.style.display === '') {
+        content.style.display = 'block';
+        icon.style.transform = 'rotate(180deg)';
+      } else {
+        content.style.display = 'none';
+        icon.style.transform = 'rotate(0deg)';
       }
     }
 
