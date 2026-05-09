@@ -2861,6 +2861,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
       norm.audits.forEach((audit, auditIndex) => {
         const suffix = norm.audits.length > 1 ? ` chantier ${auditIndex + 1}` : '';
         const idSuffix = norm.audits.length > 1 ? `_c${auditIndex + 1}` : '';
+        const chantierIndex = auditIndex + 1; // ⭐ Index du chantier (1, 2, 3...)
 
         // Check 1 : Nom entreprise Audit
         const nomAuditOk = compareStrings(audit.nom, references.nom);
@@ -2872,7 +2873,8 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
           localisation: `Audit${suffix} page 1, en-tête`,
           detail: nomAuditOk ? 'Nom conforme' : 'Nom différent de la référence',
           valeur_attendue: references.nom || '',
-          valeur_trouvee: audit.nom || ''
+          valeur_trouvee: audit.nom || '',
+          chantierIndex // ⭐ Chantier détecté depuis la case d'import
         });
 
         // Check 2 : Adresse chantier Audit (matching + vérifications détaillées)
@@ -2893,7 +2895,8 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
           localisation: `Audit${suffix} page 1, en-tête`,
           detail: adresseAuditMatchCEE ? 'Adresse correspond à un chantier du CEE' : 'Adresse ne correspond à aucune adresse du CEE',
           valeur_attendue: adresseCEECorrespondante || adressesCEE[0] || '',
-          valeur_trouvee: audit.adresse || ''
+          valeur_trouvee: audit.adresse || '',
+          chantierIndex // ⭐ Chantier détecté depuis la case d'import
         });
 
         // Check 3 : Date audit
@@ -2909,7 +2912,8 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
                   !isValidDateFormat(audit.date) ? 'Format de date incorrect (attendu JJ/MM/AAAA)' :
                   'Date différente de la référence',
           valeur_attendue: references.dateDevis || '',
-          valeur_trouvee: audit.date || ''
+          valeur_trouvee: audit.date || '',
+          chantierIndex // ⭐ Chantier détecté depuis la case d'import
         });
       });
 
@@ -3027,6 +3031,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
             const ledAudit = parseFloat(String(chantier.audit.ledTotal || 0).replace(/\s+/g, '')) || 0;
             const ledSynthese = parseFloat(String(chantier.synthese.ledTotal || 0).replace(/\s+/g, '')) || 0;
             const coherent = Math.abs(ledAudit - ledSynthese) < 0.1;
+            const chantierIndex = index + 1; // ⭐ Index du chantier
 
             checks.push({
               id: `check_09c_ch${index + 1}`,
@@ -3038,7 +3043,8 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
                 `LED cohérentes pour ce chantier : ${ledAudit}` :
                 `LED différentes : Audit ${ledAudit} vs Synthèse ${ledSynthese}`,
               valeur_attendue: ledAudit.toString(),
-              valeur_trouvee: ledSynthese.toString()
+              valeur_trouvee: ledSynthese.toString(),
+              chantierIndex // ⭐ Chantier détecté depuis la case d'import
             });
           }
         });
@@ -3056,6 +3062,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
           const attestationCorrespondante = attestationsAvecLed.find(att =>
             compareAddress(chantier.adresse, att.adresse)
           );
+          const chantierIndex = index + 1; // ⭐ Index du chantier
 
           if (attestationCorrespondante) {
             const adresseCEE = attestationCorrespondante.adresse; // Adresse de référence du CEE
@@ -3076,7 +3083,8 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
                   `LED Audit conforme au CEE : ${ledAudit}` :
                   `LED différentes : ${ledCEE} attendues (CEE) vs ${ledAudit} trouvées (Audit)`,
                 valeur_attendue: ledCEE.toString(),
-                valeur_trouvee: ledAudit.toString()
+                valeur_trouvee: ledAudit.toString(),
+                chantierIndex // ⭐ Chantier détecté depuis la case d'import
               });
             }
 
@@ -3093,7 +3101,8 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
                   `LED Synthèse conforme au CEE : ${ledSynthese}` :
                   `LED différentes : ${ledCEE} attendues (CEE) vs ${ledSynthese} trouvées (Synthèse)`,
                 valeur_attendue: ledCEE.toString(),
-                valeur_trouvee: ledSynthese.toString()
+                valeur_trouvee: ledSynthese.toString(),
+                chantierIndex // ⭐ Chantier détecté depuis la case d'import
               });
             }
           } else {
@@ -3623,7 +3632,8 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
               localisation: `Chantier ${chantierIndex + 1} - ${chantierAdresse}`,
               detail: `⚠️ Audit manquant : attendu à la position ${chantierIndex + 1} mais non extrait par Claude`,
               valeur_attendue: `Audit ${chantierIndex + 1} pour ${chantierAdresse}`,
-              valeur_trouvee: 'Audit non extrait'
+              valeur_trouvee: 'Audit non extrait',
+              chantierIndex: chantierIndex + 1 // ⭐ Chantier détecté depuis la case d'import
             });
           } else {
             // Check 42a : Adresse audit correspond à l'adresse CEE
@@ -3637,7 +3647,8 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
                 localisation: `Audit ${chantierIndex + 1}, page 1`,
                 detail: `❌ Adresse audit différente de l'adresse chantier CEE`,
                 valeur_attendue: chantierAdresse,
-                valeur_trouvee: auditCorrespondant.adresse || ''
+                valeur_trouvee: auditCorrespondant.adresse || '',
+                chantierIndex: chantierIndex + 1 // ⭐ Chantier détecté depuis la case d'import
               });
             }
             const surfacesAudit = auditCorrespondant.surfaces || [];
@@ -3653,7 +3664,8 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
                 localisation: 'Audit description observations préliminaires',
                 detail: '⚠️ Check manuel requis : surfaces non trouvées dans observations préliminaires de l\'audit. Vérifier manuellement.',
                 valeur_attendue: 'Check manuel',
-                valeur_trouvee: 'Non trouvées'
+                valeur_trouvee: 'Non trouvées',
+                chantierIndex: chantierIndex + 1 // ⭐ Chantier détecté depuis la case d'import
               });
             } else {
               // Check 42 : NE PLUS comparer les listes (car audit peut ne pas avoir toutes les surfaces)
@@ -3672,7 +3684,8 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
                   `Somme Audit cohérente avec attestation : ${sommeAttestationTotale} m²` :
                   `Somme Audit (${sommeAudit} m²) différente de l'attestation (${sommeAttestationTotale} m²)`,
                 valeur_attendue: surfacesAttestation.join(' + ') + ' = ' + sommeAttestationTotale.toString() + ' m²',
-                valeur_trouvee: surfacesAudit.join(' + ') + ' = ' + sommeAudit.toString() + ' m²'
+                valeur_trouvee: surfacesAudit.join(' + ') + ' = ' + sommeAudit.toString() + ' m²',
+                chantierIndex: chantierIndex + 1 // ⭐ Chantier détecté depuis la case d'import
               });
             }
           }
@@ -3687,7 +3700,8 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
               localisation: `Chantier ${chantierIndex + 1} - ${chantierAdresse}`,
               detail: `⚠️ Synthèse manquante : attendue à la position ${chantierIndex + 1} mais non extraite par Claude`,
               valeur_attendue: `Synthèse ${chantierIndex + 1} pour ${chantierAdresse}`,
-              valeur_trouvee: 'Synthèse non extraite'
+              valeur_trouvee: 'Synthèse non extraite',
+              chantierIndex: chantierIndex + 1 // ⭐ Chantier détecté depuis la case d'import
             });
           } else {
             // Check 44a : Adresse synthèse correspond à l'adresse CEE
@@ -3701,7 +3715,8 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
                 localisation: `Synthèse ${chantierIndex + 1}, fiche identité`,
                 detail: `❌ Adresse synthèse différente de l'adresse chantier CEE`,
                 valeur_attendue: chantierAdresse,
-                valeur_trouvee: syntheseCorrespondante.adresse || ''
+                valeur_trouvee: syntheseCorrespondante.adresse || '',
+                chantierIndex: chantierIndex + 1 // ⭐ Chantier détecté depuis la case d'import
               });
             }
             const surfaceSynthese = syntheseCorrespondante.surfaceEclairee || '';
@@ -3717,7 +3732,8 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
                 localisation: 'Synthèse fiche identité surface éclairée',
                 detail: '⚠️ Check manuel requis : surface éclairée non trouvée dans la synthèse. Vérifier manuellement.',
                 valeur_attendue: 'Check manuel',
-                valeur_trouvee: 'Non trouvée'
+                valeur_trouvee: 'Non trouvée',
+                chantierIndex: chantierIndex + 1 // ⭐ Chantier détecté depuis la case d'import
               });
             } else {
               const sommeSyntheseMatch = Math.abs(sommeAttestationTotale - surfaceSyntheseNum) < 1; // Tolérance 1 m²
@@ -3732,7 +3748,8 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
                   `Surface Synthèse cohérente avec attestation : ${sommeAttestationTotale} m²` :
                   `Surface Synthèse (${surfaceSyntheseNum} m²) différente de l'attestation (${sommeAttestationTotale} m²)`,
                 valeur_attendue: surfacesAttestation.join(' + ') + ' = ' + sommeAttestationTotale.toString() + ' m²',
-                valeur_trouvee: surfaceSyntheseNum.toString() + ' m²'
+                valeur_trouvee: surfaceSyntheseNum.toString() + ' m²',
+                chantierIndex: chantierIndex + 1 // ⭐ Chantier détecté depuis la case d'import
               });
             }
           }
@@ -4161,6 +4178,20 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
       const champ = (check.champ || '').toLowerCase();
       const text = loc + ' ' + champ;
 
+      // ⭐ MÉTHODE 0 : Propriété chantierIndex directe (ajoutée lors de la génération)
+      // C'est LA méthode la plus fiable car elle vient de la case d'import
+      if (check.chantierIndex !== undefined && check.chantierIndex !== null) {
+        // Déterminer le type selon catégorie
+        if (check.categorie === 'audit' || text.includes('audit') || id.includes('audit')) {
+          return { type: 'audit', chantierIndex: check.chantierIndex };
+        }
+        if (check.categorie === 'synthese' || text.includes('synthèse') || text.includes('synthese') || id.includes('synthese')) {
+          return { type: 'synthese', chantierIndex: check.chantierIndex };
+        }
+        // Par défaut audit si chantierIndex présent
+        return { type: 'audit', chantierIndex: check.chantierIndex };
+      }
+
       // MÉTHODE 1 : Détecter le chantier depuis l'ID (le plus fiable)
       // Format : check_01_c2, check_09d_audit_c3, etc.
       const idChantierMatch = id.match(/_c(\d+)/);
@@ -4229,8 +4260,13 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
       const ceeChecks = [];
       const chantiers = new Map(); // Map<chantierIndex, {audit: [], synthese: []}>
 
+      console.log('\n=== DEBUG GROUPEMENT CHANTIERS ===');
+      console.log('Total checks à grouper:', checks.length);
+
       checks.forEach(check => {
         const provenance = getCheckProvenance(check);
+
+        console.log(`Check ${check.id}: ${provenance.type} ${provenance.chantierIndex !== null ? 'chantier ' + provenance.chantierIndex : 'CEE global'} | ${check.champ}`);
 
         // Séparer bloquants et majeurs
         if (check.niveau === 'bloquant') {
@@ -4239,6 +4275,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
         }
         if (check.niveau === 'majeur') {
           majeurs.push({ ...check, provenance });
+          return; // ← AJOUT DU RETURN pour ne pas dupliquer
         }
 
         // Grouper par document source
@@ -4388,7 +4425,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
             <div style="display: flex; gap: var(--spacing-sm); flex-wrap: wrap; border-bottom: 2px solid var(--color-border); padding-bottom: var(--spacing-sm);">
               <button class="nav-btn ${activeView === 'global' ? 'active' : ''}"
                       onclick="switchView('global')"
-                      style="padding: var(--spacing-sm) var(--spacing-md); background: ${activeView === 'global' ? 'var(--color-sidebar)' : 'rgba(0, 0, 0, 0.4)'}; border: 1px solid ${activeView === 'global' ? 'var(--color-sidebar)' : 'rgba(255,255,255,0.2)'}; border-radius: var(--radius-sm); color: ${activeView === 'global' ? 'white' : 'rgba(255,255,255,0.9)'}; font-weight: 600; cursor: pointer; transition: all 0.2s;">
+                      style="padding: var(--spacing-sm) var(--spacing-md); background: ${activeView === 'global' ? 'rgba(34, 197, 94, 0.8)' : '#000'}; border: 1px solid ${activeView === 'global' ? 'rgba(34, 197, 94, 0.8)' : 'rgba(255,255,255,0.2)'}; border-radius: var(--radius-sm); color: white; font-weight: 600; cursor: pointer; transition: all 0.2s;">
                 📄 Vue globale
               </button>
               ${chantiers.map((chantier, idx) => {
@@ -4401,7 +4438,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
                 return `
                   <button class="nav-btn ${isActive ? 'active' : ''}"
                           onclick="switchView('${viewKey}')"
-                          style="padding: var(--spacing-sm) var(--spacing-md); background: ${isActive ? 'var(--color-sidebar)' : 'rgba(0, 0, 0, 0.4)'}; border: 1px solid ${isActive ? 'var(--color-sidebar)' : hasErrors ? 'var(--color-error)' : 'rgba(255,255,255,0.2)'}; border-radius: var(--radius-sm); color: ${isActive ? 'white' : hasErrors ? 'var(--color-error)' : 'rgba(255,255,255,0.9)'}; font-weight: 600; cursor: pointer; transition: all 0.2s; position: relative;">
+                          style="padding: var(--spacing-sm) var(--spacing-md); background: ${isActive ? 'rgba(34, 197, 94, 0.8)' : '#000'}; border: 1px solid ${isActive ? 'rgba(34, 197, 94, 0.8)' : hasErrors ? 'var(--color-error)' : 'rgba(255,255,255,0.2)'}; border-radius: var(--radius-sm); color: white; font-weight: 600; cursor: pointer; transition: all 0.2s; position: relative;">
                     🏢 Chantier ${chantier.index}
                     ${hasErrors ? `<span style="position: absolute; top: -5px; right: -5px; background: var(--color-error); color: white; border-radius: 999px; width: 18px; height: 18px; font-size: 0.625rem; display: flex; align-items: center; justify-content: center;">${counter.bloquants + counter.majeurs}</span>` : ''}
                   </button>
@@ -4545,16 +4582,16 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
       // Mettre à jour les boutons
       document.querySelectorAll('.nav-btn').forEach(btn => {
         btn.classList.remove('active');
-        btn.style.background = 'rgba(0, 0, 0, 0.4)';
+        btn.style.background = '#000';
         btn.style.borderColor = 'rgba(255,255,255,0.2)';
-        btn.style.color = 'rgba(255,255,255,0.9)';
+        btn.style.color = 'white';
       });
 
       const activeBtn = document.querySelector(`.nav-btn[onclick="switchView('${viewKey}')"]`);
       if (activeBtn) {
         activeBtn.classList.add('active');
-        activeBtn.style.background = 'var(--color-sidebar)';
-        activeBtn.style.borderColor = 'var(--color-sidebar)';
+        activeBtn.style.background = 'rgba(34, 197, 94, 0.8)';
+        activeBtn.style.borderColor = 'rgba(34, 197, 94, 0.8)';
         activeBtn.style.color = 'white';
       }
     }
