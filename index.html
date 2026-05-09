@@ -4504,9 +4504,8 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
           }
           chantiers.get(idx).audit.push(check);
 
-          // Extraire l'adresse du chantier depuis le check
-          const adresseMatch = check.localisation?.match(/([^,]+(?:,\s*[^,]+)*)/);
-          if (adresseMatch && !chantiers.get(idx).adresse) {
+          // Extraire l'adresse UNIQUEMENT depuis le check_02 (Adresse chantier Audit page 1)
+          if (check.id && check.id.startsWith('check_02') && !chantiers.get(idx).adresse) {
             chantiers.get(idx).adresse = check.valeur_trouvee || check.valeur_attendue || '';
           }
         } else if (provenance.type === 'synthese') {
@@ -4516,12 +4515,9 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
           }
           chantiers.get(idx).synthese.push(check);
 
-          // Extraire l'adresse du chantier
-          if (!chantiers.get(idx).adresse && check.localisation) {
-            const adresseMatch = check.valeur_trouvee || check.valeur_attendue;
-            if (adresseMatch && adresseMatch.length > 10) {
-              chantiers.get(idx).adresse = adresseMatch;
-            }
+          // Extraire l'adresse UNIQUEMENT depuis le check_12 (Adresse chantier Synthèse fiche identité)
+          if (check.id === 'check_12' && !chantiers.get(idx).adresse) {
+            chantiers.get(idx).adresse = check.valeur_trouvee || check.valeur_attendue || '';
           }
         }
       });
