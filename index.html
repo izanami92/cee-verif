@@ -4156,31 +4156,66 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
 
     // Identifier la provenance d'un check (CEE, Audit chantier X, Synthèse chantier X)
     function getCheckProvenance(check) {
+      const id = check.id || '';
       const loc = (check.localisation || '').toLowerCase();
       const champ = (check.champ || '').toLowerCase();
       const text = loc + ' ' + champ;
 
-      // Dossier CEE
-      if (text.includes('dossier cee') || text.includes('cee') && !text.includes('audit') && !text.includes('synthèse')) {
+      // MÉTHODE 1 : Détecter le chantier depuis l'ID (le plus fiable)
+      // Format : check_01_c2, check_09d_audit_c3, etc.
+      const idChantierMatch = id.match(/_c(\d+)/);
+      if (idChantierMatch) {
+        const chantierIndex = parseInt(idChantierMatch[1]);
+
+        // Déterminer si c'est audit ou synthèse
+        if (text.includes('audit') || id.includes('audit')) {
+          return { type: 'audit', chantierIndex };
+        }
+        if (text.includes('synthèse') || text.includes('synthese') || id.includes('synthese')) {
+          return { type: 'synthese', chantierIndex };
+        }
+
+        // Si ni audit ni synthèse mais a un suffixe chantier → audit par défaut
+        return { type: 'audit', chantierIndex };
+      }
+
+      // MÉTHODE 2 : Détecter depuis la localisation (si pas dans l'ID)
+      const locChantierMatch = text.match(/chantier\s+(\d+)/i);
+      if (locChantierMatch) {
+        const chantierIndex = parseInt(locChantierMatch[1]);
+
+        if (text.includes('audit')) {
+          return { type: 'audit', chantierIndex };
+        }
+        if (text.includes('synthèse') || text.includes('synthese')) {
+          return { type: 'synthese', chantierIndex };
+        }
+
+        return { type: 'audit', chantierIndex };
+      }
+
+      // MÉTHODE 3 : Checks globaux CEE
+      // Vérifier d'abord si c'est explicitement un check CEE
+      if (text.includes('dossier cee') ||
+          text.includes('total cee') ||
+          text.includes('somme') ||
+          text.includes('reste à payer') ||
+          text.includes('reste a payer') ||
+          text.includes('adresse siège') ||
+          text.includes('adresse siege') ||
+          id.includes('09a') || // Total LED somme audits = CEE
+          id.includes('09b') || // Total LED somme synthèses = CEE
+          (text.includes('vs cee') && !text.includes('chantier'))) {
         return { type: 'cee', chantierIndex: null };
       }
 
-      // Audit chantier X
-      const auditMatch = text.match(/chantier\s+(\d+)/i);
+      // MÉTHODE 4 : Si audit/synthèse sans indication de chantier
+      // → Check du premier chantier (mono-chantier)
       if (text.includes('audit')) {
-        return {
-          type: 'audit',
-          chantierIndex: auditMatch ? parseInt(auditMatch[1]) : 1
-        };
+        return { type: 'audit', chantierIndex: 1 };
       }
-
-      // Synthèse chantier X
       if (text.includes('synthèse') || text.includes('synthese')) {
-        const syntheseMatch = text.match(/chantier\s+(\d+)/i);
-        return {
-          type: 'synthese',
-          chantierIndex: syntheseMatch ? parseInt(syntheseMatch[1]) : 1
-        };
+        return { type: 'synthese', chantierIndex: 1 };
       }
 
       // Par défaut : check global CEE
@@ -4353,7 +4388,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
             <div style="display: flex; gap: var(--spacing-sm); flex-wrap: wrap; border-bottom: 2px solid var(--color-border); padding-bottom: var(--spacing-sm);">
               <button class="nav-btn ${activeView === 'global' ? 'active' : ''}"
                       onclick="switchView('global')"
-                      style="padding: var(--spacing-sm) var(--spacing-md); background: ${activeView === 'global' ? 'var(--color-sidebar)' : 'rgba(255,255,255,0.05)'}; border: 1px solid ${activeView === 'global' ? 'var(--color-sidebar)' : 'var(--color-border)'}; border-radius: var(--radius-sm); color: ${activeView === 'global' ? 'white' : 'var(--color-text)'}; font-weight: 600; cursor: pointer; transition: all 0.2s;">
+                      style="padding: var(--spacing-sm) var(--spacing-md); background: ${activeView === 'global' ? 'var(--color-sidebar)' : 'rgba(0, 0, 0, 0.4)'}; border: 1px solid ${activeView === 'global' ? 'var(--color-sidebar)' : 'rgba(255,255,255,0.2)'}; border-radius: var(--radius-sm); color: ${activeView === 'global' ? 'white' : 'rgba(255,255,255,0.9)'}; font-weight: 600; cursor: pointer; transition: all 0.2s;">
                 📄 Vue globale
               </button>
               ${chantiers.map((chantier, idx) => {
@@ -4366,7 +4401,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
                 return `
                   <button class="nav-btn ${isActive ? 'active' : ''}"
                           onclick="switchView('${viewKey}')"
-                          style="padding: var(--spacing-sm) var(--spacing-md); background: ${isActive ? 'var(--color-sidebar)' : 'rgba(255,255,255,0.05)'}; border: 1px solid ${isActive ? 'var(--color-sidebar)' : hasErrors ? 'var(--color-error)' : 'var(--color-border)'}; border-radius: var(--radius-sm); color: ${isActive ? 'white' : hasErrors ? 'var(--color-error)' : 'var(--color-text)'}; font-weight: 600; cursor: pointer; transition: all 0.2s; position: relative;">
+                          style="padding: var(--spacing-sm) var(--spacing-md); background: ${isActive ? 'var(--color-sidebar)' : 'rgba(0, 0, 0, 0.4)'}; border: 1px solid ${isActive ? 'var(--color-sidebar)' : hasErrors ? 'var(--color-error)' : 'rgba(255,255,255,0.2)'}; border-radius: var(--radius-sm); color: ${isActive ? 'white' : hasErrors ? 'var(--color-error)' : 'rgba(255,255,255,0.9)'}; font-weight: 600; cursor: pointer; transition: all 0.2s; position: relative;">
                     🏢 Chantier ${chantier.index}
                     ${hasErrors ? `<span style="position: absolute; top: -5px; right: -5px; background: var(--color-error); color: white; border-radius: 999px; width: 18px; height: 18px; font-size: 0.625rem; display: flex; align-items: center; justify-content: center;">${counter.bloquants + counter.majeurs}</span>` : ''}
                   </button>
@@ -4510,8 +4545,9 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
       // Mettre à jour les boutons
       document.querySelectorAll('.nav-btn').forEach(btn => {
         btn.classList.remove('active');
-        btn.style.background = 'rgba(255,255,255,0.05)';
-        btn.style.borderColor = 'var(--color-border)';
+        btn.style.background = 'rgba(0, 0, 0, 0.4)';
+        btn.style.borderColor = 'rgba(255,255,255,0.2)';
+        btn.style.color = 'rgba(255,255,255,0.9)';
       });
 
       const activeBtn = document.querySelector(`.nav-btn[onclick="switchView('${viewKey}')"]`);
