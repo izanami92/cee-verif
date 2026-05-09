@@ -4268,17 +4268,17 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
 
         console.log(`Check ${check.id}: ${provenance.type} ${provenance.chantierIndex !== null ? 'chantier ' + provenance.chantierIndex : 'CEE global'} | ${check.champ}`);
 
-        // Séparer bloquants et majeurs
+        // Séparer bloquants et majeurs MAIS continuer le groupement
         if (check.niveau === 'bloquant') {
           bloquants.push({ ...check, provenance });
-          return;
+          // PAS de return → on continue pour les grouper aussi par provenance
         }
         if (check.niveau === 'majeur') {
           majeurs.push({ ...check, provenance });
-          return; // ← AJOUT DU RETURN pour ne pas dupliquer
+          // PAS de return → on continue pour les grouper aussi par provenance
         }
 
-        // Grouper par document source
+        // Grouper par document source (TOUS les checks, y compris bloquants/majeurs)
         if (provenance.type === 'cee') {
           ceeChecks.push(check);
         } else if (provenance.type === 'audit') {
@@ -4426,7 +4426,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
               <button class="nav-btn ${activeView === 'global' ? 'active' : ''}"
                       onclick="switchView('global')"
                       style="padding: var(--spacing-sm) var(--spacing-md); background: ${activeView === 'global' ? 'rgba(34, 197, 94, 0.8)' : '#000'}; border: 1px solid ${activeView === 'global' ? 'rgba(34, 197, 94, 0.8)' : 'rgba(255,255,255,0.2)'}; border-radius: var(--radius-sm); color: white; font-weight: 600; cursor: pointer; transition: all 0.2s;">
-                📄 Vue globale
+                📄 Dossier CEE
               </button>
               ${chantiers.map((chantier, idx) => {
                 const viewKey = `chantier-${chantier.index}`;
@@ -4451,7 +4451,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
 
       // ========== SECTION 4 : CONTENU CONDITIONNEL ==========
 
-      // Vue globale : Dossier CEE
+      // Dossier CEE (vue globale)
       const ceeCounter = computeCounter(cee);
       const ceeExpanded = shouldAutoExpand(cee);
       html += `
