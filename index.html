@@ -2459,10 +2459,17 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
 
       const norm1 = normalizeProduct(val1);
       const norm2 = normalizeProduct(val2);
-      const result = norm1 === norm2;
+
+      // Extraire les références clés à chercher
+      const key = norm2.includes('neshbl') ? 'neshbl' :
+                  norm2.includes('tech03') ? 'tech03' :
+                  norm2.includes('highbay') ? 'highbay' : norm2;
+
+      // Vérifier si la clé est présente dans val1
+      const result = norm1.includes(key);
 
       if (!result) {
-        console.log(`[compareProductRef] ÉCHEC: "${val1}" (→ "${norm1}") vs "${val2}" (→ "${norm2}")`);
+        console.log(`[compareProductRef] ÉCHEC: "${val1}" (→ "${norm1}") ne contient pas "${key}" de "${val2}" (→ "${norm2}")`);
       }
 
       return result;
@@ -3351,37 +3358,49 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
         });
       }
 
+      // Vérifier d'abord si la référence produit est OK ailleurs (pour check 36)
+      const refProduitOk = compareProductRef(firstSynthese.referenceProduit, ficheSelected.nom) ||
+                          compareProductRef(firstAudit.pceLuminaires, ficheSelected.nom);
+
       // Check 36 : Fiche technique présente
       const ficheTechOk = extracted.ficheTechnique?.reference || extracted.ficheTechnique?.thd;
+      const adresseChantier = firstAudit?.adresse || firstSynthese?.adresse || '';
+      const localisationFiche = `Synthèse page ~14${adresseChantier ? ` - ${adresseChantier}` : ''}`;
+
       if (references.refLed === 'DAEWOO') {
         const ficheTechThdOk = compareNumber(extracted.ficheTechnique?.thd, ficheSelected.thd + '%');
+        const niveauFiche = (ficheTechOk && ficheTechThdOk) ? 'ok' :
+                           (!ficheTechOk && refProduitOk) ? 'info' : 'majeur';
         checks.push({
           id: 'check_36',
           categorie: 'synthese',
-          niveau: (ficheTechOk && ficheTechThdOk) ? 'ok' : 'majeur',
+          niveau: niveauFiche,
           champ: 'Fiche technique LED',
-          localisation: 'Synthèse page ~14',
-          detail: ficheTechOk ? (ficheTechThdOk ? `Fiche présente + THD ${ficheSelected.thd}%` : 'Fiche présente mais THD incorrect') : 'Fiche technique non trouvée',
+          localisation: localisationFiche,
+          detail: ficheTechOk ?
+            (ficheTechThdOk ? `Fiche présente + THD ${ficheSelected.thd}%` : 'Fiche présente mais THD incorrect') :
+            (refProduitOk ? 'Fiche technique non trouvée (vérifier manuellement si image)' : 'Fiche technique non trouvée'),
           valeur_attendue: `Présente + THD ${ficheSelected.thd}%`,
           valeur_trouvee: `${extracted.ficheTechnique?.reference || 'N/A'} | THD: ${extracted.ficheTechnique?.thd || 'N/A'}`
         });
       } else {
         // Pour TECH : juste vérifier présence
+        const niveauFiche = ficheTechOk ? 'ok' : (refProduitOk ? 'info' : 'majeur');
         checks.push({
           id: 'check_36',
           categorie: 'synthese',
-          niveau: ficheTechOk ? 'ok' : 'majeur',
+          niveau: niveauFiche,
           champ: 'Fiche technique LED',
-          localisation: 'Synthèse page ~14',
-          detail: ficheTechOk ? 'Fiche technique présente' : 'Fiche technique non trouvée',
+          localisation: localisationFiche,
+          detail: ficheTechOk ?
+            'Fiche technique présente' :
+            (refProduitOk ? 'Fiche technique non trouvée (vérifier manuellement si image)' : 'Fiche technique non trouvée'),
           valeur_attendue: 'Présente',
           valeur_trouvee: extracted.ficheTechnique?.reference || 'N/A'
         });
       }
 
       // Check 37 : Référence produit
-      const refProduitOk = compareProductRef(firstSynthese.referenceProduit, ficheSelected.nom) ||
-                          compareProductRef(firstAudit.pceLuminaires, ficheSelected.nom);
       checks.push({
         id: 'check_37',
         categorie: 'audit',
