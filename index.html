@@ -4149,6 +4149,318 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
       }
     }
 
+    // ========== NOUVELLE STRUCTURE HIÉRARCHIQUE ==========
+
+    // Identifier la provenance d'un check (CEE, Audit chantier X, Synthèse chantier X)
+    function getCheckProvenance(check) {
+      const loc = (check.localisation || '').toLowerCase();
+      const champ = (check.champ || '').toLowerCase();
+      const text = loc + ' ' + champ;
+
+      // Dossier CEE
+      if (text.includes('dossier cee') || text.includes('cee') && !text.includes('audit') && !text.includes('synthèse')) {
+        return { type: 'cee', chantierIndex: null };
+      }
+
+      // Audit chantier X
+      const auditMatch = text.match(/chantier\s+(\d+)/i);
+      if (text.includes('audit')) {
+        return {
+          type: 'audit',
+          chantierIndex: auditMatch ? parseInt(auditMatch[1]) : 1
+        };
+      }
+
+      // Synthèse chantier X
+      if (text.includes('synthèse') || text.includes('synthese')) {
+        const syntheseMatch = text.match(/chantier\s+(\d+)/i);
+        return {
+          type: 'synthese',
+          chantierIndex: syntheseMatch ? parseInt(syntheseMatch[1]) : 1
+        };
+      }
+
+      // Par défaut : check global CEE
+      return { type: 'cee', chantierIndex: null };
+    }
+
+    // Grouper les checks par hiérarchie (CEE → Chantiers)
+    function groupChecksByHierarchy(checks) {
+      const bloquants = [];
+      const majeurs = [];
+      const ceeChecks = [];
+      const chantiers = new Map(); // Map<chantierIndex, {audit: [], synthese: []}>
+
+      checks.forEach(check => {
+        const provenance = getCheckProvenance(check);
+
+        // Séparer bloquants et majeurs
+        if (check.niveau === 'bloquant') {
+          bloquants.push({ ...check, provenance });
+          return;
+        }
+        if (check.niveau === 'majeur') {
+          majeurs.push({ ...check, provenance });
+        }
+
+        // Grouper par document source
+        if (provenance.type === 'cee') {
+          ceeChecks.push(check);
+        } else if (provenance.type === 'audit') {
+          const idx = provenance.chantierIndex;
+          if (!chantiers.has(idx)) {
+            chantiers.set(idx, { index: idx, audit: [], synthese: [], adresse: '' });
+          }
+          chantiers.get(idx).audit.push(check);
+
+          // Extraire l'adresse du chantier depuis le check
+          const adresseMatch = check.localisation?.match(/([^,]+(?:,\s*[^,]+)*)/);
+          if (adresseMatch && !chantiers.get(idx).adresse) {
+            chantiers.get(idx).adresse = check.valeur_trouvee || check.valeur_attendue || '';
+          }
+        } else if (provenance.type === 'synthese') {
+          const idx = provenance.chantierIndex;
+          if (!chantiers.has(idx)) {
+            chantiers.set(idx, { index: idx, audit: [], synthese: [], adresse: '' });
+          }
+          chantiers.get(idx).synthese.push(check);
+
+          // Extraire l'adresse du chantier
+          if (!chantiers.get(idx).adresse && check.localisation) {
+            const adresseMatch = check.valeur_trouvee || check.valeur_attendue;
+            if (adresseMatch && adresseMatch.length > 10) {
+              chantiers.get(idx).adresse = adresseMatch;
+            }
+          }
+        }
+      });
+
+      // Convertir Map en Array et trier
+      const chantiersArray = Array.from(chantiers.values()).sort((a, b) => a.index - b.index);
+
+      return {
+        bloquants,
+        majeurs,
+        cee: ceeChecks,
+        chantiers: chantiersArray
+      };
+    }
+
+    // Calculer compteur pour un groupe de checks
+    function computeCounter(checks) {
+      const bloquants = checks.filter(c => c.niveau === 'bloquant').length;
+      const majeurs = checks.filter(c => c.niveau === 'majeur').length;
+      const ok = checks.filter(c => c.niveau === 'ok').length;
+      const info = checks.filter(c => c.niveau === 'info').length;
+
+      return { bloquants, majeurs, ok, info, total: checks.length };
+    }
+
+    // Créer HTML du compteur
+    function createCounterHTML(counter) {
+      let html = [];
+      if (counter.bloquants > 0) html.push(`<span style="color: var(--color-error);">❌ ${counter.bloquants}</span>`);
+      if (counter.majeurs > 0) html.push(`<span style="color: var(--color-warning);">⚠️ ${counter.majeurs}</span>`);
+      if (counter.ok > 0) html.push(`<span style="color: var(--color-success);">✅ ${counter.ok}</span>`);
+      if (counter.info > 0) html.push(`<span style="color: var(--color-info);">ℹ️ ${counter.info}</span>`);
+
+      return html.length > 0 ? html.join(' | ') : '<span style="color: var(--color-success);">✅ Tout conforme</span>';
+    }
+
+    // Déterminer si une section doit être auto-dépliée (contient des erreurs)
+    function shouldAutoExpand(checks) {
+      return checks.some(c => c.niveau === 'bloquant' || c.niveau === 'majeur');
+    }
+
+    // Render hiérarchique avec structure CEE → Chantiers
+    function renderChecksHierarchical(checks, container) {
+      const { bloquants, majeurs, cee, chantiers } = groupChecksByHierarchy(checks);
+
+      let html = '';
+
+      // ========== SECTION 1 : BLOQUANTS (toujours dépliée) ==========
+      if (bloquants.length > 0) {
+        html += `
+          <div class="section-bloquants" style="margin-bottom: var(--spacing-lg); border: 2px solid var(--color-error); border-radius: var(--radius-md); overflow: hidden; background: rgba(239, 68, 68, 0.1);">
+            <div style="background: var(--color-error); color: white; padding: var(--spacing-md); font-weight: 600; font-size: 1.125rem; display: flex; align-items: center; gap: 0.5rem;">
+              <span>⚠️</span>
+              <span>POINTS BLOQUANTS (${bloquants.length})</span>
+            </div>
+            <div style="padding: var(--spacing-md);">
+              ${bloquants.map(check => {
+                const provLabel = check.provenance.type === 'cee' ? 'Dossier CEE' :
+                                 check.provenance.type === 'audit' ? `Chantier ${check.provenance.chantierIndex} - Audit` :
+                                 `Chantier ${check.provenance.chantierIndex} - Synthèse`;
+                return `
+                  <div style="margin-bottom: var(--spacing-md);">
+                    <div style="font-weight: 600; color: var(--color-error); font-size: 0.875rem; margin-bottom: 0.5rem; padding-left: 0.25rem; border-left: 3px solid var(--color-error);">
+                      📌 ${provLabel}
+                    </div>
+                    ${createCheckCard(check)}
+                  </div>
+                `;
+              }).join('')}
+            </div>
+          </div>
+        `;
+      }
+
+      // ========== SECTION 2 : MAJEURS (pliable si > 5) ==========
+      if (majeurs.length > 0) {
+        const collapsed = majeurs.length > 5;
+        html += `
+          <div class="section-majeurs" style="margin-bottom: var(--spacing-lg); border: 2px solid var(--color-warning); border-radius: var(--radius-md); overflow: hidden; background: rgba(245, 158, 11, 0.1);">
+            <div class="section-header" style="background: var(--color-warning); color: white; padding: var(--spacing-md); font-weight: 600; font-size: 1.125rem; display: flex; align-items: center; justify-content: space-between; cursor: pointer;"
+                 onclick="this.nextElementSibling.classList.toggle('collapsed'); this.querySelector('.toggle-icon').classList.toggle('rotated');">
+              <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <span>⚡</span>
+                <span>POINTS MAJEURS (${majeurs.length})</span>
+              </div>
+              <span class="toggle-icon ${collapsed ? '' : 'rotated'}" style="transform: ${collapsed ? 'rotate(0deg)' : 'rotate(180deg)'}; transition: transform 0.3s;">▼</span>
+            </div>
+            <div class="section-content ${collapsed ? 'collapsed' : ''}" style="${collapsed ? 'display: none;' : ''} padding: var(--spacing-md);">
+              ${majeurs.map(check => {
+                const provLabel = check.provenance.type === 'cee' ? 'Dossier CEE' :
+                                 check.provenance.type === 'audit' ? `Chantier ${check.provenance.chantierIndex} - Audit` :
+                                 `Chantier ${check.provenance.chantierIndex} - Synthèse`;
+                return `
+                  <div style="margin-bottom: var(--spacing-md);">
+                    <div style="font-weight: 600; color: var(--color-warning); font-size: 0.875rem; margin-bottom: 0.5rem; padding-left: 0.25rem; border-left: 3px solid var(--color-warning);">
+                      📌 ${provLabel}
+                    </div>
+                    ${createCheckCard(check)}
+                  </div>
+                `;
+              }).join('')}
+            </div>
+          </div>
+        `;
+      }
+
+      // ========== SECTION 3 : VUE GLOBALE - DOSSIER CEE ==========
+      if (cee.length > 0) {
+        const ceeCounter = computeCounter(cee);
+        const ceeExpanded = shouldAutoExpand(cee);
+
+        html += `
+          <div class="section-cee" style="margin-bottom: var(--spacing-md); border: 1px solid rgba(255,255,255,0.2); border-radius: var(--radius-md); overflow: hidden;">
+            <div class="section-header" style="background: rgba(59, 130, 246, 0.2); padding: var(--spacing-md); cursor: pointer; display: flex; justify-content: space-between; align-items: center;"
+                 onclick="this.nextElementSibling.classList.toggle('collapsed'); this.querySelector('.toggle-icon').classList.toggle('rotated');">
+              <div style="display: flex; align-items: center; gap: var(--spacing-md);">
+                <span style="font-size: 1.5rem;">📄</span>
+                <h3 style="margin: 0; font-size: 1.125rem;">Vue globale - Dossier CEE</h3>
+              </div>
+              <div style="display: flex; align-items: center; gap: var(--spacing-md);">
+                <div style="font-size: 0.875rem;">${createCounterHTML(ceeCounter)}</div>
+                <span class="toggle-icon ${ceeExpanded ? 'rotated' : ''}" style="transform: ${ceeExpanded ? 'rotate(180deg)' : 'rotate(0deg)'}; transition: transform 0.3s;">▼</span>
+              </div>
+            </div>
+            <div class="section-content ${ceeExpanded ? '' : 'collapsed'}" style="${ceeExpanded ? '' : 'display: none;'} padding: var(--spacing-md); background: rgba(255,255,255,0.02);">
+              ${cee.map(c => createCheckCard(c)).join('')}
+            </div>
+          </div>
+        `;
+      }
+
+      // ========== SECTION 4 : CHANTIERS ==========
+      chantiers.forEach((chantier, index) => {
+        const allChecks = [...chantier.audit, ...chantier.synthese];
+        const chantierCounter = computeCounter(allChecks);
+        const chantierExpanded = shouldAutoExpand(allChecks);
+
+        const adresseDisplay = chantier.adresse || `Chantier ${chantier.index}`;
+
+        html += `
+          <div class="section-chantier" style="margin-bottom: var(--spacing-md); border: 1px solid rgba(255,255,255,0.2); border-radius: var(--radius-md); overflow: hidden;">
+            <div class="section-header" style="background: rgba(16, 185, 129, 0.2); padding: var(--spacing-md); cursor: pointer; display: flex; justify-content: space-between; align-items: center;"
+                 onclick="this.nextElementSibling.classList.toggle('collapsed'); this.querySelector('.toggle-icon').classList.toggle('rotated');">
+              <div style="display: flex; align-items: center; gap: var(--spacing-md);">
+                <span style="font-size: 1.5rem;">🏢</span>
+                <h3 style="margin: 0; font-size: 1.125rem;">Chantier ${chantier.index} - ${adresseDisplay}</h3>
+              </div>
+              <div style="display: flex; align-items: center; gap: var(--spacing-md);">
+                <div style="font-size: 0.875rem;">${createCounterHTML(chantierCounter)}</div>
+                <span class="toggle-icon ${chantierExpanded ? 'rotated' : ''}" style="transform: ${chantierExpanded ? 'rotate(180deg)' : 'rotate(0deg)'}; transition: transform 0.3s;">▼</span>
+              </div>
+            </div>
+            <div class="section-content ${chantierExpanded ? '' : 'collapsed'}" style="${chantierExpanded ? '' : 'display: none;'} padding: var(--spacing-sm); background: rgba(255,255,255,0.02);">
+        `;
+
+        // Sous-section : Audit
+        if (chantier.audit.length > 0) {
+          const auditCounter = computeCounter(chantier.audit);
+          const auditExpanded = shouldAutoExpand(chantier.audit);
+
+          html += `
+            <div class="subsection-audit" style="margin-bottom: var(--spacing-sm); border: 1px solid rgba(255,255,255,0.1); border-radius: var(--radius-sm); overflow: hidden;">
+              <div class="subsection-header" style="background: rgba(255,255,255,0.05); padding: var(--spacing-sm); cursor: pointer; display: flex; justify-content: space-between; align-items: center;"
+                   onclick="this.nextElementSibling.classList.toggle('collapsed'); this.querySelector('.toggle-icon').classList.toggle('rotated');">
+                <div style="display: flex; align-items: center; gap: var(--spacing-sm);">
+                  <span>📋</span>
+                  <h4 style="margin: 0; font-size: 1rem;">Page de garde Audit</h4>
+                </div>
+                <div style="display: flex; align-items: center; gap: var(--spacing-sm);">
+                  <div style="font-size: 0.75rem;">${createCounterHTML(auditCounter)}</div>
+                  <span class="toggle-icon ${auditExpanded ? 'rotated' : ''}" style="font-size: 0.875rem; transform: ${auditExpanded ? 'rotate(180deg)' : 'rotate(0deg)'}; transition: transform 0.3s;">▼</span>
+                </div>
+              </div>
+              <div class="subsection-content ${auditExpanded ? '' : 'collapsed'}" style="${auditExpanded ? '' : 'display: none;'} padding: var(--spacing-sm);">
+                ${chantier.audit.map(c => createCheckCard(c)).join('')}
+              </div>
+            </div>
+          `;
+        }
+
+        // Sous-section : Synthèse
+        if (chantier.synthese.length > 0) {
+          const syntheseCounter = computeCounter(chantier.synthese);
+          const syntheseExpanded = shouldAutoExpand(chantier.synthese);
+
+          html += `
+            <div class="subsection-synthese" style="margin-bottom: var(--spacing-sm); border: 1px solid rgba(255,255,255,0.1); border-radius: var(--radius-sm); overflow: hidden;">
+              <div class="subsection-header" style="background: rgba(255,255,255,0.05); padding: var(--spacing-sm); cursor: pointer; display: flex; justify-content: space-between; align-items: center;"
+                   onclick="this.nextElementSibling.classList.toggle('collapsed'); this.querySelector('.toggle-icon').classList.toggle('rotated');">
+                <div style="display: flex; align-items: center; gap: var(--spacing-sm);">
+                  <span>📊</span>
+                  <h4 style="margin: 0; font-size: 1rem;">Synthèse</h4>
+                </div>
+                <div style="display: flex; align-items: center; gap: var(--spacing-sm);">
+                  <div style="font-size: 0.75rem;">${createCounterHTML(syntheseCounter)}</div>
+                  <span class="toggle-icon ${syntheseExpanded ? 'rotated' : ''}" style="font-size: 0.875rem; transform: ${syntheseExpanded ? 'rotate(180deg)' : 'rotate(0deg)'}; transition: transform 0.3s;">▼</span>
+                </div>
+              </div>
+              <div class="subsection-content ${syntheseExpanded ? '' : 'collapsed'}" style="${syntheseExpanded ? '' : 'display: none;'} padding: var(--spacing-sm);">
+                ${chantier.synthese.map(c => createCheckCard(c)).join('')}
+              </div>
+            </div>
+          `;
+        }
+
+        html += `
+            </div>
+          </div>
+        `;
+      });
+
+      container.innerHTML = html;
+
+      // Ajouter le style pour collapsed et rotated
+      if (!document.getElementById('hierarchical-style')) {
+        const style = document.createElement('style');
+        style.id = 'hierarchical-style';
+        style.textContent = `
+          .section-content.collapsed,
+          .subsection-content.collapsed {
+            display: none !important;
+          }
+          .toggle-icon.rotated {
+            transform: rotate(180deg) !important;
+          }
+        `;
+        document.head.appendChild(style);
+      }
+    }
+
     // Fonction de filtrage par niveau
     function filterChecksByLevel(niveau) {
       if (activeFilter === niveau) {
@@ -4176,10 +4488,11 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
         ? currentChecks.filter(c => c.niveau === activeFilter)
         : currentChecks;
 
-      // Afficher dans l'onglet "Tous"
-      renderChecksWithGroups(checksToDisplay, elements.checksListTous);
+      // Afficher avec la nouvelle structure hiérarchique dans l'onglet "Tous"
+      renderChecksHierarchical(checksToDisplay, elements.checksListTous);
 
-      // Afficher par catégorie (avec filtre si actif)
+      // Les anciens onglets (Page de garde, Synthèse, Audit) utilisent l'ancien système
+      // pour compatibilité, mais ils pourraient être supprimés à terme
       const gardeChecks = checksToDisplay.filter(c => c.categorie === 'garde');
       const syntheseChecks = checksToDisplay.filter(c => c.categorie === 'synthese');
       const auditChecks = checksToDisplay.filter(c => c.categorie === 'audit');
