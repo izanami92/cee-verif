@@ -1081,6 +1081,14 @@
             <input type="file" accept=".pdf" id="fileDossier">
           </div>
 
+          <!-- Fiche technique (GLOBALE - une seule pour tout le dossier) -->
+          <div class="upload-zone" id="uploadFicheTechnique">
+            <div class="upload-zone-title">📋 Fiche technique LED</div>
+            <div class="upload-zone-optional">Optionnel - Une seule pour tout le dossier</div>
+            <div class="upload-zone-filename"></div>
+            <input type="file" accept=".pdf" id="fileFicheTechnique">
+          </div>
+
         </div>
 
         <!-- Résultat de la détection -->
@@ -1291,15 +1299,17 @@
     const state = {
       files: {
         betool: null,        // Capture Betool (image)
-        dossier: null        // 1 seul Dossier CEE
+        dossier: null,       // 1 seul Dossier CEE
+        ficheTechnique: null // 1 seule Fiche technique (globale pour tout le dossier)
       },
       extractedTexts: {
-        dossier: ''
+        dossier: '',
+        ficheTechnique: ''
       },
       betoolImage: null,     // Image Betool encodée en base64
 
       // NOUVELLE ARCHITECTURE : organisation par chantier
-      chantiers: [],         // [{adresse: "...", audit: File, synthese: File, fiche: File, auditText: "", syntheseText: "", ficheText: ""}]
+      chantiers: [],         // [{adresse: "...", audit: File, synthese: File, auditText: "", syntheseText: ""}] (fiche technique retirée, elle est globale maintenant)
       chantiersDetectes: [], // [{adresse: "..."}] depuis l'API extract-cee
 
       analysisResult: null
@@ -1325,8 +1335,10 @@
       // Nouveaux éléments pour la détection des chantiers
       uploadBetool: document.getElementById('uploadBetool'),
       uploadDossier: document.getElementById('uploadDossier'),
+      uploadFicheTechnique: document.getElementById('uploadFicheTechnique'),
       fileBetool: document.getElementById('fileBetool'),
       fileDossier: document.getElementById('fileDossier'),
+      fileFicheTechnique: document.getElementById('fileFicheTechnique'),
 
       detectionResult: document.getElementById('detectionResult'),
       detectionCount: document.getElementById('detectionCount'),
@@ -1549,9 +1561,10 @@
       }
     }
 
-    // Initialiser les zones d'upload (NOUVELLE ARCHITECTURE : seulement betool et dossier)
+    // Initialiser les zones d'upload (NOUVELLE ARCHITECTURE : betool, dossier, fiche technique)
     setupUploadZone(elements.uploadBetool, elements.fileBetool, 'betool', false);   // 1 seule image
     setupUploadZone(elements.uploadDossier, elements.fileDossier, 'dossier', false); // 1 seul
+    setupUploadZone(elements.uploadFicheTechnique, elements.fileFicheTechnique, 'ficheTechnique', false); // 1 seule
 
     // ========== EXTRACTION PDF ==========
     async function extractTextFromPDF(file) {
@@ -1703,10 +1716,8 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
               adresse: adresse,
               audit: null,
               synthese: null,
-              fiche: null,
               auditText: '',
-              syntheseText: '',
-              ficheText: ''
+              syntheseText: ''
             }));
 
             // Afficher les résultats
@@ -2014,13 +2025,6 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
             <div class="upload-zone-filename"></div>
             <input type="file" accept=".pdf" id="fileSyntheseChantier${index}">
           </div>
-
-          <div class="upload-zone" id="uploadFicheChantier${index}" style="margin-top: var(--spacing-sm);">
-            <div class="upload-zone-title">Fiche technique</div>
-            <div class="upload-zone-optional">Optionnel</div>
-            <div class="upload-zone-filename"></div>
-            <input type="file" accept=".pdf" id="fileFicheChantier${index}">
-          </div>
         `;
 
         elements.chantiersContainer.appendChild(chantierDiv);
@@ -2030,13 +2034,10 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
         const fileAudit = document.getElementById(`fileAuditChantier${index}`);
         const uploadSynthese = document.getElementById(`uploadSyntheseChantier${index}`);
         const fileSynthese = document.getElementById(`fileSyntheseChantier${index}`);
-        const uploadFiche = document.getElementById(`uploadFicheChantier${index}`);
-        const fileFiche = document.getElementById(`fileFicheChantier${index}`);
         const adresseInput = document.getElementById(`adresseChantier${index}`);
 
         setupChantierUploadZone(uploadAudit, fileAudit, index, 'audit');
         setupChantierUploadZone(uploadSynthese, fileSynthese, index, 'synthese');
-        setupChantierUploadZone(uploadFiche, fileFiche, index, 'fiche');
 
         // Mise à jour de l'adresse
         adresseInput.addEventListener('input', (e) => {
@@ -2150,6 +2151,15 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
           );
         }
 
+        // Fiche technique (GLOBALE - une seule pour tout le dossier)
+        if (state.files.ficheTechnique && !state.extractedTexts.ficheTechnique) {
+          extractionPromises.push(
+            extractTextFromPDF(state.files.ficheTechnique).then(text => {
+              state.extractedTexts.ficheTechnique = text;
+            })
+          );
+        }
+
         // Extraire les textes pour chaque chantier
         state.chantiers.forEach((chantier, index) => {
           if (chantier.audit) {
@@ -2164,14 +2174,6 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
             extractionPromises.push(
               extractTextFromPDF(chantier.synthese).then(text => {
                 state.chantiers[index].syntheseText = text;
-              })
-            );
-          }
-
-          if (chantier.fiche) {
-            extractionPromises.push(
-              extractTextFromPDF(chantier.fiche).then(text => {
-                state.chantiers[index].ficheText = text;
               })
             );
           }
@@ -2216,12 +2218,13 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
             userMessage += `= SYNTHÈSE =\n${chantier.syntheseText}\n\n`;
           }
 
-          if (chantier.ficheText) {
-            userMessage += `= FICHE TECHNIQUE =\n${chantier.ficheText}\n\n`;
-          }
-
           userMessage += `---\n\n`;
         });
+
+        // Fiche technique (GLOBALE - une seule pour tout le dossier)
+        if (state.extractedTexts.ficheTechnique) {
+          userMessage += `=== FICHE TECHNIQUE LED (globale) ===\n${state.extractedTexts.ficheTechnique}\n\n`;
+        }
 
         // Appeler l'API d'extraction
         const response = await fetch('/api/analyze', {
