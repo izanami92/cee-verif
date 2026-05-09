@@ -2773,31 +2773,25 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
     // Matcher audits et synthèses par adresse (même adresse = même chantier)
     function matchChantiers(audits, syntheses) {
       const chantiers = [];
+      const maxLength = Math.max(audits.length, syntheses.length);
 
-      audits.forEach((audit, auditIndex) => {
-        // Trouver la synthèse avec la même adresse
-        const synthese = syntheses.find(s => compareAddress(s.adresse, audit.adresse));
+      // NOUVEAU : Matcher par INDEX au lieu de par adresse
+      // Raison : Les fichiers sont importés dans l'ordre (Audit 1 = Synthèse 1, Audit 2 = Synthèse 2)
+      // Matcher par adresse est fragile car sensible aux fautes de frappe dans les PDFs
+      for (let i = 0; i < maxLength; i++) {
+        const audit = audits[i] || null;
+        const synthese = syntheses[i] || null;
+
+        // Déterminer l'adresse du chantier (préférer audit, sinon synthèse)
+        const adresse = audit?.adresse || synthese?.adresse || '';
 
         chantiers.push({
-          index: auditIndex + 1,
+          index: i + 1,
           audit,
-          synthese: synthese || null,
-          adresse: audit.adresse
+          synthese,
+          adresse
         });
-      });
-
-      // Ajouter les synthèses sans audit correspondant
-      syntheses.forEach((synthese, syntheseIndex) => {
-        const hasAudit = audits.some(a => compareAddress(a.adresse, synthese.adresse));
-        if (!hasAudit) {
-          chantiers.push({
-            index: audits.length + syntheseIndex + 1,
-            audit: null,
-            synthese,
-            adresse: synthese.adresse
-          });
-        }
-      });
+      }
 
       return chantiers;
     }
