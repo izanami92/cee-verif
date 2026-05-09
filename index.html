@@ -3266,16 +3266,60 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
         valeur_trouvee: firstSynthese.surfaceEclairee || ''
       });
 
-      checks.push({
-        id: 'check_14',
-        categorie: 'synthese',
-        niveau: compareStrings(firstSynthese.secteurActivite, references.typeLocal) ? 'ok' : 'majeur',
-        champ: 'Secteur d\'activité Synthèse fiche identité',
-        localisation: `Synthèse, fiche identité du site${chantierSuffix}`,
-        detail: 'Vérification secteur d\'activité',
-        valeur_attendue: references.typeLocal || '',
-        valeur_trouvee: firstSynthese.secteurActivite || ''
-      });
+      // Check 14 : Secteur d'activité par chantier (si attestations disponibles)
+      if (attestationsCEE.length > 0 && norm.syntheses.length > 0) {
+        // Vérifier chaque synthèse avec l'attestation correspondante
+        norm.syntheses.forEach((synthese, syntheseIndex) => {
+          const attestation = attestationsCEE[syntheseIndex];
+          if (attestation && attestation.secteurActivite) {
+            const secteurOk = compareStrings(synthese.secteurActivite, attestation.secteurActivite);
+            const suffix = norm.syntheses.length > 1 ? ` chantier ${syntheseIndex + 1}` : '';
+            const idSuffix = norm.syntheses.length > 1 ? `_c${syntheseIndex + 1}` : '';
+
+            checks.push({
+              id: `check_14${idSuffix}`,
+              categorie: 'synthese',
+              niveau: secteurOk ? 'ok' : 'majeur',
+              champ: `Secteur d'activité Synthèse${suffix}`,
+              localisation: `Synthèse${suffix}, fiche identité du site`,
+              detail: secteurOk ?
+                `Secteur conforme : ${attestation.secteurActivite}` :
+                `Secteur Synthèse (${synthese.secteurActivite || 'non trouvé'}) ≠ Secteur CEE (${attestation.secteurActivite})`,
+              valeur_attendue: attestation.secteurActivite || '',
+              valeur_trouvee: synthese.secteurActivite || '',
+              chantierIndex: syntheseIndex + 1
+            });
+          } else {
+            // Fallback : comparer avec references.typeLocal si pas d'attestation
+            const secteurOk = compareStrings(synthese.secteurActivite, references.typeLocal);
+            const suffix = norm.syntheses.length > 1 ? ` chantier ${syntheseIndex + 1}` : '';
+
+            checks.push({
+              id: `check_14${norm.syntheses.length > 1 ? `_c${syntheseIndex + 1}` : ''}`,
+              categorie: 'synthese',
+              niveau: secteurOk ? 'ok' : 'majeur',
+              champ: `Secteur d'activité Synthèse${suffix}`,
+              localisation: `Synthèse${suffix}, fiche identité du site`,
+              detail: 'Vérification secteur d\'activité',
+              valeur_attendue: references.typeLocal || '',
+              valeur_trouvee: synthese.secteurActivite || '',
+              chantierIndex: syntheseIndex + 1
+            });
+          }
+        });
+      } else {
+        // Mono-chantier sans attestations : utiliser references.typeLocal
+        checks.push({
+          id: 'check_14',
+          categorie: 'synthese',
+          niveau: compareStrings(firstSynthese.secteurActivite, references.typeLocal) ? 'ok' : 'majeur',
+          champ: 'Secteur d\'activité Synthèse fiche identité',
+          localisation: `Synthèse, fiche identité du site${chantierSuffix}`,
+          detail: 'Vérification secteur d\'activité',
+          valeur_attendue: references.typeLocal || '',
+          valeur_trouvee: firstSynthese.secteurActivite || ''
+        });
+      }
 
       checks.push({
         id: 'check_15',
@@ -3339,16 +3383,58 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
       }
 
       // ========== SYNTHÈSE - Indicateurs éclairage initial (20) ==========
-      checks.push({
-        id: 'check_20',
-        categorie: 'synthese',
-        niveau: compareStrings(firstSynthese.secteurEtude, references.typeLocal) ? 'ok' : 'majeur',
-        champ: 'Secteur étude indicateurs initial',
-        localisation: `Synthèse, indicateurs éclairage intérieur état initial${chantierSuffix}`,
-        detail: 'Vérification secteur d\'étude',
-        valeur_attendue: references.typeLocal || '',
-        valeur_trouvee: firstSynthese.secteurEtude || ''
-      });
+      // Check 20 : Secteur étude par chantier (si attestations disponibles)
+      if (attestationsCEE.length > 0 && norm.syntheses.length > 0) {
+        norm.syntheses.forEach((synthese, syntheseIndex) => {
+          const attestation = attestationsCEE[syntheseIndex];
+          if (attestation && attestation.secteurActivite) {
+            const secteurOk = compareStrings(synthese.secteurEtude, attestation.secteurActivite);
+            const suffix = norm.syntheses.length > 1 ? ` chantier ${syntheseIndex + 1}` : '';
+            const idSuffix = norm.syntheses.length > 1 ? `_c${syntheseIndex + 1}` : '';
+
+            checks.push({
+              id: `check_20${idSuffix}`,
+              categorie: 'synthese',
+              niveau: secteurOk ? 'ok' : 'majeur',
+              champ: `Secteur étude indicateurs${suffix}`,
+              localisation: `Synthèse${suffix}, indicateurs éclairage intérieur état initial`,
+              detail: secteurOk ?
+                `Secteur étude conforme : ${attestation.secteurActivite}` :
+                `Secteur étude (${synthese.secteurEtude || 'non trouvé'}) ≠ Secteur CEE (${attestation.secteurActivite})`,
+              valeur_attendue: attestation.secteurActivite || '',
+              valeur_trouvee: synthese.secteurEtude || '',
+              chantierIndex: syntheseIndex + 1
+            });
+          } else {
+            // Fallback
+            const secteurOk = compareStrings(synthese.secteurEtude, references.typeLocal);
+            const suffix = norm.syntheses.length > 1 ? ` chantier ${syntheseIndex + 1}` : '';
+
+            checks.push({
+              id: `check_20${norm.syntheses.length > 1 ? `_c${syntheseIndex + 1}` : ''}`,
+              categorie: 'synthese',
+              niveau: secteurOk ? 'ok' : 'majeur',
+              champ: `Secteur étude indicateurs${suffix}`,
+              localisation: `Synthèse${suffix}, indicateurs éclairage intérieur état initial`,
+              detail: 'Vérification secteur d\'étude',
+              valeur_attendue: references.typeLocal || '',
+              valeur_trouvee: synthese.secteurEtude || '',
+              chantierIndex: syntheseIndex + 1
+            });
+          }
+        });
+      } else {
+        checks.push({
+          id: 'check_20',
+          categorie: 'synthese',
+          niveau: compareStrings(firstSynthese.secteurEtude, references.typeLocal) ? 'ok' : 'majeur',
+          champ: 'Secteur étude indicateurs initial',
+          localisation: `Synthèse, indicateurs éclairage intérieur état initial${chantierSuffix}`,
+          detail: 'Vérification secteur d\'étude',
+          valeur_attendue: references.typeLocal || '',
+          valeur_trouvee: firstSynthese.secteurEtude || ''
+        });
+      }
 
       // ========== SYNTHÈSE - Inventaire état projeté (21-23) ==========
       // Check 21 : Désactivé en multi-chantiers (déjà vérifié par checks globaux)
@@ -3377,8 +3463,43 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
         valeur_trouvee: ''
       });
 
-      // Check 23 : Désactivé en multi-chantiers (déjà vérifié par checks mentions agricoles)
-      if (nbChantiers === 1) {
+      // Check 23 : Activité bâtiment par chantier (si attestations disponibles)
+      if (attestationsCEE.length > 0 && norm.syntheses.length > 0) {
+        norm.syntheses.forEach((synthese, syntheseIndex) => {
+          const attestation = attestationsCEE[syntheseIndex];
+          if (attestation && attestation.secteurActivite) {
+            const activiteOk = compareStrings(synthese.activiteBatiment, attestation.secteurActivite);
+            const suffix = norm.syntheses.length > 1 ? ` chantier ${syntheseIndex + 1}` : '';
+            const idSuffix = norm.syntheses.length > 1 ? `_c${syntheseIndex + 1}` : '';
+
+            checks.push({
+              id: `check_23${idSuffix}`,
+              categorie: 'synthese',
+              niveau: activiteOk ? 'ok' : 'majeur',
+              champ: `Activité bâtiment état projeté${suffix}`,
+              localisation: `Synthèse${suffix}, inventaire état projeté (2e tableau)`,
+              detail: activiteOk ?
+                `Activité conforme : ${attestation.secteurActivite}` :
+                `Activité bâtiment (${synthese.activiteBatiment || 'non trouvée'}) ≠ Secteur CEE (${attestation.secteurActivite})`,
+              valeur_attendue: attestation.secteurActivite || '',
+              valeur_trouvee: synthese.activiteBatiment || '',
+              chantierIndex: syntheseIndex + 1
+            });
+          } else if (nbChantiers === 1) {
+            // Fallback mono-chantier
+            checks.push({
+              id: 'check_23',
+              categorie: 'synthese',
+              niveau: compareStrings(synthese.activiteBatiment, references.typeLocal) ? 'ok' : 'majeur',
+              champ: 'Activité bâtiment état projeté (2e tableau)',
+              localisation: 'Synthèse, inventaire état projeté',
+              detail: 'Vérification activité bâtiment',
+              valeur_attendue: references.typeLocal || '',
+              valeur_trouvee: synthese.activiteBatiment || ''
+            });
+          }
+        });
+      } else if (nbChantiers === 1) {
         checks.push({
           id: 'check_23',
           categorie: 'synthese',
