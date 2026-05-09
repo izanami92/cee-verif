@@ -4482,11 +4482,13 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
 
       console.log('\n=== DEBUG GROUPEMENT CHANTIERS ===');
       console.log('Total checks à grouper:', checks.length);
+      console.log('Type de checks:', typeof checks);
+      console.log('Is array?', Array.isArray(checks));
 
-      checks.forEach(check => {
+      checks.forEach((check, index) => {
         const provenance = getCheckProvenance(check);
 
-        console.log(`Check ${check.id}: ${provenance.type} ${provenance.chantierIndex !== null ? 'chantier ' + provenance.chantierIndex : 'CEE global'} | ${check.champ}`);
+        console.log(`[${index}] Check ${check.id}: ${provenance.type} ${provenance.chantierIndex !== null ? 'chantier ' + provenance.chantierIndex : 'CEE global'} | ${check.champ}`);
 
         // Séparer bloquants et majeurs MAIS continuer le groupement
         if (check.niveau === 'bloquant') {
@@ -4533,6 +4535,14 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
       // Convertir Map en Array et trier
       const chantiersArray = Array.from(chantiers.values()).sort((a, b) => a.index - b.index);
 
+      console.log('📊 RÉSULTAT GROUPEMENT:');
+      console.log('  - Bloquants:', bloquants.length);
+      console.log('  - Majeurs:', majeurs.length);
+      console.log('  - Checks CEE:', ceeChecks.length);
+      console.log('  - Nombre de chantiers:', chantiersArray.length);
+      console.log('  - Index des chantiers:', chantiersArray.map(ch => ch.index));
+      console.log('=== FIN DEBUG GROUPEMENT ===\n');
+
       return {
         bloquants,
         majeurs,
@@ -4572,7 +4582,14 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
 
     // Render hiérarchique avec boutons de navigation
     function renderChecksHierarchical(checks, container) {
+      console.log('🔍 AVANT groupChecksByHierarchy - Nombre de checks:', checks.length);
+      console.log('🔍 Premier check:', checks[0]);
+      console.log('🔍 Dernier check:', checks[checks.length - 1]);
+
       const { bloquants, majeurs, cee, chantiers } = groupChecksByHierarchy(checks);
+
+      console.log('🔍 APRÈS groupChecksByHierarchy - Nombre de chantiers créés:', chantiers.length);
+      console.log('🔍 Chantiers détails:', chantiers.map(ch => ({ index: ch.index, audit: ch.audit.length, synthese: ch.synthese.length, adresse: ch.adresse.substring(0, 30) })));
 
       let html = '';
 
