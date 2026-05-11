@@ -38,10 +38,16 @@ export default async function handler(req, res) {
     const authClient = await auth.getClient();
     const sheets = google.sheets({ version: 'v4', auth: authClient });
 
-    // Lire toutes les données du sheet (première feuille, toutes les lignes)
+    // Construire le range avec le nom de l'onglet si défini
+    const tabName = process.env.GOOGLE_SHEET_TAB_NAME || ''; // Si vide, lit le premier onglet
+    const range = tabName ? `${tabName}!A:AO` : 'A:AO';
+
+    console.log(`📊 Lecture Google Sheet - Onglet: "${tabName || 'premier onglet'}", Range: ${range}`);
+
+    // Lire toutes les données du sheet
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: process.env.GOOGLE_SHEET_ID,
-      range: 'A:AO', // De la colonne A à AO (couvre toutes les colonnes mentionnées)
+      range: range,
     });
 
     const rows = response.data.values;
