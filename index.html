@@ -434,6 +434,28 @@
       cursor: not-allowed;
     }
 
+    .btn-reset {
+      background: var(--color-info);
+      color: white;
+      font-family: var(--font-sans);
+    }
+
+    .btn-reset:hover {
+      opacity: 0.9;
+      transform: translateY(-1px);
+      box-shadow: var(--shadow-md);
+    }
+
+    .btn-reset.warning {
+      background: var(--color-warning);
+      color: #7c2d12;
+    }
+
+    .btn-reset.success {
+      background: var(--color-success);
+      color: #14532d;
+    }
+
     /* ========== ZONE PRINCIPALE ========== */
     .main-content {
       padding: var(--spacing-xl);
@@ -1322,6 +1344,9 @@
           </div>
         </div>
 
+        <!-- Bouton nouveau dossier -->
+        <div id="resetButtonContainer" style="margin-top: var(--spacing-xl); padding: var(--spacing-lg); text-align: center; border-top: 2px solid var(--color-border);"></div>
+
       </div>
 
     </main>
@@ -1436,6 +1461,7 @@
 
       messageContent: document.getElementById('messageContent'),
       btnCopyMessage: document.getElementById('btnCopyMessage'),
+      resetButtonContainer: document.getElementById('resetButtonContainer'),
 
       // Google Sheet
       toggleGoogleSheet: document.getElementById('toggleGoogleSheet'),
@@ -4846,6 +4872,40 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
 
       // Message auditeur
       elements.messageContent.textContent = result.message_auditeur || 'Aucun message généré.';
+
+      // Bouton de réinitialisation (adapté selon les points bloquants)
+      let buttonText = '🔄 Nouveau dossier';
+      let buttonClass = 'btn-reset';
+      let statusText = '';
+
+      if (bloquants > 0) {
+        buttonText = '⚠️ À modifier';
+        buttonClass = 'btn-reset warning';
+        statusText = `<div style="color: var(--color-bloquant); font-weight: 600; margin-bottom: var(--spacing-sm);">❌ ${bloquants} point(s) bloquant(s) à corriger</div>`;
+      } else if (majeurs > 0) {
+        buttonText = '⚠️ À corriger';
+        buttonClass = 'btn-reset warning';
+        statusText = `<div style="color: var(--color-warning); font-weight: 600; margin-bottom: var(--spacing-sm);">⚡ ${majeurs} point(s) majeur(s) à corriger</div>`;
+      } else {
+        buttonText = '✅ Prêt à envoyer — Nouveau dossier';
+        buttonClass = 'btn-reset success';
+        statusText = `<div style="color: var(--color-success); font-weight: 600; margin-bottom: var(--spacing-sm);">✅ Dossier conforme</div>`;
+      }
+
+      elements.resetButtonContainer.innerHTML = `
+        ${statusText}
+        <button class="${buttonClass}" onclick="resetApplication()" style="
+          padding: var(--spacing-md) var(--spacing-xl);
+          font-size: 1.125rem;
+          font-weight: 600;
+          border-radius: var(--radius-md);
+          cursor: pointer;
+          transition: all 0.2s;
+          border: 2px solid currentColor;
+        ">
+          ${buttonText}
+        </button>
+      `;
     }
 
     function createCheckCard(check) {
@@ -5864,6 +5924,64 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
         alert('Erreur lors de la copie. Utilisez Ctrl+C manuellement.');
       }
     });
+
+    // ========== RÉINITIALISER APPLICATION ==========
+    function resetApplication() {
+      console.log('🔄 Réinitialisation de l\'application...');
+
+      // Réinitialiser le state
+      state.files = {
+        dossier: null,
+        ficheTechnique: null
+      };
+      state.extractedTexts = {
+        dossier: '',
+        ficheTechnique: ''
+      };
+      state.chantiers = [];
+      state.chantiersDetectes = [];
+      state.analysisResult = null;
+      state.googleSheetData = null;
+
+      // Vider les zones d'upload
+      document.querySelectorAll('.upload-zone').forEach(zone => {
+        zone.classList.remove('has-file');
+        const filename = zone.querySelector('.upload-zone-filename');
+        if (filename) filename.textContent = '';
+      });
+
+      // Réinitialiser les inputs file
+      if (elements.fileDossier) elements.fileDossier.value = '';
+      if (elements.fileFicheTechnique) elements.fileFicheTechnique.value = '';
+
+      // Décocher toutes les checkboxes manuelles
+      document.querySelectorAll('.checklist-item input[type="checkbox"]').forEach(cb => {
+        cb.checked = false;
+      });
+      updateChecklistProgress();
+
+      // Vider le conteneur des chantiers
+      elements.chantiersContainer.innerHTML = '';
+
+      // Cacher les résultats, afficher l'état vide
+      elements.resultsContainer.classList.remove('show');
+      elements.emptyState.classList.add('show');
+
+      // Réactiver le bouton d'analyse
+      elements.btnAnalyze.disabled = true;
+      elements.btnAnalyze.textContent = 'Analyser';
+
+      // Réinitialiser les compteurs
+      elements.counterBloquant.textContent = '0';
+      elements.counterMajeur.textContent = '0';
+      elements.counterConforme.textContent = '0';
+      elements.counterInfo.textContent = '0';
+
+      // Vider le conteneur du bouton reset
+      elements.resetButtonContainer.innerHTML = '';
+
+      console.log('✅ Application réinitialisée');
+    }
 
     // ========== FILTRES PAR NIVEAU (COMPTEURS CLIQUABLES) ==========
     elements.counterBloquant.parentElement.addEventListener('click', () => {
