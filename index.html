@@ -1598,9 +1598,10 @@
       }
 
       elements.searchResults.innerHTML = results.map(result => `
-        <div class="search-result-item" data-nom="${result.nom}" data-siret="${result.siret}" data-adresse="${result.adresse}">
+        <div class="search-result-item" data-nom="${result.nom}" data-siret="${result.siret}" data-adresse="${result.adresse}" data-codenaf="${result.codeNaf || ''}">
           <div class="search-result-name">${result.nom}</div>
           <div class="search-result-siret">SIRET: ${result.siret}</div>
+          <div class="search-result-naf" style="font-size: 12px; color: #666; margin-top: 4px;">NAF: ${result.codeNaf || 'Non disponible'}</div>
         </div>
       `).join('');
 
@@ -1612,6 +1613,10 @@
           elements.refNom.value = item.dataset.nom;
           elements.refSiret.value = item.dataset.siret;
           elements.refAdresse.value = item.dataset.adresse;
+
+          // Stocker le code NAF pour détection attestation manquante
+          window.selectedCodeNaf = item.dataset.codenaf || '';
+          console.log('📌 Code NAF sélectionné:', window.selectedCodeNaf);
 
           elements.refNom.classList.add('auto-filled');
           elements.refSiret.classList.add('auto-filled');
@@ -2606,6 +2611,26 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
         }
 
         updateProgress(100, 'Analyse terminée !');
+
+        // Détecter les attestations manquantes (secteur "Autres" ou NAF non agricole)
+        if (extractedData && extractedData.cee && extractedData.cee.attestations) {
+          const codeNaf = window.selectedCodeNaf || '';
+          const isAgricole = codeNaf.startsWith('01.') || codeNaf.startsWith('02.');
+
+          extractedData.cee.attestations.forEach((attestation, index) => {
+            const secteur = attestation.secteurActivite || '';
+            const isAutres = secteur.toLowerCase().includes('autres');
+
+            if (isAutres || !isAgricole) {
+              attestation.surfaceManuelle = true;
+              attestation.surfaceManuelleSaisie = null; // Sera rempli par l'utilisateur
+              console.log(`⚠️ Chantier ${index + 1}: Attestation manquante (${isAutres ? 'Secteur "Autres"' : 'NAF non agricole: ' + codeNaf})`);
+            }
+          });
+
+          // Stocker extractedData dans result pour l'affichage
+          result.extractedData = extractedData;
+        }
 
         // Afficher les résultats
         setTimeout(() => {

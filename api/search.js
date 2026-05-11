@@ -48,7 +48,8 @@ export default async function handler(req, res) {
       nom: entreprise.nom_complet || entreprise.nom_raison_sociale || '',
       siret: entreprise.siege?.siret || '',
       adresse: formatAdresse(entreprise.siege),
-      activite: entreprise.activite_principale || '',
+      codeNaf: entreprise.activite_principale || '', // Code NAF/APE (ex: "01.11Z")
+      activite: entreprise.activite_principale || '', // Gardé pour compatibilité
       etat: entreprise.etat_administratif || '',
     }));
 
