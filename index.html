@@ -4354,6 +4354,266 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
       return message;
     }
 
+    // ========== SAISIE MANUELLE DES SURFACES ==========
+    function displayManualSurfaceInputs(extractedData) {
+      // Supprimer la section existante si elle existe
+      const existingSection = document.getElementById('manual-surfaces-section');
+      if (existingSection) {
+        existingSection.remove();
+      }
+
+      if (!extractedData || !extractedData.cee || !extractedData.cee.attestations) {
+        return;
+      }
+
+      const attestationsManquantes = extractedData.cee.attestations.filter(att => att.surfaceManuelle);
+
+      if (attestationsManquantes.length === 0) {
+        return; // Pas de saisie manuelle nécessaire
+      }
+
+      // Créer la section
+      const section = document.createElement('div');
+      section.id = 'manual-surfaces-section';
+      section.style.cssText = 'background: #FFF9E6; border: 2px solid #FFB800; border-radius: 8px; padding: 1.5rem; margin: 1rem 0;';
+
+      section.innerHTML = `
+        <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem;">
+          <span style="font-size: 1.5rem;">⚠️</span>
+          <h3 style="margin: 0; color: #CC7000;">Saisie manuelle requise</h3>
+        </div>
+        <p style="margin: 0 0 1rem 0; color: #666;">
+          Les attestations sur l'honneur ne sont pas présentes pour ${attestationsManquantes.length} chantier(s)
+          (secteur "Autres" ou activité non agricole). Veuillez saisir les surfaces manuellement.
+        </p>
+        <div id="manual-inputs-container"></div>
+        <button id="validate-manual-surfaces" style="margin-top: 1rem; padding: 0.75rem 1.5rem; background: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600;">
+          ✓ Valider et recalculer
+        </button>
+      `;
+
+      // Insérer après la bannière page de garde
+      const banner = elements.pageGardeBanner;
+      banner.parentNode.insertBefore(section, banner.nextSibling);
+
+      // Créer les champs de saisie
+      const container = document.getElementById('manual-inputs-container');
+      attestationsManquantes.forEach((attestation, index) => {
+        const chantierIndex = extractedData.cee.attestations.indexOf(attestation) + 1;
+
+        const inputHTML = `
+          <div style="background: white; padding: 1rem; border-radius: 4px; margin-bottom: 0.75rem;">
+            <div style="font-weight: 600; margin-bottom: 0.5rem;">
+              📍 Chantier ${chantierIndex} : ${attestation.adresse || 'Adresse inconnue'}
+            </div>
+            <div style="display: flex; gap: 1rem; align-items: center;">
+              <label style="flex: 0 0 150px;">Surface totale (m²) :</label>
+              <input
+                type="number"
+                id="surface-manual-${chantierIndex}"
+                data-chantier-index="${chantierIndex}"
+                placeholder="Ex: 850"
+                style="flex: 1; padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px;"
+              />
+            </div>
+            <div style="font-size: 0.85rem; color: #666; margin-top: 0.5rem;">
+              Raison : ${attestation.surfaceManuelle ?
+                (attestation.secteurActivite?.toLowerCase().includes('autres') ?
+                  'Secteur "Autres"' :
+                  `Code NAF non agricole (${window.selectedCodeNaf || 'N/A'})`)
+                : ''}
+            </div>
+          </div>
+        `;
+        container.innerHTML += inputHTML;
+      });
+
+      // Gérer la validation
+      document.getElementById('validate-manual-surfaces').addEventListener('click', () => {
+        validateAndRecalculate(extractedData);
+      });
+    }
+
+    function validateAndRecalculate(extractedData) {
+      // Récupérer les valeurs saisies
+      let allFilled = true;
+      extractedData.cee.attestations.forEach((attestation, index) => {
+        if (attestation.surfaceManuelle) {
+          const input = document.getElementById(`surface-manual-${index + 1}`);
+          if (input) {
+            const value = input.value.trim();
+            if (value && !isNaN(value)) {
+              attestation.surfaceManuelleSaisie = parseFloat(value);
+              attestation.surfaces = [parseFloat(value)]; // Remplacer les surfaces par la valeur manuelle
+            } else {
+              allFilled = false;
+            }
+          }
+        }
+      });
+
+      if (!allFilled) {
+        alert('⚠️ Veuillez remplir toutes les surfaces avant de valider.');
+        return;
+      }
+
+      // Recalculer les checks avec les nouvelles surfaces
+      console.log('✅ Surfaces manuelles validées, recalcul en cours...');
+      recalculateSurfaceChecks(extractedData);
+
+      // Masquer la section de saisie manuelle
+      const manualSection = document.getElementById('manual-surfaces-section');
+      if (manualSection) {
+        manualSection.style.display = 'none';
+      }
+
+      // Rafraîchir l'affichage des résultats
+      refreshDisplayAfterRecalculation();
+
+      alert('✅ Surfaces validées et checks recalculés !');
+    }
+
+    // Recalculer uniquement les checks de surfaces (check_43 et check_44)
+    function recalculateSurfaceChecks(extractedData) {
+      const norm = normalizeExtracted(extractedData);
+      const attestations = norm.cee?.attestations || [];
+
+      if (attestations.length === 0) return;
+
+      // Grouper les attestations par adresse (même logique que generateChecks)
+      const attestationsNormalized = attestations.map((att, idx) => {
+        const cleaned = (att.adresse || '')
+          .replace(/\s*-?\s*(BAT|Bat|bât|bat|BATIMENT|Batiment|Bâtiment|bâtiment)\s*\d+\s*/gi, ' ')
+          .trim();
+        return {
+          original: att,
+          normalizedAddress: cleaned.toLowerCase(),
+          index: idx
+        };
+      });
+
+      const attestationsByChantier = new Map();
+      attestationsNormalized.forEach(attNorm => {
+        if (!attestationsByChantier.has(attNorm.normalizedAddress)) {
+          attestationsByChantier.set(attNorm.normalizedAddress, []);
+        }
+        attestationsByChantier.get(attNorm.normalizedAddress).push(attNorm);
+      });
+
+      // Pour chaque chantier, recalculer les checks
+      let chantierIndex = 0;
+      attestationsByChantier.forEach((attestationsGroupe, adresseNormalisee) => {
+        const chantierAdresse = attestationsGroupe[0].original.adresse || '';
+
+        // Sommer toutes les surfaces des attestations de ce chantier
+        const toutesLesSurfaces = [];
+        attestationsGroupe.forEach(attNorm => {
+          const surfaces = attNorm.original.surfaces || [];
+          toutesLesSurfaces.push(...surfaces);
+        });
+        const sommeAttestationTotale = sumSurfaces(toutesLesSurfaces);
+        const surfacesAttestation = toutesLesSurfaces;
+
+        // Trouver l'audit et la synthèse correspondants
+        const auditCorrespondant = norm.audits[chantierIndex] || null;
+        const syntheseCorrespondante = norm.syntheses[chantierIndex] || null;
+
+        const nbChantiers = attestationsByChantier.size;
+        const chantierLabel = nbChantiers > 1 ?
+          ` (Chantier ${chantierIndex + 1} : ${chantierAdresse.substring(0, 30)}...)` :
+          '';
+
+        // Recalculer check_43 : Somme Audit = Somme attestation
+        if (auditCorrespondant) {
+          const surfacesAudit = auditCorrespondant.surfaces || [];
+          const sommeAudit = sumSurfaces(surfacesAudit);
+
+          if (surfacesAudit.length > 0 && sommeAudit > 0) {
+            const sommesAuditMatch = Math.abs(sommeAttestationTotale - sommeAudit) < 1; // Tolérance 1 m²
+            const checkId = `check_43_${chantierIndex}`;
+
+            // Trouver et mettre à jour le check existant
+            const existingCheckIndex = state.analysisResult.checks.findIndex(c => c.id === checkId);
+            if (existingCheckIndex !== -1) {
+              state.analysisResult.checks[existingCheckIndex] = {
+                id: checkId,
+                categorie: 'audit',
+                niveau: sommesAuditMatch ? 'ok' : 'majeur',
+                champ: `Somme surfaces Audit = Somme attestation${chantierLabel}`,
+                localisation: `Total Audit observations vs Total attestation honneur chantier ${chantierIndex + 1}`,
+                detail: sommesAuditMatch ?
+                  `Somme Audit cohérente avec attestation : ${sommeAttestationTotale} m²` :
+                  `Somme Audit (${sommeAudit} m²) différente de l'attestation (${sommeAttestationTotale} m²)`,
+                valeur_attendue: surfacesAttestation.join(' + ') + ' = ' + sommeAttestationTotale.toString() + ' m²',
+                valeur_trouvee: surfacesAudit.join(' + ') + ' = ' + sommeAudit.toString() + ' m²',
+                chantierIndex: chantierIndex + 1
+              };
+              console.log(`✓ Check ${checkId} recalculé : ${sommesAuditMatch ? 'OK' : 'MAJEUR'}`);
+            }
+          }
+        }
+
+        // Recalculer check_44 : Somme surfaces attestations = surface éclairée synthèse
+        if (syntheseCorrespondante) {
+          const surfaceSynthese = syntheseCorrespondante.surfaceEclairee || '';
+          const surfaceSyntheseNum = parseFloat(String(surfaceSynthese).replace(/\s+/g, '').replace(/m²/g, '').replace(/,/g, '.')) || 0;
+
+          if (surfaceSynthese && surfaceSyntheseNum > 0) {
+            const sommeSyntheseMatch = Math.abs(sommeAttestationTotale - surfaceSyntheseNum) < 1; // Tolérance 1 m²
+            const checkId = `check_44_${chantierIndex}`;
+
+            // Trouver et mettre à jour le check existant
+            const existingCheckIndex = state.analysisResult.checks.findIndex(c => c.id === checkId);
+            if (existingCheckIndex !== -1) {
+              state.analysisResult.checks[existingCheckIndex] = {
+                id: checkId,
+                categorie: 'synthese',
+                niveau: sommeSyntheseMatch ? 'ok' : 'majeur',
+                champ: `Surface Synthèse = Somme attestation${chantierLabel}`,
+                localisation: `Synthèse fiche identité vs Attestation honneur chantier ${chantierIndex + 1}`,
+                detail: sommeSyntheseMatch ?
+                  `Surface Synthèse cohérente avec attestation : ${sommeAttestationTotale} m²` :
+                  `Surface Synthèse (${surfaceSyntheseNum} m²) différente de l'attestation (${sommeAttestationTotale} m²)`,
+                valeur_attendue: surfacesAttestation.join(' + ') + ' = ' + sommeAttestationTotale.toString() + ' m²',
+                valeur_trouvee: surfaceSyntheseNum.toString() + ' m²',
+                chantierIndex: chantierIndex + 1
+              };
+              console.log(`✓ Check ${checkId} recalculé : ${sommeSyntheseMatch ? 'OK' : 'MAJEUR'}`);
+            }
+          }
+        }
+
+        chantierIndex++;
+      });
+    }
+
+    // Rafraîchir l'affichage des résultats après recalcul
+    function refreshDisplayAfterRecalculation() {
+      if (!state.analysisResult || !state.analysisResult.checks) return;
+
+      // Recalculer le message auditeur
+      state.analysisResult.message_auditeur = buildMessageAuditeur(state.analysisResult.checks);
+
+      // Mettre à jour les compteurs
+      const checks = state.analysisResult.checks || [];
+      currentChecks = checks; // Mettre à jour currentChecks pour le filtrage
+      const bloquants = checks.filter(c => c.niveau === 'bloquant').length;
+      const majeurs = checks.filter(c => c.niveau === 'majeur').length;
+      const conformes = checks.filter(c => c.niveau === 'ok').length;
+      const infos = checks.filter(c => c.niveau === 'info').length;
+
+      elements.counterBloquant.textContent = bloquants;
+      elements.counterMajeur.textContent = majeurs;
+      elements.counterConforme.textContent = conformes;
+      elements.counterInfo.textContent = infos;
+
+      // Rafraîchir la liste des checks affichés
+      refreshDisplay();
+
+      // Mettre à jour le message auditeur
+      elements.messageContent.textContent = state.analysisResult.message_auditeur || 'Aucun message généré.';
+    }
+
     // ========== AFFICHAGE DES RÉSULTATS ==========
     function displayResults(result) {
       state.analysisResult = result;
@@ -4370,6 +4630,9 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
         elements.pageGardeBanner.className = 'page-garde-banner ko';
         elements.pageGardeBanner.textContent = '✗ Page de garde à corriger avant envoi client';
       }
+
+      // Section saisie manuelle des surfaces (si attestations manquantes)
+      displayManualSurfaceInputs(result.extractedData);
 
       // Compter par niveau
       const checks = result.checks || [];
