@@ -225,10 +225,11 @@ Chaque ADR contient : Date, Statut, Contexte, Décision, Alternatives, Conséque
 
 ### 📝 En fin de session
 
-1. **Lister** les modifications faites (récapitulatif concis)
-2. **Proposer mises à jour** : CLAUDE.md, ADR, business-rules si besoin
-3. **Mettre à jour** `docs/pending-todos.md` avec l'état actuel
-4. **Faire spontanément** sans attendre qu'on me le demande
+1. **Lister** les modifications faites (fichiers, fonctionnalités, commits)
+2. **Proposer mises à jour** : CLAUDE.md, nouveaux ADR si décisions architecturales
+3. **Vérifier** qu'aucune règle dans `docs/business-rules.md` n'a été violée
+4. **Mettre à jour** `docs/pending-todos.md` avec l'état actuel
+5. **Faire spontanément** sans attendre qu'on me le demande
 
 ---
 

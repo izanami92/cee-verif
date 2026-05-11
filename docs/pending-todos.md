@@ -478,6 +478,32 @@ CREATE TABLE analyses (
 
 ---
 
+### ✅ TODO #18 : Documentation complète Phase 1-2-3
+
+**Statut** : ✅ **COMPLÉTÉ** (12 mai 2026)
+
+**Travaux effectués** :
+- Phase 1 (ANALYSE) : Lecture et analyse complète projet + mémoire
+- Phase 2 (PROPOSITION) : Création 6 nouveaux ADRs (006-011) pour travail 8-9 mai
+- Phase 3 (VALIDATION/MERGE) : Merge de tous les .proposed vers versions finales
+- Restructure CLAUDE.md (10 sections + rituel de session)
+- Cross-référencement exhaustif ADRs ↔ business-rules ↔ known-pitfalls
+
+**Résultat** :
+- 1 fichier restructuré : CLAUDE.md (383 lignes)
+- 11 ADRs complets : docs/decisions/001-011-*.md
+- 3 docs métier : business-rules (615L), known-pitfalls (543L), pending-todos (541L)
+- Documentation couvre 100% du travail mai 5-11
+
+**Commits** :
+- `1a3a8b7` - "docs: restructure complète documentation avec 11 ADRs (mai 5-11)"
+
+**Sources** :
+- [Session 12 mai 2026]
+- [Transcripts Phase 1-2-3]
+
+---
+
 ## 📊 STATISTIQUES
 
 **TODOs actifs** : 8
@@ -485,13 +511,14 @@ CREATE TABLE analyses (
 - 🟡 Importantes : 3
 - 🟢 Nice to have : 3
 
-**TODOs complétés récemment** : 9 (7-11 mai 2026)
+**TODOs complétés récemment** : 10 (7-12 mai 2026)
 - 7 mai : Multi-chantiers (ADR 003)
 - 8 mai : Sélecteur LED (ADR 006), Normalisation adresses (ADR 007), Extraction CLIENT (ADR 008)
 - 9 mai : UX hiérarchique (ADR 009), Secteur par chantier (ADR 010), Matching INDEX (ADR 011)
 - 11 mai : Google Sheets (ADR 004), Support NAF (ADR 005)
+- 12 mai : Documentation complète Phase 1-2-3 (TODO #18)
 
-**Taux de complétion** : 53% (9/17)
+**Taux de complétion** : 56% (10/18)
 
 ---
 
@@ -537,5 +564,5 @@ Ce document doit être mis à jour :
 
 ---
 
-**Dernière révision** : 11 mai 2026
+**Dernière révision** : 12 mai 2026
 **Prochaine révision** : Fin de session actuelle
