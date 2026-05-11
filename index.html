@@ -2618,7 +2618,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
             console.log('🔍 SIRET détecté, récupération automatique du code NAF...');
             const siret = extractedData.cee.siret;
             console.log('   SIRET utilisé:', siret);
-            const nafResponse = await fetch(`/api/search?q=${encodeURIComponent(siret)}&password=${sessionPassword}`);
+            const nafResponse = await fetch(`/api/search?q=${encodeURIComponent(siret)}`);
 
             console.log('   Statut réponse API:', nafResponse.status, nafResponse.statusText);
 
