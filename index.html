@@ -2962,9 +2962,9 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
       const clean = (a) => {
         let cleaned = normalize(String(a || ''));
 
-        // Supprimer les mentions de bâtiment : "BAT 2", "batiment 1", "bâtiment 3", etc.
+        // Supprimer les mentions de bâtiment : "BAT 2", "batiment 1", "bâtiment 3", "batiments 1-2-3-4", etc.
         cleaned = cleaned
-          .replace(/\b(bat|batiment|bâtiment|batiments|bâtiments)\s*\d+\b/gi, '')
+          .replace(/\b(bat|batiment|bâtiment|batiments|bâtiments)\s*[\d\-]+/gi, '')
           .replace(/\b(bat|batiment|bâtiment|batiments|bâtiments)\b/gi, '')
           .replace(/,/g, ' ')  // Supprimer virgules (déjà présent mais critique)
           .replace(/\bfrance\b/gi, '')
