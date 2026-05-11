@@ -199,6 +199,14 @@ RÈGLES D'EXTRACTION CRITIQUES :
    EXEMPLE INCORRECT (2 adresses mélangées en une) :
    ❌ "adressesChantiers": ["route de la raimbaudiere 49380 bellevigne-en-layon 10 la brosse de chanzeaux 49750 chemillé-en-anjou"]
 
+   ⚠️ ADRESSES - NE PAS INCLURE MENTIONS DE BÂTIMENTS :
+   - NE JAMAIS inclure dans l'adresse : "batiment 1", "BAT 2", "batiments 1-2-3-4", "bâtiment A", etc.
+   - Ces mentions décrivent la STRUCTURE du site, pas l'adresse géographique
+   - Extraire UNIQUEMENT l'adresse postale : rue, code postal, ville
+   - EXEMPLE CORRECT : "LA MAZURIE 85190 VENANSAULT"
+   - EXEMPLE INCORRECT : "LA MAZURIE - batiments 1-2-3-4 LA MAZURIE 85190 VENANSAULT" ❌
+   - Si tu vois "La Mazurie - batiments 1-2-3-4, LA MAZURIE, 85190 VENANSAULT" → extraire "LA MAZURIE 85190 VENANSAULT"
+
 CEE - FACTURE ET ATTESTATIONS (EXTRACTION PAR CHANTIER) :
 - Dans la FACTURE, pour CHAQUE ligne "Mise en place de luminaires à modules LED" :
   - Identifier l'adresse du chantier dans le détail (ex: "route de la raimbaudière - 066/ZA/0006")
