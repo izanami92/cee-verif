@@ -4585,6 +4585,86 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
 
         chantierIndex++;
       });
+
+      // ========== POINT 7 : VÉRIFICATION GLOBALE DES SURFACES MANUELLES ==========
+      // Calculer la somme totale de toutes les surfaces manuelles saisies
+      const surfacesManuellesTotales = [];
+      attestations.forEach(att => {
+        if (att.surfaceManuelle && att.surfaces && att.surfaces.length > 0) {
+          surfacesManuellesTotales.push(...att.surfaces);
+        }
+      });
+
+      if (surfacesManuellesTotales.length > 0) {
+        const sommeManuelleTotale = sumSurfaces(surfacesManuellesTotales);
+
+        // Calculer la somme de toutes les surfaces des audits
+        let sommeTotaleAudits = 0;
+        norm.audits.forEach(audit => {
+          if (audit.surfaces && audit.surfaces.length > 0) {
+            sommeTotaleAudits += sumSurfaces(audit.surfaces);
+          }
+        });
+
+        // Calculer la somme de toutes les surfaces éclairées des synthèses
+        let sommeTotaleSyntheses = 0;
+        norm.syntheses.forEach(synthese => {
+          if (synthese.surfaceEclairee) {
+            const surfaceNum = parseFloat(String(synthese.surfaceEclairee).replace(/\s+/g, '').replace(/m²/g, '').replace(/,/g, '.')) || 0;
+            sommeTotaleSyntheses += surfaceNum;
+          }
+        });
+
+        // Check 45 : Somme surfaces manuelles = Somme surfaces audits
+        const auditGlobalMatch = Math.abs(sommeManuelleTotale - sommeTotaleAudits) < 1;
+        const check45Id = 'check_45_global';
+        const check45Index = state.analysisResult.checks.findIndex(c => c.id === check45Id);
+
+        const check45 = {
+          id: check45Id,
+          categorie: 'audit',
+          niveau: auditGlobalMatch ? 'ok' : 'majeur',
+          champ: 'Somme surfaces manuelles = Somme audits (global)',
+          localisation: 'Vérification globale - Tous chantiers',
+          detail: auditGlobalMatch ?
+            `Somme globale cohérente : ${sommeManuelleTotale} m²` :
+            `Somme surfaces manuelles (${sommeManuelleTotale} m²) ≠ Somme audits (${sommeTotaleAudits} m²)`,
+          valeur_attendue: sommeTotaleAudits.toString() + ' m²',
+          valeur_trouvee: sommeManuelleTotale.toString() + ' m²'
+        };
+
+        if (check45Index !== -1) {
+          state.analysisResult.checks[check45Index] = check45;
+        } else {
+          state.analysisResult.checks.push(check45);
+        }
+        console.log(`✓ Check ${check45Id} recalculé : ${auditGlobalMatch ? 'OK' : 'MAJEUR'}`);
+
+        // Check 46 : Somme surfaces manuelles = Somme surfaces synthèses
+        const syntheseGlobalMatch = Math.abs(sommeManuelleTotale - sommeTotaleSyntheses) < 1;
+        const check46Id = 'check_46_global';
+        const check46Index = state.analysisResult.checks.findIndex(c => c.id === check46Id);
+
+        const check46 = {
+          id: check46Id,
+          categorie: 'synthese',
+          niveau: syntheseGlobalMatch ? 'ok' : 'majeur',
+          champ: 'Somme surfaces manuelles = Somme synthèses (global)',
+          localisation: 'Vérification globale - Tous chantiers',
+          detail: syntheseGlobalMatch ?
+            `Somme globale cohérente : ${sommeManuelleTotale} m²` :
+            `Somme surfaces manuelles (${sommeManuelleTotale} m²) ≠ Somme synthèses (${sommeTotaleSyntheses} m²)`,
+          valeur_attendue: sommeTotaleSyntheses.toString() + ' m²',
+          valeur_trouvee: sommeManuelleTotale.toString() + ' m²'
+        };
+
+        if (check46Index !== -1) {
+          state.analysisResult.checks[check46Index] = check46;
+        } else {
+          state.analysisResult.checks.push(check46);
+        }
+        console.log(`✓ Check ${check46Id} recalculé : ${syntheseGlobalMatch ? 'OK' : 'MAJEUR'}`);
+      }
     }
 
     // Rafraîchir l'affichage des résultats après recalcul
