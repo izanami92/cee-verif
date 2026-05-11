@@ -1891,8 +1891,8 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
 
             // Nettoyer les adresses : supprimer mentions "BAT X", "Bâtiment X" etc.
             const addressPairs = extracted.adresses.map(addr => {
-              // Supprimer les patterns : BAT 1, Bat 2, Bâtiment 3, BATIMENT 4, etc.
-              const cleaned = addr.replace(/\s*-?\s*(BAT|Bat|bât|bat|BATIMENT|Batiment|Bâtiment|bâtiment)\s*\d+\s*/gi, ' ').trim();
+              // Supprimer les patterns : BAT 1, Bat 2, Bâtiment 3, batiments 1-2-3-4, etc.
+              const cleaned = addr.replace(/\s*-?\s*(BAT|Bat|bât|bat|BATIMENT|Batiment|Bâtiment|bâtiment|batiments|Batiments)\s*[\d\-]+/gi, ' ').trim();
               return {
                 original: cleaned,
                 normalized: cleaned.toLowerCase() // Normaliser pour déduplication insensible à la casse
