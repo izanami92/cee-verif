@@ -4644,7 +4644,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
 
           if (surfacesAudit.length > 0 && sommeAudit > 0) {
             const sommesAuditMatch = Math.abs(sommeAttestationTotale - sommeAudit) < 1; // Tolérance 1 m²
-            const checkId = `check_45_${chantierIndex}`;
+            const checkId = `check_44_${chantierIndex}`;
 
             // Trouver et mettre à jour le check existant
             const existingCheckIndex = state.analysisResult.checks.findIndex(c => c.id === checkId);
