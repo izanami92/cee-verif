@@ -263,6 +263,18 @@ MENTIONS AGRICOLES :
    - Format attendu : nombre entier en heures (sans espaces, ex: "54000")
    - Si non trouvé : mettre null
 
+8. NOMS ALTERNATIFS DES SECTIONS (anciens dossiers) :
+   Les sections peuvent avoir des noms différents selon les versions :
+
+   - "État initial" peut aussi être appelé "Situation actuelle"
+   - "État projeté" peut aussi être appelé "Nouvelle solution d'éclairage"
+
+   Chercher les données dans les deux variantes possibles.
+   Exemples :
+   - totalLedInitial : chercher dans "État initial" OU "Situation actuelle"
+   - totalLedProjete : chercher dans "État projeté" OU "Nouvelle solution d'éclairage"
+   - activiteBatiment : chercher dans "État projeté" OU "Nouvelle solution"
+
 FORMAT DE RÉPONSE (JSON uniquement) :
 \`\`\`json
 {
@@ -295,9 +307,9 @@ FORMAT DE RÉPONSE (JSON uniquement) :
       "parcelles": "Parcelles cadastrales fiche identité",
       "nombreBatiments": "Nombre de bâtiments périmètre étude",
       "ledTotal": "Total LED inventaire projet",
-      "totalLedInitial": "Total LED état initial",
-      "totalLedProjete": "Total LED état projeté",
-      "activiteBatiment": "Activité bâtiment état projeté",
+      "totalLedInitial": "Total LED état initial (ou Situation actuelle)",
+      "totalLedProjete": "Total LED état projeté (ou Nouvelle solution d'éclairage)",
+      "activiteBatiment": "Activité bâtiment état projeté (ou Nouvelle solution)",
       "profilUtilisation": "Profil utilisation",
       "thd": "THD caractéristiques luminaires",
       "referenceProduit": "Référence produit",

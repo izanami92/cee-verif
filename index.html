@@ -3652,7 +3652,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
         norm.syntheses.forEach((synthese, syntheseIndex) => {
           const attestation = attestationsCEE[syntheseIndex];
           if (attestation && attestation.secteurActivite) {
-            const secteurOk = compareStrings(synthese.secteurEtude, attestation.secteurActivite);
+            const secteurOk = compareSecteurEtude(synthese.secteurEtude, attestation.secteurActivite);
             const suffix = norm.syntheses.length > 1 ? ` chantier ${syntheseIndex + 1}` : '';
             const idSuffix = norm.syntheses.length > 1 ? `_c${syntheseIndex + 1}` : '';
 
@@ -3671,7 +3671,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
             });
           } else {
             // Fallback
-            const secteurOk = compareStrings(synthese.secteurEtude, references.typeLocal);
+            const secteurOk = compareSecteurEtude(synthese.secteurEtude, references.typeLocal);
             const suffix = norm.syntheses.length > 1 ? ` chantier ${syntheseIndex + 1}` : '';
 
             checks.push({
