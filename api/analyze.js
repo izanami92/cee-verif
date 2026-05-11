@@ -248,7 +248,8 @@ MENTIONS AGRICOLES :
    - date : date de l'audit (visible en haut de page 1)
    - SIRET : SIRET du CLIENT (14 chiffres, PAS celui de Prime Evolution)
    - surfaces : surfaces des bâtiments si mentionnées
-   - ledTotal : nombre total de LED
+   - ledTotal : nombre total de LED (page 1)
+   - pceLuminaires : nombre TOTAL de Pce depuis la "Liste des luminaires" (tableau avec colonnes Pce/Fabricant/Article/etc.)
    - profilUtilisation : profil d'utilisation (entrepôt, logistique, etc.)
 
    NE PAS prendre l'adresse ou le code postal depuis d'autres pages de l'audit !
@@ -273,6 +274,7 @@ FORMAT DE RÉPONSE (JSON uniquement) :
       "siret": "SIRET sans espaces",
       "surfaces": ["850", "456"],
       "ledTotal": "36",
+      "pceLuminaires": "60",
       "profilUtilisation": "Profil/type"
     }
   ],

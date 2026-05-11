@@ -2659,6 +2659,50 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
       return normalized;
     }
 
+    // Comparer deux parcelles cadastrales (supprimer TOUS les espaces)
+    function compareParcelles(val1, val2) {
+      const clean = (v) => String(v || '').replace(/\s+/g, '').toLowerCase();
+      const clean1 = clean(val1);
+      const clean2 = clean(val2);
+      const result = clean1 === clean2;
+
+      if (!result) {
+        console.log(`[compareParcelles] ÉCHEC: "${val1}" (→ "${clean1}") vs "${val2}" (→ "${clean2}")`);
+      }
+
+      return result;
+    }
+
+    // Comparer secteur d'étude (ignorer chiffres au début + détection Entrepôt/Logistique)
+    function compareSecteurEtude(val1, val2) {
+      const clean = (v) => {
+        let cleaned = String(v || '').trim();
+        // Supprimer les chiffres au début
+        cleaned = cleaned.replace(/^\d+\s*/, '');
+        return normalize(cleaned);
+      };
+
+      const clean1 = clean(val1);
+      const clean2 = clean(val2);
+
+      // Comparaison directe
+      if (clean1 === clean2) return true;
+
+      // Détection Entrepôt/Logistique
+      const isEntrepot = (str) => {
+        const s = str.toLowerCase();
+        return s.includes('entrepot') || s.includes('entrepôt') || s.includes('logistique');
+      };
+
+      if (isEntrepot(clean1) && isEntrepot(clean2)) {
+        console.log(`[compareSecteurEtude] OK (Entrepôt/Logistique): "${val1}" ≈ "${val2}"`);
+        return true;
+      }
+
+      console.log(`[compareSecteurEtude] ÉCHEC: "${val1}" (→ "${clean1}") vs "${val2}" (→ "${clean2}")`);
+      return false;
+    }
+
     // Comparer deux chaînes après normalisation
     // Comparer deux nombres ou pourcentages (supprime TOUS les espaces)
     function compareNumber(val1, val2) {
@@ -3541,7 +3585,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
         checks.push({
           id: `check_15${idSuffix}`,
           categorie: 'synthese',
-          niveau: compareStrings(synthese.parcelles, references.parcelles) ? 'ok' : 'majeur',
+          niveau: compareParcelles(synthese.parcelles, references.parcelles) ? 'ok' : 'majeur',
           champ: `Parcelles cadastrales Synthèse fiche identité${suffix}`,
           localisation: `Synthèse${suffix}, fiche identité du site`,
           detail: 'Vérification parcelles (format 000/0B/XXXX)',
@@ -3647,7 +3691,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
         checks.push({
           id: 'check_20',
           categorie: 'synthese',
-          niveau: compareStrings(firstSynthese.secteurEtude, references.typeLocal) ? 'ok' : 'majeur',
+          niveau: compareSecteurEtude(firstSynthese.secteurEtude, references.typeLocal) ? 'ok' : 'majeur',
           champ: 'Secteur étude indicateurs initial',
           localisation: `Synthèse, indicateurs éclairage intérieur état initial${chantierSuffix}`,
           detail: 'Vérification secteur d\'étude',
@@ -3756,6 +3800,23 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
           detail: 'Vérification site = client',
           valeur_attendue: references.nom || '',
           valeur_trouvee: audit.nom || '',
+          chantierIndex
+        });
+
+        // Check 25 : Adresse Audit description
+        // Comparer avec l'adresse du chantier correspondant depuis le CEE
+        const adresseChantierCEE = norm.cee?.attestations?.[auditIndex]?.adresse || norm.cee?.adressesChantiers?.[auditIndex] || '';
+        const adresseMatch = compareAddress(audit.adresse, adresseChantierCEE);
+
+        checks.push({
+          id: `check_25${idSuffix}`,
+          categorie: 'audit',
+          niveau: adresseMatch ? 'ok' : 'majeur',
+          champ: `Adresse Audit description${suffix}`,
+          localisation: `Audit${suffix}, description`,
+          detail: 'Vérification adresse',
+          valeur_attendue: adresseChantierCEE,
+          valeur_trouvee: audit.adresse || '',
           chantierIndex
         });
 
