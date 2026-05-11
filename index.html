@@ -4525,6 +4525,8 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
     function groupChecksByHierarchy(checks) {
       const bloquants = [];
       const majeurs = [];
+      const infos = [];
+      const conformes = [];
       const ceeChecks = [];
       const chantiers = new Map(); // Map<chantierIndex, {audit: [], synthese: []}>
 
@@ -4538,14 +4540,15 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
 
         console.log(`[${index}] Check ${check.id}: ${provenance.type} ${provenance.chantierIndex !== null ? 'chantier ' + provenance.chantierIndex : 'CEE global'} | ${check.champ}`);
 
-        // Séparer bloquants et majeurs MAIS continuer le groupement
+        // Séparer par niveau MAIS continuer le groupement
         if (check.niveau === 'bloquant') {
           bloquants.push({ ...check, provenance });
-          // PAS de return → on continue pour les grouper aussi par provenance
-        }
-        if (check.niveau === 'majeur') {
+        } else if (check.niveau === 'majeur') {
           majeurs.push({ ...check, provenance });
-          // PAS de return → on continue pour les grouper aussi par provenance
+        } else if (check.niveau === 'info') {
+          infos.push({ ...check, provenance });
+        } else if (check.niveau === 'ok') {
+          conformes.push({ ...check, provenance });
         }
 
         // Grouper par document source (TOUS les checks, y compris bloquants/majeurs)
@@ -4582,6 +4585,8 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
       console.log('📊 RÉSULTAT GROUPEMENT:');
       console.log('  - Bloquants:', bloquants.length);
       console.log('  - Majeurs:', majeurs.length);
+      console.log('  - Infos:', infos.length);
+      console.log('  - Conformes:', conformes.length);
       console.log('  - Checks CEE:', ceeChecks.length);
       console.log('  - Nombre de chantiers:', chantiersArray.length);
       console.log('  - Index des chantiers:', chantiersArray.map(ch => ch.index));
@@ -4590,6 +4595,8 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
       return {
         bloquants,
         majeurs,
+        infos,
+        conformes,
         cee: ceeChecks,
         chantiers: chantiersArray
       };
@@ -4621,6 +4628,46 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
       return checks.some(c => c.niveau === 'bloquant' || c.niveau === 'majeur');
     }
 
+    // Trier les checks par priorité et afficher avec section conformes pliable
+    function renderChecksSortedWithCollapsible(checks, sectionPrefix = 'checks') {
+      if (!checks || checks.length === 0) return '';
+
+      // Trier par priorité : bloquant → majeur → info → ok
+      const bloquants = checks.filter(c => c.niveau === 'bloquant');
+      const majeurs = checks.filter(c => c.niveau === 'majeur');
+      const infos = checks.filter(c => c.niveau === 'info');
+      const conformes = checks.filter(c => c.niveau === 'ok');
+
+      let html = '';
+
+      // Afficher bloquants, majeurs, infos normalement
+      [...bloquants, ...majeurs, ...infos].forEach(check => {
+        html += createCheckCard(check);
+      });
+
+      // Afficher conformes dans une section pliable
+      if (conformes.length > 0) {
+        const conformesId = `${sectionPrefix}-conformes-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        html += `
+          <div class="conformes-collapsible" id="${conformesId}" style="margin-top: var(--spacing-md); border: 1px solid var(--color-success); border-radius: var(--radius-sm); overflow: hidden; background: rgba(34, 197, 94, 0.05);">
+            <div class="conformes-header" style="background: rgba(34, 197, 94, 0.1); padding: var(--spacing-sm); cursor: pointer; display: flex; align-items: center; justify-content: space-between;"
+                 onclick="toggleSectionById('${conformesId}')">
+              <div style="display: flex; align-items: center; gap: 0.5rem; font-weight: 600; font-size: 0.875rem; color: var(--color-success);">
+                <span>✅</span>
+                <span>Points conformes (${conformes.length})</span>
+              </div>
+              <span class="toggle-icon" style="transform: rotate(0deg); transition: transform 0.3s; color: var(--color-success);">▼</span>
+            </div>
+            <div class="section-content" style="display: none; padding: var(--spacing-sm);">
+              ${conformes.map(c => createCheckCard(c)).join('')}
+            </div>
+          </div>
+        `;
+      }
+
+      return html;
+    }
+
     // Variable globale pour la vue active (hierarchical)
     let activeView = 'global'; // 'global', 'chantier-1', 'chantier-2', etc.
 
@@ -4630,7 +4677,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
       console.log('🔍 Premier check:', checks[0]);
       console.log('🔍 Dernier check:', checks[checks.length - 1]);
 
-      const { bloquants, majeurs, cee, chantiers } = groupChecksByHierarchy(checks);
+      const { bloquants, majeurs, infos, conformes, cee, chantiers } = groupChecksByHierarchy(checks);
 
       console.log('🔍 APRÈS groupChecksByHierarchy - Nombre de chantiers créés:', chantiers.length);
       console.log('🔍 Chantiers détails:', chantiers.map(ch => ({ index: ch.index, audit: ch.audit.length, synthese: ch.synthese.length, adresse: ch.adresse.substring(0, 30) })));
@@ -4697,6 +4744,70 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
         `;
       }
 
+      // ========== SECTION 3 : INFOS (pliable par défaut) ==========
+      if (infos.length > 0) {
+        const infosId = 'section-infos-' + Date.now();
+        html += `
+          <div class="section-infos" id="${infosId}" style="margin-bottom: var(--spacing-lg); border: 2px solid var(--color-info); border-radius: var(--radius-md); overflow: hidden; background: rgba(59, 130, 246, 0.1);">
+            <div class="section-header" style="background: var(--color-info); color: white; padding: var(--spacing-md); font-weight: 600; font-size: 1.125rem; display: flex; align-items: center; justify-content: space-between; cursor: pointer;"
+                 onclick="toggleSectionById('${infosId}')">
+              <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <span>ℹ️</span>
+                <span>POINTS INFOS (${infos.length})</span>
+              </div>
+              <span class="toggle-icon" style="transform: rotate(0deg); transition: transform 0.3s;">▼</span>
+            </div>
+            <div class="section-content" style="display: none; padding: var(--spacing-md);">
+              ${infos.map(check => {
+                const provLabel = check.provenance.type === 'cee' ? 'Dossier CEE' :
+                                 check.provenance.type === 'audit' ? `Chantier ${check.provenance.chantierIndex} - Audit` :
+                                 `Chantier ${check.provenance.chantierIndex} - Synthèse`;
+                return `
+                  <div style="margin-bottom: var(--spacing-md);">
+                    <div style="font-weight: 600; color: var(--color-info); font-size: 0.875rem; margin-bottom: 0.5rem; padding-left: 0.25rem; border-left: 3px solid var(--color-info);">
+                      📌 ${provLabel}
+                    </div>
+                    ${createCheckCard(check)}
+                  </div>
+                `;
+              }).join('')}
+            </div>
+          </div>
+        `;
+      }
+
+      // ========== SECTION 4 : CONFORMES (pliable par défaut) ==========
+      if (conformes.length > 0) {
+        const conformesId = 'section-conformes-' + Date.now();
+        html += `
+          <div class="section-conformes" id="${conformesId}" style="margin-bottom: var(--spacing-lg); border: 2px solid var(--color-success); border-radius: var(--radius-md); overflow: hidden; background: rgba(34, 197, 94, 0.1);">
+            <div class="section-header" style="background: var(--color-success); color: white; padding: var(--spacing-md); font-weight: 600; font-size: 1.125rem; display: flex; align-items: center; justify-content: space-between; cursor: pointer;"
+                 onclick="toggleSectionById('${conformesId}')">
+              <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <span>✅</span>
+                <span>POINTS CONFORMES (${conformes.length})</span>
+              </div>
+              <span class="toggle-icon" style="transform: rotate(0deg); transition: transform 0.3s;">▼</span>
+            </div>
+            <div class="section-content" style="display: none; padding: var(--spacing-md);">
+              ${conformes.map(check => {
+                const provLabel = check.provenance.type === 'cee' ? 'Dossier CEE' :
+                                 check.provenance.type === 'audit' ? `Chantier ${check.provenance.chantierIndex} - Audit` :
+                                 `Chantier ${check.provenance.chantierIndex} - Synthèse`;
+                return `
+                  <div style="margin-bottom: var(--spacing-md);">
+                    <div style="font-weight: 600; color: var(--color-success); font-size: 0.875rem; margin-bottom: 0.5rem; padding-left: 0.25rem; border-left: 3px solid var(--color-success);">
+                      📌 ${provLabel}
+                    </div>
+                    ${createCheckCard(check)}
+                  </div>
+                `;
+              }).join('')}
+            </div>
+          </div>
+        `;
+      }
+
       // ========== SECTION 3 : BOUTONS DE NAVIGATION (si 2+ chantiers OU si CEE + 1 chantier) ==========
       const showNavigation = chantiers.length > 0; // Afficher dès qu'il y a des chantiers détectés
 
@@ -4751,7 +4862,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
                 </div>
               </div>
               <div class="section-content" style="${ceeExpanded ? '' : 'display: none;'} padding: var(--spacing-md); background: rgba(255,255,255,0.02);">
-                ${cee.map(c => createCheckCard(c)).join('')}
+                ${renderChecksSortedWithCollapsible(cee, 'cee')}
               </div>
             </div>
           ` : '<p style="color: var(--color-text-light); text-align: center; padding: var(--spacing-lg);">Aucune vérification globale CEE</p>'}
@@ -4791,7 +4902,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
                 </div>
               </div>
               <div class="subsection-content" style="${auditExpanded ? '' : 'display: none;'} padding: var(--spacing-md); background: rgba(255,255,255,0.02);">
-                ${chantier.audit.map(c => createCheckCard(c)).join('')}
+                ${renderChecksSortedWithCollapsible(chantier.audit, `audit-${chantier.index}`)}
               </div>
             </div>
           `;
@@ -4813,7 +4924,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
                 </div>
               </div>
               <div class="subsection-content" style="${syntheseExpanded ? '' : 'display: none;'} padding: var(--spacing-md); background: rgba(255,255,255,0.02);">
-                ${chantier.synthese.map(c => createCheckCard(c)).join('')}
+                ${renderChecksSortedWithCollapsible(chantier.synthese, `synthese-${chantier.index}`)}
               </div>
             </div>
           `;
@@ -4891,8 +5002,8 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
       }
     }
 
-    // Fonction pour toggle la section majeurs
-    function toggleMajeurs(sectionId) {
+    // Fonction pour toggle une section par ID (générique)
+    function toggleSectionById(sectionId) {
       const section = document.getElementById(sectionId);
       if (!section) return;
 
@@ -4906,6 +5017,11 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
         content.style.display = 'none';
         icon.style.transform = 'rotate(0deg)';
       }
+    }
+
+    // Fonction pour toggle la section majeurs (alias pour compatibilité)
+    function toggleMajeurs(sectionId) {
+      toggleSectionById(sectionId);
     }
 
     // Fonction de filtrage par niveau
