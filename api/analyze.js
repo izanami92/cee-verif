@@ -199,13 +199,24 @@ RÈGLES D'EXTRACTION CRITIQUES :
    EXEMPLE INCORRECT (2 adresses mélangées en une) :
    ❌ "adressesChantiers": ["route de la raimbaudiere 49380 bellevigne-en-layon 10 la brosse de chanzeaux 49750 chemillé-en-anjou"]
 
-   ⚠️ ADRESSES - NE PAS INCLURE MENTIONS DE BÂTIMENTS :
-   - NE JAMAIS inclure dans l'adresse : "batiment 1", "BAT 2", "batiments 1-2-3-4", "bâtiment A", etc.
-   - Ces mentions décrivent la STRUCTURE du site, pas l'adresse géographique
-   - Extraire UNIQUEMENT l'adresse postale : rue, code postal, ville
-   - EXEMPLE CORRECT : "LA MAZURIE 85190 VENANSAULT"
-   - EXEMPLE INCORRECT : "LA MAZURIE - batiments 1-2-3-4 LA MAZURIE 85190 VENANSAULT" ❌
-   - Si tu vois "La Mazurie - batiments 1-2-3-4, LA MAZURIE, 85190 VENANSAULT" → extraire "LA MAZURIE 85190 VENANSAULT"
+   ⚠️ ADRESSES - NE PAS INCLURE MENTIONS DE BÂTIMENTS NI PARCELLES CADASTRALES :
+   - NE JAMAIS inclure dans l'adresse :
+     * Mentions de bâtiments : "batiment 1", "BAT 2", "batiments 1-2-3-4", "bâtiment A", etc.
+     * Parcelles cadastrales : "000/ZI/0134", "129/YD/0203", format XXX/XX/XXXX
+   - Ces éléments sont des RÉFÉRENCES, pas l'adresse géographique
+   - Extraire UNIQUEMENT l'adresse postale : rue/lieu-dit, code postal, ville
+
+   EXEMPLES CORRECTS :
+   ✅ "LA MAZURIE 85190 VENANSAULT"
+   ✅ "route de la raimbaudiere 49380 bellevigne-en-layon"
+
+   EXEMPLES INCORRECTS :
+   ❌ "LA MAZURIE - batiments 1-2-3-4 LA MAZURIE 85190 VENANSAULT"
+   ❌ "route de la raimbaudière - 066/ZA/0006 49380 bellevigne"
+   ❌ "La Mazurie - batiments 1-2-3-4, 000/ZI/0134, LA MAZURIE, 85190 VENANSAULT"
+
+   Si tu vois "La Mazurie - batiments 1-2-3-4, 000/ZI/0134, LA MAZURIE, 85190 VENANSAULT"
+   → extraire UNIQUEMENT "LA MAZURIE 85190 VENANSAULT"
 
 CEE - FACTURE ET ATTESTATIONS (EXTRACTION PAR CHANTIER) :
 - Dans la FACTURE, pour CHAQUE ligne "Mise en place de luminaires à modules LED" :
