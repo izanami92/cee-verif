@@ -1132,14 +1132,6 @@
             Les chantiers seront détectés automatiquement (instantané)
           </div>
 
-          <!-- Capture Betool -->
-          <div class="upload-zone" id="uploadBetool" style="margin-bottom: var(--spacing-sm);">
-            <div class="upload-zone-title">📸 Capture Betool</div>
-            <div class="upload-zone-optional">Optionnel - Auto-remplit les références</div>
-            <div class="upload-zone-filename"></div>
-            <input type="file" accept="image/png,image/jpeg,image/jpg" id="fileBetool">
-          </div>
-
           <!-- Dossier CEE (OBLIGATOIRE maintenant) -->
           <div class="upload-zone" id="uploadDossier">
             <div class="upload-zone-title">📄 Dossier CEE</div>
@@ -1365,7 +1357,7 @@
     // ========== ÉTAT DE L'APPLICATION ==========
     const state = {
       files: {
-        betool: null,        // Capture Betool (image)
+        // betool: null,        // Capture Betool (image) - DÉSACTIVÉ
         dossier: null,       // 1 seul Dossier CEE
         ficheTechnique: null // 1 seule Fiche technique (globale pour tout le dossier)
       },
@@ -1373,7 +1365,7 @@
         dossier: '',
         ficheTechnique: ''
       },
-      betoolImage: null,     // Image Betool encodée en base64
+      // betoolImage: null,     // Image Betool encodée en base64 - DÉSACTIVÉ
 
       // NOUVELLE ARCHITECTURE : organisation par chantier
       chantiers: [],         // [{adresse: "...", audit: File, synthese: File, auditText: "", syntheseText: ""}] (fiche technique retirée, elle est globale maintenant)
@@ -1404,10 +1396,10 @@
       btnExtractFromCEE: document.getElementById('btnExtractFromCEE'),
 
       // Nouveaux éléments pour la détection des chantiers
-      uploadBetool: document.getElementById('uploadBetool'),
+      // uploadBetool: document.getElementById('uploadBetool'),
       uploadDossier: document.getElementById('uploadDossier'),
       uploadFicheTechnique: document.getElementById('uploadFicheTechnique'),
-      fileBetool: document.getElementById('fileBetool'),
+      // fileBetool: document.getElementById('fileBetool'),
       fileDossier: document.getElementById('fileDossier'),
       fileFicheTechnique: document.getElementById('fileFicheTechnique'),
 
@@ -1754,8 +1746,8 @@
       }
     }
 
-    // Initialiser les zones d'upload (NOUVELLE ARCHITECTURE : betool, dossier, fiche technique)
-    setupUploadZone(elements.uploadBetool, elements.fileBetool, 'betool', false);   // 1 seule image
+    // Initialiser les zones d'upload (NOUVELLE ARCHITECTURE : dossier, fiche technique)
+    // setupUploadZone(elements.uploadBetool, elements.fileBetool, 'betool', false);   // 1 seule image - DÉSACTIVÉ
     setupUploadZone(elements.uploadDossier, elements.fileDossier, 'dossier', false); // 1 seul
     setupUploadZone(elements.uploadFicheTechnique, elements.fileFicheTechnique, 'ficheTechnique', false); // 1 seule
 
