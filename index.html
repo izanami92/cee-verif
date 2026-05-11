@@ -948,6 +948,57 @@
       overflow-y: auto;
     }
 
+    /* Toggle Switch */
+    .toggle-switch {
+      position: relative;
+      display: inline-block;
+      width: 44px;
+      height: 24px;
+    }
+
+    .toggle-input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .toggle-label {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: rgba(255, 255, 255, 0.2);
+      transition: 0.3s;
+      border-radius: 24px;
+    }
+
+    .toggle-label:before {
+      position: absolute;
+      content: "";
+      height: 18px;
+      width: 18px;
+      left: 3px;
+      bottom: 3px;
+      background-color: white;
+      transition: 0.3s;
+      border-radius: 50%;
+    }
+
+    .toggle-input:checked + .toggle-label {
+      background-color: var(--color-success);
+    }
+
+    .toggle-input:checked + .toggle-label:before {
+      transform: translateX(20px);
+    }
+
+    .toggle-input:disabled + .toggle-label {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
     /* Responsive */
     @media (max-width: 1024px) {
       #appScreen.show {
@@ -1046,6 +1097,23 @@
         <button id="btnExtractFromCEE" class="btn-extract" style="width: 100%; padding: 0.75rem; background: rgba(255, 255, 255, 0.15); color: var(--color-white); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: var(--radius-md); font-size: 0.875rem; font-weight: 600; margin-top: var(--spacing-md); cursor: pointer; transition: all 0.2s;" disabled>
           📋 Extraire depuis le Dossier CEE
         </button>
+
+        <!-- Toggle vérification Google Sheet -->
+        <div style="margin-top: var(--spacing-lg); padding-top: var(--spacing-lg); border-top: 1px solid rgba(255, 255, 255, 0.1);">
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--spacing-sm);">
+            <label for="toggleGoogleSheet" style="font-size: 0.875rem; font-weight: 600; color: rgba(255, 255, 255, 0.9); cursor: pointer; user-select: none;">
+              📊 Vérifier avec Google Sheet
+            </label>
+            <div class="toggle-switch">
+              <input type="checkbox" id="toggleGoogleSheet" class="toggle-input">
+              <label for="toggleGoogleSheet" class="toggle-label"></label>
+            </div>
+          </div>
+          <div id="googleSheetStatus" style="font-size: 0.75rem; color: rgba(255, 255, 255, 0.6); display: none;">
+            <span id="googleSheetStatusIcon">⏳</span>
+            <span id="googleSheetStatusText">Chargement...</span>
+          </div>
+        </div>
       </section>
 
       <!-- Import des documents - NOUVELLE ARCHITECTURE -->
@@ -1308,7 +1376,11 @@
       chantiers: [],         // [{adresse: "...", audit: File, synthese: File, auditText: "", syntheseText: ""}] (fiche technique retirée, elle est globale maintenant)
       chantiersDetectes: [], // [{adresse: "..."}] depuis l'API extract-cee
 
-      analysisResult: null
+      analysisResult: null,
+
+      // Vérification Google Sheet
+      googleSheetData: null, // Données du Google Sheet
+      googleSheetEnabled: false // Toggle activé/désactivé
     };
 
     // ========== ÉLÉMENTS DOM ==========
@@ -1368,8 +1440,125 @@
       checksListAudit: document.getElementById('checksListAudit'),
 
       messageContent: document.getElementById('messageContent'),
-      btnCopyMessage: document.getElementById('btnCopyMessage')
+      btnCopyMessage: document.getElementById('btnCopyMessage'),
+
+      // Google Sheet
+      toggleGoogleSheet: document.getElementById('toggleGoogleSheet'),
+      googleSheetStatus: document.getElementById('googleSheetStatus'),
+      googleSheetStatusIcon: document.getElementById('googleSheetStatusIcon'),
+      googleSheetStatusText: document.getElementById('googleSheetStatusText')
     };
+
+    // ========== GOOGLE SHEET VERIFICATION ==========
+    elements.toggleGoogleSheet.addEventListener('change', async (e) => {
+      const enabled = e.target.checked;
+      state.googleSheetEnabled = enabled;
+
+      if (enabled) {
+        // Afficher le statut
+        elements.googleSheetStatus.style.display = 'block';
+        elements.googleSheetStatusIcon.textContent = '⏳';
+        elements.googleSheetStatusText.textContent = 'Chargement du Google Sheet...';
+
+        try {
+          // Appeler l'API pour récupérer les données du sheet
+          const response = await fetch('/api/fetchSheet');
+
+          if (!response.ok) {
+            throw new Error('Erreur lors de la récupération du Google Sheet');
+          }
+
+          const data = await response.json();
+
+          if (!data.success || !data.data || data.data.length === 0) {
+            throw new Error('Aucune donnée trouvée dans le Google Sheet');
+          }
+
+          // Stocker les données dans l'état
+          state.googleSheetData = data.data;
+
+          // Mettre à jour le statut
+          elements.googleSheetStatusIcon.textContent = '✅';
+          elements.googleSheetStatusText.textContent = `Google Sheet connecté (${data.count} lignes)`;
+
+          console.log(`✅ Google Sheet chargé : ${data.count} lignes`);
+
+        } catch (error) {
+          console.error('Erreur Google Sheet:', error);
+
+          // Afficher l'erreur
+          elements.googleSheetStatusIcon.textContent = '❌';
+          elements.googleSheetStatusText.textContent = `Erreur : ${error.message}`;
+
+          // Désactiver le toggle
+          elements.toggleGoogleSheet.checked = false;
+          state.googleSheetEnabled = false;
+        }
+      } else {
+        // Masquer le statut
+        elements.googleSheetStatus.style.display = 'none';
+        state.googleSheetData = null;
+        console.log('❌ Vérification Google Sheet désactivée');
+      }
+    });
+
+    async function compareWithGoogleSheet(extractedData) {
+      if (!state.googleSheetEnabled || !state.googleSheetData) {
+        return [];
+      }
+
+      console.log('🔍 Comparaison avec Google Sheet...');
+
+      try {
+        // Préparer les données CEE pour la comparaison
+        const ceeData = {
+          nom: extractedData.cee?.nom || '',
+          siret: extractedData.cee?.siret || '',
+          adresseSiege: extractedData.cee?.adresseSiege || '',
+          dateDevis: extractedData.cee?.dateDevis || '',
+          dateSignature: extractedData.cee?.dateSignature || '',
+          resteAPayer: extractedData.cee?.resteAPayer || '',
+          chantiers: (extractedData.cee?.attestations || []).map(att => ({
+            adresse: att.adresse || '',
+            ledTotal: att.ledTotal || '',
+            secteurActivite: att.secteurActivite || ''
+          }))
+        };
+
+        // Appeler l'API de comparaison
+        const response = await fetch('/api/compareSheet', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            ceeData,
+            sheetData: state.googleSheetData
+          })
+        });
+
+        if (!response.ok) {
+          throw new Error('Erreur lors de la comparaison avec le Google Sheet');
+        }
+
+        const result = await response.json();
+
+        console.log(`✅ Comparaison terminée : ${result.checks.length} checks générés`);
+
+        return result.checks || [];
+
+      } catch (error) {
+        console.error('Erreur lors de la comparaison Google Sheet:', error);
+        return [{
+          id: 'sheet_error',
+          categorie: 'google_sheet',
+          niveau: 'info',
+          champ: 'Erreur Google Sheet',
+          localisation: 'Google Sheet',
+          detail: `Erreur lors de la comparaison : ${error.message}`,
+          valeur_attendue: '',
+          valeur_trouvee: ''
+        }];
+      }
+    }
 
     // ========== RECHERCHE SIRET ==========
     let searchTimeout;
@@ -2403,6 +2592,17 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
             page_garde_ok: pageGardeOk,
             message_auditeur: messageAuditeur
           };
+        }
+
+        // ========== VÉRIFICATION GOOGLE SHEET (si activée) ==========
+        if (state.googleSheetEnabled && extractedData) {
+          updateProgress(85, 'Vérification avec Google Sheet...');
+          const googleSheetChecks = await compareWithGoogleSheet(extractedData);
+
+          if (googleSheetChecks.length > 0) {
+            result.checks = [...result.checks, ...googleSheetChecks];
+            console.log(`✅ ${googleSheetChecks.length} checks Google Sheet ajoutés`);
+          }
         }
 
         updateProgress(100, 'Analyse terminée !');
@@ -4446,6 +4646,15 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
       const champ = (check.champ || '').toLowerCase();
       const text = loc + ' ' + champ;
 
+      // ⭐ MÉTHODE -1 : Google Sheet (catégorie spéciale)
+      if (check.categorie === 'google_sheet') {
+        // Les checks Google Sheet peuvent avoir un chantierIndex ou être globaux
+        if (check.chantierIndex !== undefined && check.chantierIndex !== null) {
+          return { type: 'google_sheet', chantierIndex: check.chantierIndex };
+        }
+        return { type: 'google_sheet', chantierIndex: null };
+      }
+
       // ⭐ MÉTHODE 0 : Propriété chantierIndex directe (ajoutée lors de la génération)
       // C'est LA méthode la plus fiable car elle vient de la case d'import
       if (check.chantierIndex !== undefined && check.chantierIndex !== null) {
@@ -4575,6 +4784,20 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
           // Extraire l'adresse UNIQUEMENT depuis le check_12 (Adresse chantier Synthèse fiche identité)
           if (check.id === 'check_12' && !chantiers.get(idx).adresse) {
             chantiers.get(idx).adresse = check.valeur_trouvee || check.valeur_attendue || '';
+          }
+        } else if (provenance.type === 'google_sheet') {
+          // Checks Google Sheet : globaux (CEE) ou par chantier
+          if (provenance.chantierIndex !== null) {
+            // Check Google Sheet lié à un chantier spécifique
+            const idx = provenance.chantierIndex;
+            if (!chantiers.has(idx)) {
+              chantiers.set(idx, { index: idx, audit: [], synthese: [], adresse: '' });
+            }
+            // Ajouter aux checks de synthèse du chantier (arbitraire, on pourrait créer une section dédiée)
+            chantiers.get(idx).synthese.push(check);
+          } else {
+            // Check Google Sheet global → ajouter au CEE
+            ceeChecks.push(check);
           }
         }
       });
