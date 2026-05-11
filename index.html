@@ -2612,19 +2612,65 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
 
         updateProgress(100, 'Analyse terminée !');
 
-        // Détecter les attestations manquantes (secteur "Autres" ou NAF non agricole)
+        // ENRICHISSEMENT AUTOMATIQUE : Récupérer le code NAF si SIRET détecté mais pas de NAF
+        if (extractedData && extractedData.cee && extractedData.cee.siret && !window.selectedCodeNaf) {
+          try {
+            console.log('🔍 SIRET détecté, récupération automatique du code NAF...');
+            const siret = extractedData.cee.siret;
+            const nafResponse = await fetch(`/api/search?q=${encodeURIComponent(siret)}&password=${sessionPassword}`);
+
+            if (nafResponse.ok) {
+              const nafData = await nafResponse.json();
+              if (nafData.results && nafData.results[0] && nafData.results[0].codeNaf) {
+                window.selectedCodeNaf = nafData.results[0].codeNaf;
+                localStorage.setItem('ceeVerifCodeNaf', nafData.results[0].codeNaf);
+                console.log(`✅ Code NAF récupéré automatiquement: ${window.selectedCodeNaf}`);
+              } else {
+                console.warn('⚠️ Code NAF non trouvé dans la réponse API');
+              }
+            }
+          } catch (error) {
+            console.warn('⚠️ Erreur lors de la récupération automatique du NAF:', error);
+            // On continue même si ça échoue
+          }
+        }
+
+        // Détecter les attestations manquantes (OPTION A : vérifier d'abord si surfaces présentes)
         if (extractedData && extractedData.cee && extractedData.cee.attestations) {
-          const codeNaf = window.selectedCodeNaf || '';
+          const codeNaf = window.selectedCodeNaf || localStorage.getItem('ceeVerifCodeNaf') || '';
           const isAgricole = codeNaf.startsWith('01.') || codeNaf.startsWith('02.');
 
           extractedData.cee.attestations.forEach((attestation, index) => {
+            // OPTION A (PRIORITÉ 1) : Si Claude a extrait des surfaces, pas besoin de saisie manuelle
+            if (attestation.surfaces && Array.isArray(attestation.surfaces) && attestation.surfaces.length > 0) {
+              const sommeSurfaces = sumSurfaces(attestation.surfaces);
+              if (sommeSurfaces > 0) {
+                attestation.surfaceManuelle = false;
+                console.log(`✅ Chantier ${index + 1}: Surfaces détectées (${sommeSurfaces} m²) - Pas de saisie manuelle`);
+                return; // On passe à l'attestation suivante
+              }
+            }
+
+            // Si aucune surface extraite, vérifier secteur + NAF
             const secteur = attestation.secteurActivite || '';
             const isAutres = secteur.toLowerCase().includes('autres');
 
             if (isAutres || !isAgricole) {
               attestation.surfaceManuelle = true;
               attestation.surfaceManuelleSaisie = null; // Sera rempli par l'utilisateur
-              console.log(`⚠️ Chantier ${index + 1}: Attestation manquante (${isAutres ? 'Secteur "Autres"' : 'NAF non agricole: ' + codeNaf})`);
+
+              // Déterminer la raison pour l'affichage
+              let raison = '';
+              if (isAutres) {
+                raison = 'Secteur "Autres"';
+              } else if (!codeNaf) {
+                raison = 'Code NAF non disponible';
+              } else {
+                raison = `Code NAF non agricole (${codeNaf})`;
+              }
+
+              attestation.raisonManuelle = raison;
+              console.log(`⚠️ Chantier ${index + 1}: Saisie manuelle requise - ${raison}`);
             }
           });
 
