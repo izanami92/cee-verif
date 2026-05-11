@@ -249,6 +249,8 @@ MENTIONS AGRICOLES :
    - SIRET : SIRET du CLIENT (14 chiffres, PAS celui de Prime Evolution)
    - surfaces : surfaces des bâtiments si mentionnées
    - ledTotal : nombre total de LED (page 1)
+   - ledInitial : nombre de LED dans la section "État initial" OU "Situation actuelle" (description détaillée)
+   - ledFinal : nombre de LED dans la section "État projeté" OU "Nouvelle solution d'éclairage" (description détaillée)
    - pceLuminaires : nombre TOTAL de Pce depuis la "Liste des luminaires" (tableau avec colonnes Pce/Fabricant/Article/etc.)
    - profilUtilisation : profil d'utilisation (entrepôt, logistique, etc.)
 
@@ -271,9 +273,11 @@ MENTIONS AGRICOLES :
 
    Chercher les données dans les deux variantes possibles.
    Exemples :
-   - totalLedInitial : chercher dans "État initial" OU "Situation actuelle"
-   - totalLedProjete : chercher dans "État projeté" OU "Nouvelle solution d'éclairage"
-   - activiteBatiment : chercher dans "État projeté" OU "Nouvelle solution"
+   - totalLedInitial (Synthèse) : chercher dans "État initial" OU "Situation actuelle"
+   - totalLedProjete (Synthèse) : chercher dans "État projeté" OU "Nouvelle solution d'éclairage"
+   - activiteBatiment (Synthèse) : chercher dans "État projeté" OU "Nouvelle solution"
+   - ledInitial (Audit) : chercher dans "État initial" OU "Situation actuelle"
+   - ledFinal (Audit) : chercher dans "État projeté" OU "Nouvelle solution d'éclairage"
 
 FORMAT DE RÉPONSE (JSON uniquement) :
 \`\`\`json
@@ -286,6 +290,8 @@ FORMAT DE RÉPONSE (JSON uniquement) :
       "siret": "SIRET sans espaces",
       "surfaces": ["850", "456"],
       "ledTotal": "36",
+      "ledInitial": "72",
+      "ledFinal": "72",
       "pceLuminaires": "60",
       "profilUtilisation": "Profil/type"
     }

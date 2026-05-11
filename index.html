@@ -2659,9 +2659,15 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
       return normalized;
     }
 
-    // Comparer deux parcelles cadastrales (supprimer TOUS les espaces)
+    // Comparer deux parcelles cadastrales (supprimer TOUS les espaces, ignorer l'ordre)
     function compareParcelles(val1, val2) {
-      const clean = (v) => String(v || '').replace(/\s+/g, '').toLowerCase();
+      const clean = (v) => {
+        const cleaned = String(v || '').replace(/\s+/g, '').toLowerCase();
+        // Séparer les parcelles par virgule, trier, puis reconstituer
+        const parcelles = cleaned.split(',').map(p => p.trim()).filter(p => p).sort();
+        return parcelles.join(',');
+      };
+
       const clean1 = clean(val1);
       const clean2 = clean(val2);
       const result = clean1 === clean2;
@@ -2688,14 +2694,14 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
       // Comparaison directe
       if (clean1 === clean2) return true;
 
-      // Détection Entrepôt/Logistique
+      // Détection Entrepôt/Logistique/Stockage
       const isEntrepot = (str) => {
         const s = str.toLowerCase();
-        return s.includes('entrepot') || s.includes('entrepôt') || s.includes('logistique');
+        return s.includes('entrepot') || s.includes('entrepôt') || s.includes('logistique') || s.includes('stockage');
       };
 
       if (isEntrepot(clean1) && isEntrepot(clean2)) {
-        console.log(`[compareSecteurEtude] OK (Entrepôt/Logistique): "${val1}" ≈ "${val2}"`);
+        console.log(`[compareSecteurEtude] OK (Entrepôt/Logistique/Stockage): "${val1}" ≈ "${val2}"`);
         return true;
       }
 
