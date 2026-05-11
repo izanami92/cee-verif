@@ -211,6 +211,20 @@ CEE - FACTURE ET ATTESTATIONS (EXTRACTION PAR CHANTIER) :
   - secteurActivite : secteur d'activité SPÉCIFIQUE à ce chantier (voir section suivante)
 - COMBINER facture + attestations pour obtenir : {adresse: "...", surfaces: ["850"], ledTotal: "35", secteurActivite: "Entrepôts"}
 
+⚠️ RÈGLE CRITIQUE - ATTESTATIONS MANQUANTES :
+- Une attestation sur l'honneur contient TOUJOURS une section "Surface du bâtiment : XXX m²"
+- Si cette section N'EXISTE PAS dans le CEE pour un chantier → l'attestation n'existe pas
+- Dans ce cas :
+  * surfaces : METTRE UN TABLEAU VIDE [] (pas null, pas de valeur inventée)
+  * NE JAMAIS extraire des surfaces depuis d'autres parties du document (facture, devis, totaux)
+  * NE JAMAIS confondre avec :
+    - Puissance LED (en W ou kW) - exemple : "12000 W" n'est PAS une surface
+    - Surface totale bâtiment depuis page de garde audit (celle-là va dans audit.surfaces, pas attestation.surfaces)
+    - Quantité de luminaires (en unités)
+  * ledTotal : toujours extraire depuis la FACTURE (colonne Quantité) même sans attestation
+  * secteurActivite : peut être extrait depuis d'autres parties du CEE si disponible
+- Si tu vois "Surface : 12000" et ailleurs "12000 W" ou "12000 kW" → c'est une PUISSANCE, pas une surface → surfaces: []
+
 CEE - RÉFÉRENCE LED (DÉTECTION AUTOMATIQUE) :
 - Dans la FACTURE, colonne "Référence", identifier la référence LED utilisée
 - Chercher les mentions : "DAEWOO", "NES-HBL", "TECH", "HIGH BAY"

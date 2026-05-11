@@ -2617,20 +2617,31 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
           try {
             console.log('🔍 SIRET détecté, récupération automatique du code NAF...');
             const siret = extractedData.cee.siret;
+            console.log('   SIRET utilisé:', siret);
             const nafResponse = await fetch(`/api/search?q=${encodeURIComponent(siret)}&password=${sessionPassword}`);
+
+            console.log('   Statut réponse API:', nafResponse.status, nafResponse.statusText);
 
             if (nafResponse.ok) {
               const nafData = await nafResponse.json();
+              console.log('   Réponse API complète:', nafData);
+              console.log('   Nombre de résultats:', nafData.results?.length || 0);
+              console.log('   Premier résultat:', nafData.results?.[0]);
+
               if (nafData.results && nafData.results[0] && nafData.results[0].codeNaf) {
                 window.selectedCodeNaf = nafData.results[0].codeNaf;
                 localStorage.setItem('ceeVerifCodeNaf', nafData.results[0].codeNaf);
                 console.log(`✅ Code NAF récupéré automatiquement: ${window.selectedCodeNaf}`);
               } else {
                 console.warn('⚠️ Code NAF non trouvé dans la réponse API');
+                console.warn('   Structure reçue:', JSON.stringify(nafData, null, 2));
               }
+            } else {
+              console.warn('⚠️ Erreur HTTP lors de la récupération du NAF:', nafResponse.status);
             }
           } catch (error) {
             console.warn('⚠️ Erreur lors de la récupération automatique du NAF:', error);
+            console.warn('   Message:', error.message);
             // On continue même si ça échoue
           }
         }
@@ -2641,7 +2652,28 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
           const isAgricole = codeNaf.startsWith('01.') || codeNaf.startsWith('02.');
 
           extractedData.cee.attestations.forEach((attestation, index) => {
-            // OPTION A (PRIORITÉ 1) : Si Claude a extrait des surfaces, pas besoin de saisie manuelle
+            // VALIDATION : Détecter si les "surfaces" sont en fait des puissances LED
+            if (attestation.surfaces && Array.isArray(attestation.surfaces) && attestation.surfaces.length > 0) {
+              const sommeSurfaces = sumSurfaces(attestation.surfaces);
+
+              // Vérifier si c'est une puissance LED déguisée en surface
+              const ledTotalNum = parseFloat(String(attestation.ledTotal || '0').replace(/[^\d.]/g, ''));
+              const totalLedNum = parseFloat(String(extractedData.cee?.totalLed || '0').replace(/[^\d.]/g, ''));
+
+              // Si "surfaces" > 10000 m² ET correspond à ledTotal ou totalLed (±10%) → c'est probablement une puissance
+              const isSuspiciouslyLarge = sommeSurfaces > 10000;
+              const matchesLedTotal = ledTotalNum > 0 && Math.abs(sommeSurfaces - ledTotalNum) / ledTotalNum < 0.1;
+              const matchesTotalLed = totalLedNum > 0 && Math.abs(sommeSurfaces - totalLedNum) / totalLedNum < 0.1;
+
+              if (isSuspiciouslyLarge && (matchesLedTotal || matchesTotalLed)) {
+                console.warn(`⚠️ Chantier ${index + 1}: Surface suspecte (${sommeSurfaces} m²) - probablement une puissance LED`);
+                console.warn(`   ledTotal: ${ledTotalNum}, totalLed: ${totalLedNum}`);
+                attestation.surfaces = []; // Vider pour forcer la saisie manuelle
+                console.log(`   → Surfaces vidées, saisie manuelle sera nécessaire`);
+              }
+            }
+
+            // OPTION A (PRIORITÉ 1) : Si Claude a extrait des surfaces valides, pas besoin de saisie manuelle
             if (attestation.surfaces && Array.isArray(attestation.surfaces) && attestation.surfaces.length > 0) {
               const sommeSurfaces = sumSurfaces(attestation.surfaces);
               if (sommeSurfaces > 0) {
