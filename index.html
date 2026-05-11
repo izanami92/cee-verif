@@ -3533,7 +3533,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
         norm.syntheses.forEach((synthese, syntheseIndex) => {
           const attestation = attestationsCEE[syntheseIndex];
           if (attestation && attestation.secteurActivite) {
-            const secteurOk = compareStrings(synthese.secteurActivite, attestation.secteurActivite);
+            const secteurOk = compareSecteurEtude(synthese.secteurActivite, attestation.secteurActivite);
             const suffix = norm.syntheses.length > 1 ? ` chantier ${syntheseIndex + 1}` : '';
             const idSuffix = norm.syntheses.length > 1 ? `_c${syntheseIndex + 1}` : '';
 
@@ -3552,7 +3552,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
             });
           } else {
             // Fallback : comparer avec references.typeLocal si pas d'attestation
-            const secteurOk = compareStrings(synthese.secteurActivite, references.typeLocal);
+            const secteurOk = compareSecteurEtude(synthese.secteurActivite, references.typeLocal);
             const suffix = norm.syntheses.length > 1 ? ` chantier ${syntheseIndex + 1}` : '';
 
             checks.push({
@@ -3573,7 +3573,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
         checks.push({
           id: 'check_14',
           categorie: 'synthese',
-          niveau: compareStrings(firstSynthese.secteurActivite, references.typeLocal) ? 'ok' : 'majeur',
+          niveau: compareSecteurEtude(firstSynthese.secteurActivite, references.typeLocal) ? 'ok' : 'majeur',
           champ: 'Secteur d\'activité Synthèse fiche identité',
           localisation: `Synthèse, fiche identité du site${chantierSuffix}`,
           detail: 'Vérification secteur d\'activité',
@@ -3746,7 +3746,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
         norm.syntheses.forEach((synthese, syntheseIndex) => {
           const attestation = attestationsCEE[syntheseIndex];
           if (attestation && attestation.secteurActivite) {
-            const activiteOk = compareStrings(synthese.activiteBatiment, attestation.secteurActivite);
+            const activiteOk = compareSecteurEtude(synthese.activiteBatiment, attestation.secteurActivite);
             const suffix = norm.syntheses.length > 1 ? ` chantier ${syntheseIndex + 1}` : '';
             const idSuffix = norm.syntheses.length > 1 ? `_c${syntheseIndex + 1}` : '';
 
@@ -3768,7 +3768,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
             checks.push({
               id: 'check_23',
               categorie: 'synthese',
-              niveau: compareStrings(synthese.activiteBatiment, references.typeLocal) ? 'ok' : 'majeur',
+              niveau: compareSecteurEtude(synthese.activiteBatiment, references.typeLocal) ? 'ok' : 'majeur',
               champ: 'Activité bâtiment état projeté (2e tableau)',
               localisation: 'Synthèse, inventaire état projeté',
               detail: 'Vérification activité bâtiment',
@@ -3781,7 +3781,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
         checks.push({
           id: 'check_23',
           categorie: 'synthese',
-          niveau: compareStrings(firstSynthese.activiteBatiment, references.typeLocal) ? 'ok' : 'majeur',
+          niveau: compareSecteurEtude(firstSynthese.activiteBatiment, references.typeLocal) ? 'ok' : 'majeur',
           champ: 'Activité bâtiment état projeté (2e tableau)',
           localisation: 'Synthèse, inventaire état projeté',
           detail: 'Vérification activité bâtiment',
