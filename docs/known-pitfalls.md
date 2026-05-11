@@ -1,0 +1,543 @@
+# PIÈGES CONNUS ET BUGS RÉSOLUS
+
+**Document de référence** pour éviter les erreurs récurrentes et ne pas réintroduire des bugs déjà résolus.
+
+**Dernière mise à jour** : 11 mai 2026
+
+---
+
+## ⚠️ TOP 5 PIÈGES À NE JAMAIS REFAIRE
+
+### PIÈGE #1 : Utiliser `compareStrings()` pour les parcelles cadastrales
+
+**❌ Code fautif** :
+```javascript
+const ok = compareStrings("129/YD/0203", "129 / YD / 0203");  // false
+```
+
+**✅ Code correct** :
+```javascript
+const ok = compareParcelles("129/YD/0203", "129 / YD / 0203");  // true
+```
+
+**Pourquoi ?**
+- Parcelles ont des espaces variables : `"129/YD/0203"` vs `"129 / YD / 0203"`
+- Ordre n'a pas d'importance : `"129/YD/0203, 129/YD/0151"` = `"129/YD/0151, 129/YD/0203"`
+- Séparateurs variables : virgules OU tirets
+
+**Impact** : Faux positifs massifs (50%+ des dossiers signalés à tort)
+
+**Règle** : TOUJOURS utiliser `compareParcelles()` pour les parcelles, `compareSecteurEtude()` pour les secteurs, `compareAddress()` pour les adresses.
+
+**Sources** :
+- [RESUME_EXECUTIF.md] - Anti-pattern A1
+- [Mémoire `reference_regles_validation_cee.md`]
+
+---
+
+### PIÈGE #2 : Extraire le SIRET de Prime Evolution au lieu du client
+
+**❌ Code fautif** :
+```javascript
+// Extraire "SIRET: 98765432109876" de "Prime Evolution"
+siret = extractFromPrimeEvolution();  // ❌ FAUX
+```
+
+**✅ Code correct** :
+```javascript
+// Extraire "SIRET: 12345678901234" du CLIENT (en-tête document)
+siret = extractFromClientHeader();  // ✅ VRAI
+```
+
+**Pourquoi ?**
+- Prime Evolution = bureau d'études qui fait l'audit
+- Client bénéficiaire = celui qui reçoit le CEE
+- Le SIRET à vérifier est TOUJOURS celui du client
+
+**Impact** : Check SIRET bloquant systématiquement en erreur
+
+**Règle** : Instructions explicites dans le prompt API :
+```
+⚠️ ATTENTION - Ne pas confondre :
+- CLIENT/BÉNÉFICIAIRE : c'est lui qu'on veut extraire
+- PRIME EVOLUTION : bureau d'études (NE PAS extraire)
+- TOTAL ENERGIES : délégataire CEE (NE PAS extraire)
+```
+
+**Sources** :
+- [ADR 008] - Extraction CLIENT vs Prime Evolution (8 mai 2026)
+- [Mémoire `reference_extraction_audit_client_vs_bureau.md`]
+- [api/analyze.js lignes 275-291]
+
+---
+
+### PIÈGE #3 : Oublier commit + push après modification
+
+**❌ Workflow fautif** :
+```bash
+# Modifier le code
+vim index.html
+
+# Tester en local
+# → Ça marche !
+
+# Dire à l'utilisateur "C'est fait !"
+# → Mais pas de git push → Vercel ne déploie PAS
+# → Utilisateur voit l'ancienne version en ligne ❌
+```
+
+**✅ Workflow correct** :
+```bash
+# Modifier le code
+vim index.html
+
+# Tester en local
+
+# Commit + push IMMÉDIATEMENT
+git add index.html
+git commit -m "fix: correction bug X"
+git push origin develop
+
+# Attendre déploiement Vercel (~1-2min)
+
+# Dire à l'utilisateur "C'est déployé !"
+```
+
+**Pourquoi ?**
+- Vercel déploie automatiquement sur `git push`
+- Pas de push = pas de déploiement
+- Utilisateur teste toujours sur URL Vercel, JAMAIS en local
+
+**Impact** : Frustration utilisateur ("tu dis que c'est fait mais je vois toujours le bug!")
+
+**Règle** : Commit + push APRÈS CHAQUE modification, AVANT de dire "c'est fait".
+
+**Sources** :
+- [Mémoire `feedback_vercel_deployment.md`]
+- [RESUME_EXECUTIF.md] - Pattern obligatoire P2
+
+---
+
+### PIÈGE #4 : Modifier le code sans diagnostiquer d'abord
+
+**❌ Workflow fautif** :
+```
+User: "Il y a un bug dans l'adresse"
+→ Modifier directement le code
+→ Ça casse autre chose
+→ Modifier à nouveau
+→ 5 commits plus tard, toujours pas résolu
+```
+
+**✅ Workflow correct** :
+```
+User: "Il y a un bug dans l'adresse"
+→ 1. DIAGNOSTIQUER : Lire le code, identifier la cause exacte
+→ 2. EXPLIQUER : "Le problème vient de X ligne Y, car Z"
+→ 3. PROPOSER : "Solution A (simple), Solution B (robuste)"
+→ 4. ATTENDRE VALIDATION
+→ 5. MODIFIER : Une seule fois, correctement
+```
+
+**Pourquoi ?**
+- Modifier sans comprendre → bugs en cascade
+- Utilisateur frustré par les multiples allers-retours
+- Perte de temps énorme
+
+**Impact** : Régression multiple, code instable
+
+**Règle** : TOUJOURS diagnostiquer et expliquer AVANT de toucher au code.
+
+**Sources** :
+- [Mémoire `feedback_diagnostic_avant_modification.md`]
+- [RESUME_EXECUTIF.md] - Pattern obligatoire P1
+
+---
+
+### PIÈGE #5 : Comparaison stricte `===` pour les surfaces
+
+**❌ Code fautif** :
+```javascript
+const ok = (850 === 850.5);  // false → Faux positif !
+```
+
+**✅ Code correct** :
+```javascript
+const ok = Math.abs(850 - 850.5) < 1;  // true → Tolérance ±1 m²
+```
+
+**Pourquoi ?**
+- Arrondis différents entre documents
+- Audit calcule 850,3 m² → affiché "850 m²"
+- CEE calcule 850,7 m² → affiché "851 m²"
+- Différence réelle : 0,4 m² (négligeable)
+
+**Impact** : Faux positifs sur 30-40% des dossiers
+
+**Règle** : Toujours utiliser tolérance ±1 m² pour les surfaces : `Math.abs(surf1 - surf2) < 1`
+
+**Sources** :
+- [ADR 005] - Support NAF et surfaces manuelles
+- [Mémoire `reference_saisie_surfaces_manuelles.md`]
+
+---
+
+## 🐛 HISTORIQUE DES BUGS RÉSOLUS
+
+### Bug #1 : "Chantier 3 fantôme"
+
+**Date** : 9 mai 2026
+**Symptôme** : Détection de 3 chantiers au lieu de 2 dans un dossier
+
+**Cause racine** :
+```javascript
+// ❌ Code fautif : Compteur global
+let chantierCounter = 0;
+audits.forEach(audit => {
+  chantierCounter++;  // 1, 2, 3... (continue à incrémenter!)
+  checks.push({ chantierIndex: chantierCounter });
+});
+
+// Si 2 audits + 1 synthèse sans audit → compteur = 3
+```
+
+**Solution** : Matching par INDEX d'apparition (pas par adresse normalisée)
+```javascript
+// ✅ Code correct : INDEX basé sur ordre d'apparition
+function matchChantiers(audits, syntheses, attestations) {
+  const nbChantiers = Math.max(audits.length, syntheses.length, attestations.length);
+
+  const matched = [];
+  for (let i = 0; i < nbChantiers; i++) {
+    matched.push({
+      chantierIndex: i,  // ✅ INDEX basé sur ordre
+      audit: audits[i] || null,
+      synthese: syntheses[i] || null,
+      attestation: attestations[i] || null
+    });
+  }
+
+  return matched;
+}
+```
+
+**Leçon apprise** : Utiliser l'ordre d'apparition (INDEX) pour matcher, pas des compteurs manuels ou normalisation d'adresse.
+
+**Sources** :
+- [ADR 011] - Matching audits/synthèses par INDEX (9 mai 2026)
+- [Commit 7ee508b] - "CORRECTIONS CRITIQUES : détection chantiers + couleurs boutons"
+- [Commit 96e906a] - "Fix: Ajout propriété chantierIndex pour distribution correcte des checks"
+- [Commit 1a4fb32] - "Fix: Matcher audits/synthèses par INDEX au lieu de par adresse"
+- [RESUME_EXECUTIF.md] - Bug #1
+
+---
+
+### Bug #2 : Matching par adresse échoue (normalisation insuffisante)
+
+**Date** : 7 mai 2026 (jour refonte multi-chantiers)
+**Symptôme** : "541 RUE SAINT-JEAN" ≠ "541 Rue Saint-jean" → 2 chantiers détectés au lieu de 1
+
+**Cause racine** : Comparaison sensible à la casse et aux accents
+
+**Solution** : Normalisation agressive
+```javascript
+function normalizeAddress(addr) {
+  return addr
+    .toLowerCase()                    // SAINT-JEAN → saint-jean
+    .normalize('NFD')                 // é → e
+    .replace(/[̀-ͯ]/g, '') // Supprimer accents
+    .replace(/\s+/g, ' ')            // Espaces multiples → simple
+    .trim();
+}
+```
+
+**Leçon apprise** : Normaliser TOUT (casse, accents, espaces) pour les comparaisons d'adresses.
+
+**Sources** :
+- [ADR 007] - Normalisation adresses - Ignorer mentions bâtiments (8 mai 2026)
+- [Commit 1ee7664] - "Fix: Déduplication insensible à la casse pour adresses"
+- [Commit 080f407] - "Fix: Ignorer mentions BAT/Bâtiment dans adresses de chantiers"
+
+---
+
+### Bug #3 : Adresses collées (concaténation au lieu de tableau)
+
+**Date** : 7 mai 2026
+**Symptôme** : `"adresse1 adresse2 adresse3"` au lieu de `["adresse1", "adresse2", "adresse3"]`
+
+**Cause racine** : Prompt API ambigu
+```javascript
+// ❌ Code Claude généré :
+adressesChantiers: "route de la raimbaudière 49380 10 la brosse 49750"
+
+// ✅ Code attendu :
+adressesChantiers: [
+  "route de la raimbaudière 49380 bellevigne-en-layon",
+  "10 la brosse de chanzeaux 49750 chemillé-en-anjou"
+]
+```
+
+**Solution** : Instructions explicites dans le prompt
+```
+5. ADRESSES DE CHANTIERS (CEE) - RÈGLE CRITIQUE :
+   - adressesChantiers est un TABLEAU avec une entrée séparée pour CHAQUE adresse
+   - NE JAMAIS concaténer plusieurs adresses en une seule chaîne
+   - CHAQUE attestation a UNE adresse → créer UNE entrée dans le tableau
+
+   EXEMPLE CORRECT (2 attestations = 2 adresses) :
+   ✅ "adressesChantiers": ["adresse1", "adresse2"]
+
+   EXEMPLE INCORRECT :
+   ❌ "adressesChantiers": ["adresse1 adresse2"]
+```
+
+**Leçon apprise** : Être ultra-explicite dans les prompts, donner des exemples positifs ET négatifs.
+
+**Sources** :
+- [Commit bf8ebe3] - "Fix adressesChantiers : empêcher mélange des adresses"
+- [api/analyze.js lignes 187-209]
+
+---
+
+### Bug #4 : Variables utilisées avant déclaration
+
+**Date** : Multiple (7-8 mai 2026)
+**Symptôme** : `ReferenceError: Cannot access 'nbChantiers' before initialization`
+
+**Cause racine** : Ordre des déclarations après refactorisation
+```javascript
+// ❌ Code fautif
+const chantierSuffix = nbChantiers > 1 ? ` (chantier ${i+1})` : '';
+// ...
+const nbChantiers = audits.length;  // Déclaré APRÈS utilisation !
+```
+
+**Solution** :
+```javascript
+// ✅ Code correct
+const nbChantiers = audits.length;  // Déclarer EN PREMIER
+// ...
+const chantierSuffix = nbChantiers > 1 ? ` (chantier ${i+1})` : '';
+```
+
+**Leçon apprise** : Déclarer les variables en haut de scope, surtout après refactorisation.
+
+**Sources** :
+- [Commit 9c21e61] - "Fix: Déplacer déclaration nbChantiers en haut de generateChecks"
+- [Mémoire `feedback_diagnostic_avant_modification.md`] - Incident 1
+
+---
+
+### Bug #5 : Claude Haiku rate les extractions
+
+**Date** : 6 mai 2026
+**Symptôme** : Données manquantes ou incomplètes après extraction
+
+**Cause racine** : Claude Haiku 3.5 moins performant que Sonnet 4 sur extraction structurée complexe
+
+**Solution** : Retour à Claude Sonnet 4
+```javascript
+// Tentative d'optimisation coût → échec
+model: 'anthropic/claude-haiku-3.5'  // ❌ Performances insuffisantes
+
+// Retour configuration stable
+model: 'anthropic/claude-sonnet-4'   // ✅ Précision excellente
+```
+
+**Leçon apprise** : Haiku = trop léger pour ce use case. Sonnet 4 obligatoire pour précision requise.
+
+**Sources** :
+- [ADR 002] - Alternative 1 (échec Haiku)
+- [Commit b17bffd] - "Fix: Correction du nom du modèle Claude"
+- [Commit f372087] - "Back to Claude Sonnet 4 (working model)"
+
+---
+
+### Bug #6 : Regex bâtiments trop restrictive
+
+**Date** : 11 mai 2026
+**Symptôme** : "batiments 1-2-3-4" non nettoyé des adresses (alors que "BAT 1" l'était)
+
+**Cause racine** : Regex `\d+` matche UN chiffre, pas `1-2-3-4`
+```javascript
+// ❌ Code fautif
+addr.replace(/\s*(bat|batiment)\s*\d+/gi, '');
+// Matche : "BAT 1", "BAT 2" ✅
+// Ne matche PAS : "batiments 1-2-3-4" ❌
+```
+
+**Solution** :
+```javascript
+// ✅ Code correct
+addr.replace(/\s*(bat|batiment|batiments)\s*[\d\-]+/gi, '');
+// Matche : "BAT 1", "batiments 1-2-3-4", "BAT 1-2" ✅
+```
+
+**Leçon apprise** : Tester les regex avec des cas réels complexes, pas juste les cas simples.
+
+**Sources** :
+- [ADR 007] - Normalisation adresses - Ignorer mentions bâtiments (8 mai 2026)
+- [Commit 3673109] - "Fix: Support batiments multi-chiffres (1-2-3-4) dans nettoyage adresses"
+- [Commit 97a7f97] - "fix: regex compareAddress pour supporter batiments avec tirets"
+
+---
+
+### Bug #7 : Checks 39-40 manquants (régression après merge)
+
+**Date** : 11 mai 2026 (détecté)
+**Symptôme** : Checks 39-40 documentés dans mémoire absents du code
+
+**Cause racine** : Merge de branches où checks 39-40 = autres vérifications (reste à payer, adresse siège)
+
+**Documentation attendue** :
+- Check 39 : Cohérence nombre chantiers (audits.length = syntheses.length = attestations.length)
+- Check 40 : Total LED global (somme chantiers = total CEE)
+
+**Code actuel** :
+- Check 39 : Reste à payer = 0€
+- Check 40 : Adresse siège social (+ doublon ID check_40 pour date signature!)
+
+**Solution** : En cours (Phase 2 corrections audit mémoire)
+
+**Leçon apprise** : Vérifier la cohérence code/documentation après chaque merge de branches.
+
+**Sources** :
+- [Audit mémoire 11 mai 2026]
+- [index.html lignes 4155-4194]
+
+---
+
+## ⚠️ APPROCHES ABANDONNÉES
+
+### Approche abandonnée #1 : Fichier JSON local pour feedback
+
+**Tentative** : Stocker les feedbacks faux positifs dans `feedback.json` versionné avec Git
+
+**Problème** :
+- Vercel Serverless = stateless (pas de filesystem persistant)
+- Écriture de fichier impossible côté serveur
+
+**Alternative retenue** : Google Sheets API
+
+**Sources** :
+- [ADR 004] - Alternative 2 rejetée
+
+---
+
+### Approche abandonnée #2 : Analyses séparées par chantier
+
+**Tentative** : Importer 3 fois les mêmes fichiers pour analyser 3 chantiers séparément
+
+**Problème** :
+- UX dégradée (utilisateur doit tout importer 3×)
+- Pas de vérification du total global
+- Pas de détection automatique du nombre de chantiers
+
+**Alternative retenue** : Architecture multi-chantiers avec détection automatique
+
+**Sources** :
+- [ADR 003] - Alternative 2 rejetée
+
+---
+
+### Approche abandonnée #3 : GPT-4 ou Llama au lieu de Claude
+
+**Tentative** : Tester d'autres modèles pour réduire coûts
+
+**Problème** :
+- GPT-4 : Moins bon sur documents français
+- GPT-3.5 : Pas assez performant
+- Llama : Infrastructure nécessaire (GPU)
+
+**Alternative retenue** : Claude Sonnet 4 (meilleur rapport qualité/prix/simplicité)
+
+**Sources** :
+- [ADR 002] - Alternatives 2-3-4 rejetées
+
+---
+
+## 📋 CHECKLIST ANTI-RÉGRESSION
+
+Avant de valider une modification, vérifier :
+
+- [ ] Les 5 fonctions de comparaison spécialisées sont-elles correctement utilisées ?
+  - `compareParcelles()` pour parcelles
+  - `compareSecteurEtude()` pour secteurs
+  - `compareAddress()` pour adresses
+  - `compareNumber()` / `compareTHD()` pour nombres
+  - `compareSurfaces()` avec tolérance ±1 m²
+
+- [ ] Extraction SIRET : du CLIENT, pas de Prime Evolution ?
+
+- [ ] Commit + push fait AVANT de dire "c'est terminé" ?
+
+- [ ] Diagnostic effectué AVANT modification du code ?
+
+- [ ] Console JavaScript (F12) sans erreurs rouges ?
+
+- [ ] Tests avec dossiers réels (mono ET multi-chantiers) ?
+
+- [ ] Documentation mise à jour (CLAUDE.md, mémoires, ADR) ?
+
+- [ ] Aucun `--no-verify` ou `--force` dans les commandes git ?
+
+- [ ] Variables déclarées en haut de scope ?
+
+- [ ] Regex testées avec cas complexes réels ?
+
+- [ ] Checks 39-40 conformes à la documentation ?
+
+---
+
+## 🔍 COMMENT RECHERCHER DANS L'HISTORIQUE
+
+### Trouver quand un bug a été introduit
+```bash
+# Chercher dans l'historique Git
+git log --all --grep="bug X" --oneline
+
+# Voir les modifications d'un fichier
+git log --all --oneline -- api/analyze.js
+
+# Comparer deux versions
+git diff commit1 commit2 -- index.html
+```
+
+### Trouver dans les transcripts
+```bash
+# Chercher un mot-clé dans les transcripts
+grep -i "keyword" /Users/mac/.claude/projects/-Users-mac/*.jsonl
+
+# Voir le contexte (5 lignes avant/après)
+grep -C 5 "keyword" /Users/mac/.claude/projects/-Users-mac/*.jsonl
+```
+
+---
+
+## SOURCES
+
+### ADRs (Architecture Decision Records)
+- [ADR 002] - Claude Sonnet 4 (échec Haiku) → Bug #5
+- [ADR 003] - Refonte multi-chantiers (7 mai) → Bug #2, #3, #4
+- [ADR 007] - Normalisation adresses (8 mai) → Piège #4, Bug #2, #6
+- [ADR 008] - Extraction CLIENT vs bureau (8 mai) → Piège #2
+- [ADR 011] - Matching INDEX (9 mai) → Bug #1
+
+### Documentation
+- [RESUME_EXECUTIF.md] - Section "Bugs majeurs résolus"
+- [CLAUDE.md] - Pièges connus section
+- [docs/business-rules.md] - Règles métier détaillées
+
+### Mémoires auto
+- `feedback_vercel_deployment.md` → Piège #3
+- `feedback_diagnostic_avant_modification.md` → Piège #4
+- `reference_adresses_batiments_cee.md` → Bug #2, #6
+
+### Autres
+- [Transcripts] - 59038263... (5-7 mai) et 5c6b218b... (7-11 mai)
+- [Commits Git] - Historique complet des corrections
+
+---
+
+**Dernière révision** : 11 mai 2026
+**Prochaine révision** : À chaque bug majeur résolu
