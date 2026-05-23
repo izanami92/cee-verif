@@ -3721,8 +3721,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
       }
 
       // Checks 15-18 : Parcelles + Périmètre + Inventaire - PAR CHANTIER
-      const attestationsCEE = norm.cee?.attestations || [];
-
+      // Note: attestationsCEE déjà déclaré ligne 3546
       norm.syntheses.forEach((synthese, syntheseIndex) => {
         const suffix = norm.syntheses.length > 1 ? ` chantier ${syntheseIndex + 1}` : '';
         const idSuffix = norm.syntheses.length > 1 ? `_c${syntheseIndex + 1}` : '';
