@@ -235,6 +235,29 @@ CEE - FACTURE ET ATTESTATIONS (EXTRACTION PAR CHANTIER) :
     * Si un seul chantier : toutes les parcelles vont dans cette attestation
 - COMBINER facture + attestations pour obtenir : {adresse: "...", surfaces: ["850"], ledTotal: "35", secteurActivite: "Entrepôts", parcelles: "000/0B/0551 - 000/0B/0547"}
 
+CEE - ADRESSE DU SIÈGE SOCIAL (CRITIQUE) :
+⚠️ IMPORTANT : L'adresse du siège social est OBLIGATOIRE pour valider le dossier CEE.
+
+- Chercher en HAUT À DROITE du dossier CEE (première page)
+- Section typique : "Bénéficiaire" ou "Entreprise bénéficiaire" ou coordonnées société
+- Extraire l'adresse COMPLÈTE du siège social (rue, code postal, ville)
+- Format attendu : "2 RUE DE PREPSON, 86110 AMBERRE" ou "123 Avenue Example, 75001 PARIS"
+- NE PAS confondre avec l'adresse du chantier (qui peut être différente)
+- Si plusieurs adresses sont mentionnées :
+  * Siège social : généralement indiqué explicitement ou dans les coordonnées principales
+  * Adresse chantier : dans les attestations sur l'honneur
+- Si non trouvé : chercher aussi dans les sections "Coordonnées", "Raison sociale", "SIRET"
+- L'adresse du siège est généralement proche du SIRET et du nom de la société
+- En cas de doute : prendre l'adresse qui accompagne le SIRET de l'entreprise
+
+EXEMPLE :
+Si tu vois :
+  "Bénéficiaire : NAUDON ERWAN
+   SIRET : 88130016400020
+   2 Rue de Prepson
+   86110 AMBERRE"
+→ adresseSiege: "2 Rue de Prepson, 86110 AMBERRE"
+
 ⚠️ RÈGLE CRITIQUE - ATTESTATIONS MANQUANTES :
 - Une attestation sur l'honneur contient TOUJOURS une section "Surface du bâtiment : XXX m²"
 - Si cette section N'EXISTE PAS dans le CEE pour un chantier → l'attestation n'existe pas
