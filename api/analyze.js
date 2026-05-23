@@ -358,13 +358,12 @@ MENTIONS AGRICOLES :
    - Dans la colonne "Surface" de ce tableau, extraire CHAQUE surface (une par ligne/bâtiment)
    - Retourner un tableau avec toutes les surfaces dans l'ordre : surfacesDetaillees: ["879", "876", "703"]
 
-   **Format du tableau (exemple réel) :**
-   ```
+   Format du tableau (exemple réel) :
    Bâtiment s/Zones | Activité  | Surface | ...
    1                | Entrepôt  | 879     | ...
    2                | Entrepôt  | 876     | ...
    3                | Entrepôt  | 703     | ...
-   ```
+
    → Extraire : surfacesDetaillees: ["879", "876", "703"]
 
    **Règles :**
