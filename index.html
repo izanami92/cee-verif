@@ -3720,23 +3720,34 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
         });
       }
 
-      // Checks 15-18 : Parcelles + Périmètre + Inventaire - PAR CHANTIER
+      // Check 15 : Parcelles cadastrales - VÉRIFICATION GLOBALE (toutes synthèses)
+      // Collecter toutes les parcelles de toutes les synthèses
+      const toutesParcellesSyntheses = norm.syntheses
+        .map(s => s.parcelles || '')
+        .filter(p => p)
+        .join(', ');
+
+      const parcellesGlobalOk = compareParcelles(toutesParcellesSyntheses, references.parcelles);
+
+      checks.push({
+        id: 'check_15',
+        categorie: 'synthese',
+        niveau: parcellesGlobalOk ? 'ok' : 'majeur',
+        champ: 'Parcelles cadastrales Synthèse (global)',
+        localisation: 'Toutes synthèses, fiche identité du site',
+        detail: parcellesGlobalOk ?
+          'Toutes les parcelles attendues sont présentes (répartition sur chantiers OK)' :
+          'Parcelles manquantes ou en trop par rapport au dossier CEE',
+        valeur_attendue: references.parcelles || '',
+        valeur_trouvee: toutesParcellesSyntheses || '',
+        chantierIndex: 0 // Global
+      });
+
+      // Checks 16-18 : Périmètre + Inventaire - PAR CHANTIER
       norm.syntheses.forEach((synthese, syntheseIndex) => {
         const suffix = norm.syntheses.length > 1 ? ` chantier ${syntheseIndex + 1}` : '';
         const idSuffix = norm.syntheses.length > 1 ? `_c${syntheseIndex + 1}` : '';
         const chantierIndex = syntheseIndex + 1;
-
-        checks.push({
-          id: `check_15${idSuffix}`,
-          categorie: 'synthese',
-          niveau: compareParcelles(synthese.parcelles, references.parcelles) ? 'ok' : 'majeur',
-          champ: `Parcelles cadastrales Synthèse fiche identité${suffix}`,
-          localisation: `Synthèse${suffix}, fiche identité du site`,
-          detail: 'Vérification parcelles (format 000/0B/XXXX)',
-          valeur_attendue: references.parcelles || '',
-          valeur_trouvee: synthese.parcelles || '',
-          chantierIndex
-        });
 
         checks.push({
           id: `check_16${idSuffix}`,
