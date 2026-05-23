@@ -350,6 +350,34 @@ MENTIONS AGRICOLES :
    - Format attendu : nombre entier en heures (sans espaces, ex: "54000")
    - Si non trouvé : mettre null
 
+7bis. SYNTHÈSE - EXTRACTION SURFACES DÉTAILLÉES PAR BÂTIMENT (CRITIQUE) :
+   ⚠️ IMPORTANT : Pour les dossiers multi-bâtiments, extraire les surfaces INDIVIDUELLES depuis le tableau détaillé
+
+   - Chercher la section "5.1 INVENTAIRE - ÉTAT PROJETÉ" (généralement page 10 de la synthèse)
+   - Cette section contient un TABLEAU avec les colonnes : "Bâtiment s / Zones", "Activité", "Surface", etc.
+   - Dans la colonne "Surface" de ce tableau, extraire CHAQUE surface (une par ligne/bâtiment)
+   - Retourner un tableau avec toutes les surfaces dans l'ordre : surfacesDetaillees: ["879", "876", "703"]
+
+   **Format du tableau (exemple réel) :**
+   ```
+   Bâtiment s/Zones | Activité  | Surface | ...
+   1                | Entrepôt  | 879     | ...
+   2                | Entrepôt  | 876     | ...
+   3                | Entrepôt  | 703     | ...
+   ```
+   → Extraire : surfacesDetaillees: ["879", "876", "703"]
+
+   **Règles :**
+   - Extraire dans l'ORDRE du tableau (ligne 1, ligne 2, ligne 3, etc.)
+   - Garder les surfaces telles quelles (ne pas arrondir, ne pas convertir)
+   - Si un seul bâtiment → tableau avec une seule valeur : ["2458"]
+   - Si tableau non trouvé ou synthèse ancienne version → mettre null (pas tableau vide)
+   - NE PAS confondre avec le total de la fiche identité (qui va dans surfaceEclairee)
+
+   **Différence importante :**
+   - surfaceEclairee : TOTAL de la fiche identité (page 2-3) → ex: "2458"
+   - surfacesDetaillees : DÉTAIL par bâtiment du tableau page 10 → ex: ["879", "876", "703"]
+
 8. NOMS ALTERNATIFS DES SECTIONS (anciens dossiers) :
    Les sections peuvent avoir des noms différents selon les versions :
 
@@ -393,6 +421,7 @@ FORMAT DE RÉPONSE (JSON uniquement) :
       "contact": "Contact nom/prénom page 1",
       "siret": "SIRET fiche identité (14 chiffres)",
       "surfaceEclairee": "Surface éclairée fiche identité",
+      "surfacesDetaillees": ["879", "876", "703"],
       "secteurActivite": "Secteur d'activité fiche identité",
       "secteurEtude": "Secteur étude indicateurs éclairage initial",
       "parcelles": "Parcelles cadastrales fiche identité",

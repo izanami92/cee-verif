@@ -4620,6 +4620,52 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
                 valeur_trouvee: surfaceSyntheseNum.toString() + ' m²',
                 chantierIndex: chantierIndex + 1 // ⭐ Chantier détecté depuis la case d'import
               });
+
+              // Check 45b : Vérification INDIVIDUELLE des surfaces par bâtiment (tableau détaillé Synthèse vs attestations)
+              if (syntheseCorrespondante.surfacesDetaillees && Array.isArray(syntheseCorrespondante.surfacesDetaillees) && syntheseCorrespondante.surfacesDetaillees.length > 0) {
+                const surfacesDetailleesNum = syntheseCorrespondante.surfacesDetaillees.map(s =>
+                  parseFloat(String(s).replace(/\s+/g, '').replace(/m²/g, '').replace(/,/g, '.')) || 0
+                );
+                const surfacesAttestationNum = surfacesAttestation.map(s =>
+                  parseFloat(String(s).replace(/\s+/g, '').replace(/m²/g, '').replace(/,/g, '.')) || 0
+                );
+
+                // Vérifier que les deux tableaux ont la même longueur
+                if (surfacesDetailleesNum.length === surfacesAttestationNum.length) {
+                  // Comparer chaque surface individuellement
+                  surfacesDetailleesNum.forEach((surfaceSynthese, batIndex) => {
+                    const surfaceAttestation = surfacesAttestationNum[batIndex];
+                    const surfaceOk = Math.abs(surfaceSynthese - surfaceAttestation) < 1; // Tolérance 1 m²
+
+                    if (!surfaceOk) {
+                      checks.push({
+                        id: `check_45b_${chantierIndex}_bat${batIndex + 1}`,
+                        categorie: 'synthese',
+                        niveau: 'majeur',
+                        champ: `Surface bâtiment ${batIndex + 1} Synthèse vs Attestation${chantierLabel}`,
+                        localisation: `Synthèse page 10, tableau 5.1 INVENTAIRE, ligne ${batIndex + 1}`,
+                        detail: `Surface bâtiment ${batIndex + 1} différente : ${surfaceSynthese} m² (Synthèse tableau) vs ${surfaceAttestation} m² (Attestation)`,
+                        valeur_attendue: surfaceAttestation.toString() + ' m²',
+                        valeur_trouvee: surfaceSynthese.toString() + ' m²',
+                        chantierIndex: chantierIndex + 1
+                      });
+                    }
+                  });
+                } else {
+                  // Nombre de surfaces différent → check manuel
+                  checks.push({
+                    id: `check_45b_${chantierIndex}`,
+                    categorie: 'synthese',
+                    niveau: 'info',
+                    champ: `Surfaces détaillées Synthèse${chantierLabel}`,
+                    localisation: `Synthèse page 10, tableau 5.1`,
+                    detail: `⚠️ Check manuel requis : nombre de surfaces différent (Synthèse: ${surfacesDetailleesNum.length}, Attestations: ${surfacesAttestationNum.length})`,
+                    valeur_attendue: `${surfacesAttestationNum.length} surfaces`,
+                    valeur_trouvee: `${surfacesDetailleesNum.length} surfaces`,
+                    chantierIndex: chantierIndex + 1
+                  });
+                }
+              }
             }
           }
 

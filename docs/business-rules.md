@@ -2,7 +2,7 @@
 
 **Document de référence exhaustif** pour toutes les règles de vérification des dossiers CEE LED.
 
-**Dernière mise à jour** : 11 mai 2026
+**Dernière mise à jour** : 12 mai 2026
 
 ---
 
@@ -172,7 +172,7 @@ if (isAgricole) {
 ### R05 : LED - Cohérence totale multi-chantiers
 
 **Niveau** : 🟠 MAJEUR
-**Check IDs** : 05, 06, 16, 39, 40
+**Check IDs** : 9a, 9b, 9c, 9d (par chantier + global)
 
 **Règle** : Vérification à **2 niveaux** :
 
@@ -528,6 +528,40 @@ function compareAddress(addr1, addr2) {
 
 ---
 
+---
+
+### R16 : Cohérence structurelle multi-chantiers
+
+**Niveau** : 🟠 MAJEUR
+**Check ID** : 39
+
+**Règle** : Le nombre de chantiers doit être cohérent entre tous les documents.
+
+**Vérification** :
+```javascript
+const nbAudits = audits.length;
+const nbSyntheses = syntheses.length;
+const nbAttestations = attestationsCEE.length;
+
+// Tous doivent être égaux
+const coherent = (nbAudits === nbSyntheses) && (nbSyntheses === nbAttestations);
+```
+
+**Exemples** :
+```
+✅ OK : 2 audits, 2 synthèses, 2 attestations
+❌ ERREUR : 2 audits, 2 synthèses, 3 attestations (incohérence)
+❌ ERREUR : 1 audit, 2 synthèses, 2 attestations (incohérence)
+```
+
+**Raison** : Un dossier incohérent indique une erreur de saisie ou d'extraction. Chaque chantier doit avoir son audit + synthèse + attestation CEE.
+
+**Sources** :
+- [Commit 7036e54] - "feat: ajout check 39 cohérence chantiers"
+- [TODO #1] - Implémentation checks conformes documentation
+
+---
+
 ## RÈGLES INFORMATIONNELLES (2)
 
 ### R14 : Contacts Synthèse optionnels
@@ -611,5 +645,5 @@ function compareAddress(addr1, addr2) {
 
 ---
 
-**Dernière révision** : 11 mai 2026
+**Dernière révision** : 12 mai 2026
 **Responsable** : Prime Evolution
