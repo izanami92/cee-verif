@@ -3720,34 +3720,33 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
         });
       }
 
-      // Check 15 : Parcelles cadastrales - VÉRIFICATION GLOBALE (toutes synthèses)
-      // Collecter toutes les parcelles de toutes les synthèses
-      const toutesParcellesSyntheses = norm.syntheses
-        .map(s => s.parcelles || '')
-        .filter(p => p)
-        .join(', ');
+      // Checks 15-18 : Parcelles + Périmètre + Inventaire - PAR CHANTIER
+      // Vérifier les parcelles chantier par chantier en matchant avec les attestations
+      const attestationsCEE = norm.cee?.attestations || [];
 
-      const parcellesGlobalOk = compareParcelles(toutesParcellesSyntheses, references.parcelles);
-
-      checks.push({
-        id: 'check_15',
-        categorie: 'synthese',
-        niveau: parcellesGlobalOk ? 'ok' : 'majeur',
-        champ: 'Parcelles cadastrales Synthèse (global)',
-        localisation: 'Toutes synthèses, fiche identité du site',
-        detail: parcellesGlobalOk ?
-          'Toutes les parcelles attendues sont présentes (répartition sur chantiers OK)' :
-          'Parcelles manquantes ou en trop par rapport au dossier CEE',
-        valeur_attendue: references.parcelles || '',
-        valeur_trouvee: toutesParcellesSyntheses || '',
-        chantierIndex: 0 // Global
-      });
-
-      // Checks 16-18 : Périmètre + Inventaire - PAR CHANTIER
       norm.syntheses.forEach((synthese, syntheseIndex) => {
         const suffix = norm.syntheses.length > 1 ? ` chantier ${syntheseIndex + 1}` : '';
         const idSuffix = norm.syntheses.length > 1 ? `_c${syntheseIndex + 1}` : '';
         const chantierIndex = syntheseIndex + 1;
+
+        // Récupérer les parcelles de l'attestation correspondante (match par index)
+        const attestationCorrespondante = attestationsCEE[syntheseIndex];
+        const parcellesAttendues = attestationCorrespondante?.parcelles || references.parcelles || '';
+        const parcellesOk = compareParcelles(synthese.parcelles, parcellesAttendues);
+
+        checks.push({
+          id: `check_15${idSuffix}`,
+          categorie: 'synthese',
+          niveau: parcellesOk ? 'ok' : 'majeur',
+          champ: `Parcelles cadastrales Synthèse fiche identité${suffix}`,
+          localisation: `Synthèse${suffix}, fiche identité du site`,
+          detail: parcellesOk ?
+            'Parcelles cadastrales conformes au dossier CEE pour ce chantier' :
+            'Parcelles cadastrales différentes du dossier CEE',
+          valeur_attendue: parcellesAttendues,
+          valeur_trouvee: synthese.parcelles || '',
+          chantierIndex
+        });
 
         checks.push({
           id: `check_16${idSuffix}`,
