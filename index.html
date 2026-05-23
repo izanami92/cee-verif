@@ -2729,7 +2729,15 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
             const secteur = attestation.secteurActivite || '';
             const isAutres = secteur.toLowerCase().includes('autres');
 
-            if (isAutres || !isAgricole) {
+            // CAS 1 : Surfaces vides ou nulles → saisie manuelle (attestation CEE non trouvée)
+            if (!attestation.surfaces || attestation.surfaces.length === 0 || sumSurfaces(attestation.surfaces) === 0) {
+              attestation.surfaceManuelle = true;
+              attestation.surfaceManuelleSaisie = null;
+              attestation.raisonManuelle = 'Attestation CEE non trouvée ou surfaces non extraites';
+              console.log(`⚠️ Chantier ${index + 1}: Saisie manuelle requise - Attestation CEE manquante`);
+            }
+            // CAS 2 : Surfaces présentes MAIS secteur "Autres" OU NAF non agricole
+            else if (isAutres || !isAgricole) {
               attestation.surfaceManuelle = true;
               attestation.surfaceManuelleSaisie = null; // Sera rempli par l'utilisateur
 
@@ -4537,6 +4545,32 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
 
           const surfacesAttestation = toutesLesSurfaces;
 
+          const nbChantiers = norm.cee?.attestations?.length || 0;
+          const chantierLabel = nbChantiers > 1 ?
+            ` (Chantier ${chantierIndex + 1} : ${chantierAdresse.substring(0, 30)}...)` :
+            '';
+
+          // ⚠️ VÉRIFICATION CRITIQUE : Attestations vides → Saisie manuelle requise
+          if (toutesLesSurfaces.length === 0 || sommeAttestationTotale === 0) {
+            console.warn(`⚠️ Chantier ${chantierIndex + 1}: Aucune surface d'attestation trouvée → Saisie manuelle requise`);
+
+            checks.push({
+              id: `check_attestation_manquante_${chantierIndex}`,
+              categorie: 'cee',
+              niveau: 'info',
+              champ: `Attestation CEE manquante${chantierLabel}`,
+              localisation: `Dossier CEE - Chantier ${chantierIndex + 1} : ${chantierAdresse}`,
+              detail: '⚠️ Saisie manuelle requise : Aucune attestation sur l\'honneur trouvée (CEE BAT-EQ-127 "Existence d\'un entrepôt") ou surfaces non extraites. Veuillez saisir la surface totale manuellement ci-dessous.',
+              valeur_attendue: 'Saisie manuelle',
+              valeur_trouvee: 'Attestation non trouvée',
+              chantierIndex: chantierIndex + 1
+            });
+
+            // Passer au chantier suivant sans générer les checks 42, 45, 45b
+            chantierIndex++;
+            return;
+          }
+
           // Trouver l'audit correspondant PAR INDEX (pas par adresse)
           const auditCorrespondant = norm.audits[chantierIndex] || null;
           console.log(`\n=== CHANTIER ${chantierIndex + 1} - ${chantierAdresse} ===`);
@@ -4545,11 +4579,6 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
           // Trouver la synthèse correspondante PAR INDEX (pas par adresse)
           const syntheseCorrespondante = norm.syntheses[chantierIndex] || null;
           console.log('Synthèse correspondante (par index):', syntheseCorrespondante ? syntheseCorrespondante.adresse : 'NON TROUVÉE');
-
-          const nbChantiers = norm.cee?.attestations?.length || 0;
-          const chantierLabel = nbChantiers > 1 ?
-            ` (Chantier ${chantierIndex + 1} : ${chantierAdresse.substring(0, 30)}...)` :
-            '';
 
           // Check 42 : Audit trouvé pour ce chantier (PAR INDEX)
           if (!auditCorrespondant) {
@@ -4683,12 +4712,27 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
 
               // Check 45b : Vérification INDIVIDUELLE des surfaces par bâtiment (tableau détaillé Synthèse vs attestations)
               if (syntheseCorrespondante.surfacesDetaillees && Array.isArray(syntheseCorrespondante.surfacesDetaillees) && syntheseCorrespondante.surfacesDetaillees.length > 0) {
-                const surfacesDetailleesNum = syntheseCorrespondante.surfacesDetaillees.map(s =>
-                  parseFloat(String(s).replace(/\s+/g, '').replace(/m²/g, '').replace(/,/g, '.')) || 0
-                );
-                const surfacesAttestationNum = surfacesAttestation.map(s =>
-                  parseFloat(String(s).replace(/\s+/g, '').replace(/m²/g, '').replace(/,/g, '.')) || 0
-                );
+
+                // ⚠️ Vérifier que les attestations ont des surfaces (sécurité, normalement déjà géré par le return plus haut)
+                if (!surfacesAttestation || surfacesAttestation.length === 0) {
+                  checks.push({
+                    id: `check_45b_${chantierIndex}`,
+                    categorie: 'synthese',
+                    niveau: 'info',
+                    champ: `Surfaces détaillées Synthèse (saisie manuelle requise)${chantierLabel}`,
+                    localisation: `Synthèse page 10, tableau 5.1`,
+                    detail: `⚠️ Surfaces détaillées trouvées dans la Synthèse mais pas d'attestation de référence. Saisie manuelle requise pour vérification.`,
+                    valeur_attendue: 'Saisie manuelle',
+                    valeur_trouvee: `${syntheseCorrespondante.surfacesDetaillees.length} surface(s) dans tableau`,
+                    chantierIndex: chantierIndex + 1
+                  });
+                } else {
+                  const surfacesDetailleesNum = syntheseCorrespondante.surfacesDetaillees.map(s =>
+                    parseFloat(String(s).replace(/\s+/g, '').replace(/m²/g, '').replace(/,/g, '.')) || 0
+                  );
+                  const surfacesAttestationNum = surfacesAttestation.map(s =>
+                    parseFloat(String(s).replace(/\s+/g, '').replace(/m²/g, '').replace(/,/g, '.')) || 0
+                  );
 
                 // Vérifier que les deux tableaux ont la même longueur
                 if (surfacesDetailleesNum.length === surfacesAttestationNum.length) {
@@ -4711,19 +4755,20 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
                       });
                     }
                   });
-                } else {
-                  // Nombre de surfaces différent → check manuel
-                  checks.push({
-                    id: `check_45b_${chantierIndex}`,
-                    categorie: 'synthese',
-                    niveau: 'info',
-                    champ: `Surfaces détaillées Synthèse${chantierLabel}`,
-                    localisation: `Synthèse page 10, tableau 5.1`,
-                    detail: `⚠️ Check manuel requis : nombre de surfaces différent (Synthèse: ${surfacesDetailleesNum.length}, Attestations: ${surfacesAttestationNum.length})`,
-                    valeur_attendue: `${surfacesAttestationNum.length} surfaces`,
-                    valeur_trouvee: `${surfacesDetailleesNum.length} surfaces`,
-                    chantierIndex: chantierIndex + 1
-                  });
+                  } else {
+                    // Nombre de surfaces différent → check manuel
+                    checks.push({
+                      id: `check_45b_${chantierIndex}`,
+                      categorie: 'synthese',
+                      niveau: 'info',
+                      champ: `Surfaces détaillées Synthèse${chantierLabel}`,
+                      localisation: `Synthèse page 10, tableau 5.1`,
+                      detail: `⚠️ Check manuel requis : nombre de surfaces différent (Synthèse: ${surfacesDetailleesNum.length}, Attestations: ${surfacesAttestationNum.length})`,
+                      valeur_attendue: `${surfacesAttestationNum.length} surfaces`,
+                      valeur_trouvee: `${surfacesDetailleesNum.length} surfaces`,
+                      chantierIndex: chantierIndex + 1
+                    });
+                  }
                 }
               }
             }

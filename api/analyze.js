@@ -223,7 +223,27 @@ CEE - FACTURE ET ATTESTATIONS (EXTRACTION PAR CHANTIER) :
   - Identifier l'adresse du chantier dans le détail (ex: "route de la raimbaudière - 066/ZA/0006")
   - Extraire la quantité dans la colonne "Quantité" (ex: "35,00 U" → "35")
   - Associer cette quantité LED à l'adresse correspondante
-- Pour CHAQUE "ATTESTATION SUR L'HONNEUR", extraire :
+
+⚠️ IMPORTANT - DISTINCTION ENTRE 2 TYPES D'ATTESTATIONS :
+Le dossier CEE contient 2 attestations différentes. Tu dois extraire UNIQUEMENT depuis la bonne :
+
+1️⃣ "Attestation d'installation de matériel éligible au CEE par le service technique interne
+    Dans le cadre de la fiche d'opération standardisée n° BAT-EQ-127"
+    → Concerne le MATÉRIEL/ÉQUIPEMENT installé
+    → ⚠️ NE PAS extraire les surfaces depuis cette attestation
+
+2️⃣ "ATTESTATION SUR L'HONNEUR
+    Existence d'un entrepôt de stockage non agricole – Fiche d'opération standardisée CEE BAT-EQ-127"
+    → Concerne l'ENTREPÔT (bâtiment)
+    → ✅ EXTRAIRE les surfaces depuis CETTE attestation uniquement
+
+RÈGLE D'EXTRACTION :
+- Chercher la section avec "ATTESTATION SUR L'HONNEUR" ET "Existence d'un entrepôt"
+- Dans cette section, extraire la phrase "La surface réelle de cet entrepôt... est de XXX m²"
+- Si cette attestation n'existe PAS dans le document → surfaces: []
+- Ne JAMAIS extraire les surfaces depuis l'attestation d'installation de matériel
+
+- Pour CHAQUE "ATTESTATION SUR L'HONNEUR" (celle concernant l'entrepôt), extraire :
   - adresse : adresse du chantier
   - surfaces : tableau des surfaces ["850", "456"]
   - ledTotal : nombre de LED (depuis facture)
