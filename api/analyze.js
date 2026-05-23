@@ -258,19 +258,43 @@ Si tu vois :
    86110 AMBERRE"
 → adresseSiege: "2 Rue de Prepson, 86110 AMBERRE"
 
-⚠️ RÈGLE CRITIQUE - ATTESTATIONS MANQUANTES :
-- Une attestation sur l'honneur contient TOUJOURS une section "Surface du bâtiment : XXX m²"
-- Si cette section N'EXISTE PAS dans le CEE pour un chantier → l'attestation n'existe pas
-- Dans ce cas :
-  * surfaces : METTRE UN TABLEAU VIDE [] (pas null, pas de valeur inventée)
-  * NE JAMAIS extraire des surfaces depuis d'autres parties du document (facture, devis, totaux)
-  * NE JAMAIS confondre avec :
-    - Puissance LED (en W ou kW) - exemple : "12000 W" n'est PAS une surface
-    - Surface totale bâtiment depuis page de garde audit (celle-là va dans audit.surfaces, pas attestation.surfaces)
-    - Quantité de luminaires (en unités)
-  * ledTotal : toujours extraire depuis la FACTURE (colonne Quantité) même sans attestation
-  * secteurActivite : peut être extrait depuis d'autres parties du CEE si disponible
-- Si tu vois "Surface : 12000" et ailleurs "12000 W" ou "12000 kW" → c'est une PUISSANCE, pas une surface → surfaces: []
+⚠️ RÈGLE CRITIQUE - EXTRACTION DES SURFACES DEPUIS LES ATTESTATIONS :
+
+Les attestations sur l'honneur ont un FORMAT STANDARD. Chercher la phrase EXACTE suivante :
+
+**Format standard :**
+"La surface réelle de cet entrepôt, prise en compte pour l'opération CEE, est de XXX m²"
+
+**Instructions d'extraction :**
+1. Chercher la section "ATTESTATION SUR L'HONNEUR" dans le CEE
+2. Dans cette section, chercher la phrase qui commence par "La surface réelle de cet entrepôt"
+3. La valeur de surface est à la FIN de cette phrase, en gras
+4. Extraire UNIQUEMENT le nombre (ex: "879", "876", "703")
+5. Si plusieurs attestations → CHAQUE attestation a cette phrase avec SA surface
+
+**Exemples d'extraction :**
+- Si tu vois "La surface réelle de cet entrepôt, prise en compte pour l'opération CEE, est de 879 m²"
+  → Extraire "879"
+
+- Si tu vois "La surface réelle de cet entrepôt, prise en compte pour l'opération CEE, est de 703 m²"
+  → Extraire "703"
+
+**Variantes possibles à chercher (format peut légèrement varier) :**
+- "La surface réelle de cet entrepôt... est de XXX m²"
+- "La superficie réelle de cet entrepôt... est de XXX m²"
+- "Surface prise en compte pour l'opération CEE... XXX m²"
+
+⚠️ IMPORTANT - Si aucune attestation trouvée :
+- Si tu ne trouves AUCUNE section "ATTESTATION SUR L'HONNEUR" dans le CEE → surfaces: []
+- Mais si la section existe, tu DOIS trouver la surface (cherche avec les variantes ci-dessus)
+- NE JAMAIS mettre surfaces: [] si l'attestation existe mais que tu as du mal à extraire la surface
+- En cas de doute, extraire la surface même si le format est légèrement différent
+
+⚠️ NE PAS CONFONDRE AVEC :
+- Puissance LED (en W ou kW) - exemple : "12000 W" n'est PAS une surface
+- Surface totale depuis page de garde audit (celle-là va dans audit.surfaces)
+- Quantité de luminaires (en unités)
+- Si tu vois "Surface : 12000" et ailleurs "12000 W" → c'est une PUISSANCE → surfaces: []
 
 CEE - RÉFÉRENCE LED (DÉTECTION AUTOMATIQUE) :
 - Dans la FACTURE, colonne "Référence", identifier la référence LED utilisée
