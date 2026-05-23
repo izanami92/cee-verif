@@ -228,7 +228,12 @@ CEE - FACTURE ET ATTESTATIONS (EXTRACTION PAR CHANTIER) :
   - surfaces : tableau des surfaces ["850", "456"]
   - ledTotal : nombre de LED (depuis facture)
   - secteurActivite : secteur d'activité SPÉCIFIQUE à ce chantier (voir section suivante)
-- COMBINER facture + attestations pour obtenir : {adresse: "...", surfaces: ["850"], ledTotal: "35", secteurActivite: "Entrepôts"}
+  - parcelles : parcelles cadastrales SPÉCIFIQUES à ce chantier (format "000/0B/0551 - 000/0B/0547")
+    * Chercher dans le CEE, SOUS ou À PROXIMITÉ de l'adresse de ce chantier
+    * Format typique : "000/0B/0551 - 000/0B/0547 - 000/0B/0549 - 000/0B/0045"
+    * Si plusieurs chantiers : CHAQUE attestation a ses propres parcelles
+    * Si un seul chantier : toutes les parcelles vont dans cette attestation
+- COMBINER facture + attestations pour obtenir : {adresse: "...", surfaces: ["850"], ledTotal: "35", secteurActivite: "Entrepôts", parcelles: "000/0B/0551 - 000/0B/0547"}
 
 ⚠️ RÈGLE CRITIQUE - ATTESTATIONS MANQUANTES :
 - Une attestation sur l'honneur contient TOUJOURS une section "Surface du bâtiment : XXX m²"
@@ -371,13 +376,15 @@ FORMAT DE RÉPONSE (JSON uniquement) :
         "adresse": "1 rue Example 60000 VILLE1",
         "surfaces": ["850", "456"],
         "ledTotal": "35",
-        "secteurActivite": "Entrepôts"
+        "secteurActivite": "Entrepôts",
+        "parcelles": "000/0B/0551 - 000/0B/0547 - 000/0B/0549"
       },
       {
         "adresse": "25 avenue Test 60130 VILLE2",
         "surfaces": ["1240"],
         "ledTotal": "31",
-        "secteurActivite": "Entrepôts"
+        "secteurActivite": "Entrepôts",
+        "parcelles": "000/0E/0277"
       }
     ],
     "mentionsAgricoles": {
