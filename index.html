@@ -2456,14 +2456,6 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
 
           if (chantier.syntheseText) {
             userMessage += `= SYNTHÈSE =\n${chantier.syntheseText}\n\n`;
-
-            // LOG TEMPORAIRE : afficher le texte brut de la Synthèse pour debug extraction surfaces
-            console.log(`\n${'='.repeat(80)}`);
-            console.log(`📄 TEXTE BRUT SYNTHÈSE CHANTIER ${index + 1} (tel qu'envoyé à Claude)`);
-            console.log(`${'='.repeat(80)}`);
-            console.log(chantier.syntheseText);
-            console.log(`${'='.repeat(80)}\n`);
-            console.log('💡 Cherchez "5.1" ou "INVENTAIRE" dans le texte ci-dessus pour voir le format du tableau');
           }
 
           userMessage += `---\n\n`;
