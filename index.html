@@ -2786,9 +2786,14 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
     // Comparer deux parcelles cadastrales (supprimer TOUS les espaces, ignorer l'ordre)
     function compareParcelles(val1, val2) {
       const clean = (v) => {
-        const cleaned = String(v || '').replace(/\s+/g, '').toLowerCase();
+        // Normaliser TOUS les types de tirets vers hyphen-minus standard
+        // U+2013 (en dash –), U+2014 (em dash —), U+2212 (minus sign −) → U+002D (hyphen-minus -)
+        const normalized = String(v || '')
+          .replace(/\s+/g, '')
+          .toLowerCase()
+          .replace(/[–—−]/g, '-');
         // Séparer les parcelles par virgule OU tiret, trier, puis reconstituer
-        const parcelles = cleaned.split(/[,\-]/).map(p => p.trim()).filter(p => p).sort();
+        const parcelles = normalized.split(/[,\-]/).map(p => p.trim()).filter(p => p).sort();
         return parcelles.join(',');
       };
 
