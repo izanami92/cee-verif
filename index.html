@@ -2491,6 +2491,27 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
         }
 
         const extractedData = await response.json();
+
+        // PARSER LES SURFACES DÉTAILLÉES depuis le texte brut de la Synthèse
+        // (car Claude les copie parfois depuis les attestations au lieu du tableau)
+        if (extractedData.syntheses && state.chantiers) {
+          console.log('\n=== PARSING SURFACES DÉTAILLÉES (JavaScript) ===');
+          extractedData.syntheses.forEach((synthese, index) => {
+            const chantier = state.chantiers[index];
+            if (chantier && chantier.syntheseText) {
+              const surfacesParsees = parseSurfacesFromSynthese(chantier.syntheseText);
+              if (surfacesParsees && surfacesParsees.length > 0) {
+                const surfacesAvant = synthese.surfacesDetaillees || [];
+                synthese.surfacesDetaillees = surfacesParsees;
+                console.log(`Chantier ${index + 1}:`);
+                console.log(`  Avant (Claude): ${JSON.stringify(surfacesAvant)}`);
+                console.log(`  Après (Parser): ${JSON.stringify(surfacesParsees)}`);
+              }
+            }
+          });
+          console.log('=== FIN PARSING ===\n');
+        }
+
         console.log('=== DONNÉES BRUTES REÇUES DE L\'API ===');
         console.log('Clés présentes:', Object.keys(extractedData));
         console.log('Format:', 'audit' in extractedData ? '✅ NOUVEAU (extraction)' : '⚠️ ANCIEN (checks)');
@@ -2789,6 +2810,45 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
         .trim();
 
       return normalized;
+    }
+
+    // Parser les surfaces détaillées depuis le texte brut de la Synthèse (section 5.1)
+    function parseSurfacesFromSynthese(syntheseText) {
+      try {
+        // Trouver la section 5.1 (peut être "5.1 INVENTAIRE", "5.1 ETAT PROJETE", etc.)
+        const section51Match = syntheseText.match(/5\.1[\s\S]{0,10000}/);
+        if (!section51Match) {
+          console.warn('⚠️ Section 5.1 introuvable dans le texte de la Synthèse');
+          return null;
+        }
+
+        const section51 = section51Match[0];
+
+        // Chercher le tableau avec les bâtiments
+        // Format : numéro + espaces + activité + espaces + surface (nombre avec possiblement décimales)
+        // Exemple: "1   Entrepôt   879   219..."
+        // Exemple: "3   Entrepôt   7.23   210..."
+        const surfaces = [];
+
+        // Regex multiline : ligne qui commence par un ou plusieurs chiffres,
+        // suivi d'espaces, suivi de texte non-espace (l'activité),
+        // suivi d'espaces, suivi d'un nombre (la surface, avec ou sans décimales)
+        const regex = /^(\d+)\s+\S+\s+(\d+(?:\.\d+)?)/gm;
+
+        let match;
+        while ((match = regex.exec(section51)) !== null) {
+          surfaces.push(match[2]); // match[2] = la surface
+        }
+
+        if (surfaces.length > 0) {
+          console.log(`✅ Parser JS: ${surfaces.length} surface(s) trouvée(s) dans section 5.1:`, surfaces);
+        }
+
+        return surfaces.length > 0 ? surfaces : null;
+      } catch (error) {
+        console.error('❌ Erreur lors du parsing des surfaces:', error);
+        return null;
+      }
     }
 
     // Comparer deux parcelles cadastrales (supprimer TOUS les espaces, ignorer l'ordre)
