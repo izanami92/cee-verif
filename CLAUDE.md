@@ -28,6 +28,7 @@ APIs     : Claude Sonnet 4 (via OpenRouter)
          : API Gouvernementale SIRET
          : Google Sheets API (googleapis v171.4.0)
 PDF      : pdf.js (client-side)
+Parsing  : Regex JavaScript (surfaces détaillées section 5.1 Synthèse)
 Fonts    : Google Fonts (DM Sans, Syne, DM Mono)
 Deploy   : Vercel (auto-deploy sur push)
 ```
@@ -163,6 +164,7 @@ Les décisions techniques majeures sont documentées dans `docs/decisions/` sous
 - **011-matching-index-chantiers.md** (9 mai) - Matching audits/synthèses par INDEX
 - **004-google-sheets-feedback.md** (11 mai) - Persistence du feedback utilisateur
 - **005-support-naf-surfaces-manuelles.md** (11 mai) - Gestion secteur "Autres"
+- **012-parsing-surfaces-client-side.md** (23 mai) - Parser JavaScript surfaces tableau Synthèse
 
 Chaque ADR contient : Date, Statut, Contexte, Décision, Alternatives, Conséquences, Sources.
 
@@ -388,5 +390,5 @@ git push origin main
 
 ---
 
-**Dernière mise à jour** : 11 mai 2026
-**Version** : Phase 1 complète + Google Sheets + Support NAF
+**Dernière mise à jour** : 23 mai 2026
+**Version** : Phase 1 complète + Détection surfaces individuelles

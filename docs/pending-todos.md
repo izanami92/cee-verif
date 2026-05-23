@@ -497,6 +497,43 @@ CREATE TABLE analyses (
 
 ---
 
+### ✅ TODO #19 : Détection erreurs surfaces individuelles par bâtiment
+
+**Statut** : ✅ **COMPLÉTÉ** (23 mai 2026)
+
+**Problème** :
+- Claude copiait surfaces depuis attestations CEE au lieu du tableau Synthèse
+- Erreurs de saisie non détectées (ex: 7.23 m² tapé comme 703 m² dans Synthèse)
+- Malgré instructions ultra-explicites, extraction IA inefficace pour ce cas
+
+**Solution implémentée** :
+1. **Parser JavaScript côté client** (index.html lignes 2794-2831)
+   - Extraction regex section 5.1 : `/^(\d+)\s+\S+\s+(\d+(?:\.\d+)?)/gm`
+   - Indépendant du formatage PDF exact
+   - Remplace surfacesDetaillees après extraction Claude
+
+2. **Check 45b - Comparaison surfaces individuelles** (index.html lignes 4610-4664)
+   - Compare chaque surface bâtiment : Synthèse vs Attestations
+   - Niveau MAJEUR si différence détectée
+   - Complète check 45a (sommes totales)
+
+**Résultat** : Erreurs de saisie individuelles détectées automatiquement ✅
+
+**Fichiers modifiés** :
+- `index.html` (+82 lignes, -16 lignes)
+- `api/analyze.js` (+47 lignes)
+
+**Commits** :
+- `448195a` - "feat: ajout vérification individuelle surfaces par bâtiment"
+- `ea96555` - "feat: parsing JavaScript surfaces détaillées tableau Synthèse"
+- `d8df027` - "refactor: retrait log temporaire debug surfaces"
+
+**Sources** :
+- [Session 23 mai 2026]
+- [ADR 012]
+
+---
+
 ## 📊 STATISTIQUES
 
 **TODOs actifs** : 6
@@ -504,14 +541,15 @@ CREATE TABLE analyses (
 - 🟡 Importantes : 3
 - 🟢 Nice to have : 3
 
-**TODOs complétés récemment** : 12 (7-12 mai 2026)
+**TODOs complétés récemment** : 13 (7-23 mai 2026)
 - 7 mai : Multi-chantiers (ADR 003)
 - 8 mai : Sélecteur LED (ADR 006), Normalisation adresses (ADR 007), Extraction CLIENT (ADR 008)
 - 9 mai : UX hiérarchique (ADR 009), Secteur par chantier (ADR 010), Matching INDEX (ADR 011)
 - 11 mai : Google Sheets (ADR 004), Support NAF (ADR 005)
 - 12 mai : Documentation Phase 1-2-3 (TODO #18), Checks 39-47 (TODO #1), Check 27 tolérance (TODO #2)
+- 23 mai : Surfaces individuelles (ADR 012, TODO #19)
 
-**Taux de complétion** : 67% (12/18) 🎯
+**Taux de complétion** : 68% (13/19) 🎯
 
 ---
 
@@ -557,5 +595,5 @@ Ce document doit être mis à jour :
 
 ---
 
-**Dernière révision** : 12 mai 2026 (session TODOs #1-#2)
+**Dernière révision** : 23 mai 2026 (session TODO #19 - Surfaces individuelles)
 **Prochaine révision** : Fin de session actuelle
