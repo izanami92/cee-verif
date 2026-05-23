@@ -351,46 +351,53 @@ MENTIONS AGRICOLES :
    - Si non trouvé : mettre null
 
 7bis. SYNTHÈSE - SURFACES DÉTAILLÉES PAR BÂTIMENT (OBLIGATOIRE) :
-   ⚠️ EXTRACTION CRITIQUE : Ces surfaces permettent de détecter les erreurs de saisie bâtiment par bâtiment
+   ⚠️ EXTRACTION CRITIQUE : Comparer les surfaces du tableau Synthèse vs les attestations CEE
 
-   LOCALISATION :
-   - Section "5.1" (peut s'appeler "5.1 INVENTAIRE", "5.1 ETAT PROJETE", etc.)
-   - Chercher le tableau qui contient les colonnes : "Bâtiment", "Activité", "Surface"
-   - Note : il peut y avoir plusieurs tableaux dans cette section, cherche celui qui a ces 3 colonnes
+   🔴 SOURCE D'EXTRACTION (TRÈS IMPORTANT) 🔴
+   Les surfaces des ATTESTATIONS CEE sont DÉJÀ extraites dans un autre champ (cee.attestations[].surfaces).
+   Pour surfacesDetaillees, tu dois extraire UNIQUEMENT depuis le TABLEAU de la SYNTHÈSE.
 
-   STRUCTURE DU TABLEAU À EXTRAIRE :
-   Chaque ligne du tableau contient :
-   1. Un NUMÉRO de bâtiment (1, 2, 3...)
-   2. Un TYPE D'ACTIVITÉ (Entrepôt, Bureau, Commerce, Logistique, etc.)
-   3. Une SURFACE en m² (le nombre juste après l'activité)
+   ⚠️ NE PAS utiliser les surfaces des attestations CEE pour ce champ !
+   ⚠️ NE PAS copier les valeurs du champ cee.attestations[].surfaces !
+   ⚠️ Les surfaces Synthèse peuvent DIFFÉRER des attestations (c'est justement ce qu'on veut détecter) !
 
-   INSTRUCTION D'EXTRACTION :
-   Pour chaque ligne numérotée du tableau, extraire le PREMIER NOMBRE qui suit le type d'activité.
-   Ce nombre est la surface du bâtiment en m².
-   Retourner toutes les surfaces dans l'ordre : surfacesDetaillees: ["surface1", "surface2", "surface3", ...]
+   Les deux sources sont DIFFÉRENTES et seront comparées pour détecter les erreurs de saisie dans la Synthèse.
 
-   EXEMPLES CONCRETS (plusieurs formats possibles) :
+   OÙ CHERCHER EXACTEMENT :
+   1. Dans la section du message marquée "= SYNTHÈSE =" (PAS dans "=== DOSSIER CEE ===")
+   2. Dans cette section, chercher "5.1" (peut s'appeler "5.1 INVENTAIRE", "5.1 ETAT PROJETE", etc.)
+   3. Chercher le tableau avec les colonnes : "Bâtiment" (ou "Bâtiment s / Zones"), "Activité", "Surface"
 
-   Exemple 1 - Multi-bâtiments :
-   "1   Entrepôt   879   219..." → extraire 879
-   "2   Entrepôt   876   220..." → extraire 876
-   "3   Entrepôt   7.23   210..." → extraire 7.23
+   STRUCTURE DU TABLEAU :
+   Chaque ligne contient :
+   - Un NUMÉRO de bâtiment (1, 2, 3...)
+   - Un TYPE D'ACTIVITÉ (Entrepôt, Bureau, Commerce, etc.)
+   - Une SURFACE en m² (le nombre juste après l'activité)
+
+   EXTRACTION :
+   Pour chaque ligne numérotée, extraire le PREMIER NOMBRE après l'activité.
+   Extraire EXACTEMENT ce qui est ÉCRIT dans le tableau Synthèse (même si différent des attestations).
+
+   EXEMPLES CONCRETS :
+
+   Si le tableau Synthèse section 5.1 contient :
+   "1   Entrepôt   879   219..."
+   "2   Entrepôt   876   220..."
+   "3   Entrepôt   7.23   210..."
+
    → surfacesDetaillees: ["879", "876", "7.23"]
 
-   Exemple 2 - Activités différentes :
-   "1   Bureau   1250   180..." → extraire 1250
-   "2   Commerce   450   200..." → extraire 450
-   → surfacesDetaillees: ["1250", "450"]
+   MÊME SI les attestations CEE indiquent ["879", "876", "703"],
+   tu dois extraire ce qui est ÉCRIT dans le tableau Synthèse : ["879", "876", "7.23"]
+   Le check JavaScript détectera ensuite l'erreur de saisie (7.23 ≠ 703 sur le bâtiment 3).
 
-   Exemple 3 - Un seul bâtiment :
-   "1   Entrepôt   2458   216..." → extraire 2458
-   → surfacesDetaillees: ["2458"]
-
-   RÈGLES :
-   - TOUJOURS extraire ce champ (même si 1 seul bâtiment)
-   - Extraire pour TOUTES les lignes numérotées (quelle que soit l'activité)
-   - Si tu ne trouves vraiment pas ce tableau → mettre null
-   - Ne PAS confondre avec surfaceEclairee (qui est le total de la fiche identité pages 2-3)
+   RÈGLES FINALES :
+   - Extraire UNIQUEMENT depuis le texte de la section "= SYNTHÈSE ="
+   - Chercher dans la sous-section "5.1" de cette synthèse
+   - JAMAIS copier depuis cee.attestations[].surfaces
+   - Extraire pour TOUTES les lignes numérotées du tableau
+   - Si tableau vraiment introuvable → mettre null
+   - Ne PAS confondre avec surfaceEclairee (total de la fiche identité)
 
 8. NOMS ALTERNATIFS DES SECTIONS (anciens dossiers) :
    Les sections peuvent avoir des noms différents selon les versions :
