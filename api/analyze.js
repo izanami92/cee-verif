@@ -350,32 +350,40 @@ MENTIONS AGRICOLES :
    - Format attendu : nombre entier en heures (sans espaces, ex: "54000")
    - Si non trouvé : mettre null
 
-7bis. SYNTHÈSE - EXTRACTION SURFACES DÉTAILLÉES PAR BÂTIMENT (CRITIQUE) :
-   ⚠️ IMPORTANT : Pour les dossiers multi-bâtiments, extraire les surfaces INDIVIDUELLES depuis le tableau détaillé
+7bis. SYNTHÈSE - SURFACES DÉTAILLÉES PAR BÂTIMENT (OBLIGATOIRE) :
+   ⚠️ EXTRACTION CRITIQUE : Ces surfaces permettent de détecter les erreurs de saisie bâtiment par bâtiment
 
-   - Chercher la section "5.1 INVENTAIRE - ÉTAT PROJETÉ" (généralement page 10 de la synthèse)
-   - Cette section contient un TABLEAU avec les colonnes : "Bâtiment s / Zones", "Activité", "Surface", etc.
-   - Dans la colonne "Surface" de ce tableau, extraire CHAQUE surface (une par ligne/bâtiment)
-   - Retourner un tableau avec toutes les surfaces dans l'ordre : surfacesDetaillees: ["879", "876", "703"]
+   ÉTAPE 1 - LOCALISER LE TABLEAU :
+   - Chercher "5.1 INVENTAIRE" ou "5.1 INVENTAIRE - ÉTAT PROJETÉ" (page 10 environ)
+   - Cette section contient DEUX tableaux successifs
+   - IGNORER le 1er tableau (marques et références des luminaires)
+   - UTILISER le 2ème tableau (celui avec les bâtiments)
 
-   Format du tableau (exemple réel) :
-   Bâtiment s/Zones | Activité  | Surface | ...
-   1                | Entrepôt  | 879     | ...
-   2                | Entrepôt  | 876     | ...
-   3                | Entrepôt  | 703     | ...
+   ÉTAPE 2 - IDENTIFIER LES COLONNES :
+   Le 2ème tableau a ces colonnes (dans cet ordre) :
+   "Bâtiment s / Zones" | "Activité" | "Surface" | "Lux projeté" | ...
 
-   → Extraire : surfacesDetaillees: ["879", "876", "703"]
+   ÉTAPE 3 - EXTRAIRE LES SURFACES :
+   - Colonne "Bâtiment s / Zones" → contient : 1, 2, 3, etc.
+   - Colonne "Surface" → contient les m² de chaque bâtiment
+   - EXTRAIRE toutes les valeurs de la colonne "Surface" dans l'ordre des bâtiments
+   - Format : surfacesDetaillees: ["879", "876", "703"]
 
-   **Règles :**
-   - Extraire dans l'ORDRE du tableau (ligne 1, ligne 2, ligne 3, etc.)
-   - Garder les surfaces telles quelles (ne pas arrondir, ne pas convertir)
-   - Si un seul bâtiment → tableau avec une seule valeur : ["2458"]
-   - Si tableau non trouvé ou synthèse ancienne version → mettre null (pas tableau vide)
-   - NE PAS confondre avec le total de la fiche identité (qui va dans surfaceEclairee)
+   EXEMPLES CONCRETS :
+   Si le tableau contient :
+   Ligne 1 : Bâtiment 1 | Entrepôt | 879 | ...
+   Ligne 2 : Bâtiment 2 | Entrepôt | 876 | ...
+   Ligne 3 : Bâtiment 3 | Entrepôt | 703 | ...
+   → surfacesDetaillees: ["879", "876", "703"]
 
-   **Différence importante :**
-   - surfaceEclairee : TOTAL de la fiche identité (page 2-3) → ex: "2458"
-   - surfacesDetaillees : DÉTAIL par bâtiment du tableau page 10 → ex: ["879", "876", "703"]
+   Si 1 seul bâtiment :
+   Ligne 1 : Bâtiment 1 | Entrepôt | 2458 | ...
+   → surfacesDetaillees: ["2458"]
+
+   RÈGLES :
+   - TOUJOURS extraire ce champ (même si 1 seul bâtiment)
+   - Si tu ne trouves vraiment pas ce tableau → mettre null
+   - Ne PAS confondre avec surfaceEclairee (qui est le total de la fiche identité)
 
 8. NOMS ALTERNATIFS DES SECTIONS (anciens dossiers) :
    Les sections peuvent avoir des noms différents selon les versions :
