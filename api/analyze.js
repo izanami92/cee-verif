@@ -353,37 +353,44 @@ MENTIONS AGRICOLES :
 7bis. SYNTHÈSE - SURFACES DÉTAILLÉES PAR BÂTIMENT (OBLIGATOIRE) :
    ⚠️ EXTRACTION CRITIQUE : Ces surfaces permettent de détecter les erreurs de saisie bâtiment par bâtiment
 
-   ÉTAPE 1 - LOCALISER LE TABLEAU :
-   - Chercher "5.1 INVENTAIRE" ou "5.1 INVENTAIRE - ÉTAT PROJETÉ" (page 10 environ)
-   - Cette section contient DEUX tableaux successifs
-   - IGNORER le 1er tableau (marques et références des luminaires)
-   - UTILISER le 2ème tableau (celui avec les bâtiments)
+   LOCALISATION :
+   - Section "5.1" (peut s'appeler "5.1 INVENTAIRE", "5.1 ETAT PROJETE", etc.)
+   - Chercher le tableau qui contient les colonnes : "Bâtiment", "Activité", "Surface"
+   - Note : il peut y avoir plusieurs tableaux dans cette section, cherche celui qui a ces 3 colonnes
 
-   ÉTAPE 2 - IDENTIFIER LES COLONNES :
-   Le 2ème tableau a ces colonnes (dans cet ordre) :
-   "Bâtiment s / Zones" | "Activité" | "Surface" | "Lux projeté" | ...
+   STRUCTURE DU TABLEAU À EXTRAIRE :
+   Chaque ligne du tableau contient :
+   1. Un NUMÉRO de bâtiment (1, 2, 3...)
+   2. Un TYPE D'ACTIVITÉ (Entrepôt, Bureau, Commerce, Logistique, etc.)
+   3. Une SURFACE en m² (le nombre juste après l'activité)
 
-   ÉTAPE 3 - EXTRAIRE LES SURFACES :
-   - Colonne "Bâtiment s / Zones" → contient : 1, 2, 3, etc.
-   - Colonne "Surface" → contient les m² de chaque bâtiment
-   - EXTRAIRE toutes les valeurs de la colonne "Surface" dans l'ordre des bâtiments
-   - Format : surfacesDetaillees: ["879", "876", "703"]
+   INSTRUCTION D'EXTRACTION :
+   Pour chaque ligne numérotée du tableau, extraire le PREMIER NOMBRE qui suit le type d'activité.
+   Ce nombre est la surface du bâtiment en m².
+   Retourner toutes les surfaces dans l'ordre : surfacesDetaillees: ["surface1", "surface2", "surface3", ...]
 
-   EXEMPLES CONCRETS :
-   Si le tableau contient :
-   Ligne 1 : Bâtiment 1 | Entrepôt | 879 | ...
-   Ligne 2 : Bâtiment 2 | Entrepôt | 876 | ...
-   Ligne 3 : Bâtiment 3 | Entrepôt | 703 | ...
-   → surfacesDetaillees: ["879", "876", "703"]
+   EXEMPLES CONCRETS (plusieurs formats possibles) :
 
-   Si 1 seul bâtiment :
-   Ligne 1 : Bâtiment 1 | Entrepôt | 2458 | ...
+   Exemple 1 - Multi-bâtiments :
+   "1   Entrepôt   879   219..." → extraire 879
+   "2   Entrepôt   876   220..." → extraire 876
+   "3   Entrepôt   7.23   210..." → extraire 7.23
+   → surfacesDetaillees: ["879", "876", "7.23"]
+
+   Exemple 2 - Activités différentes :
+   "1   Bureau   1250   180..." → extraire 1250
+   "2   Commerce   450   200..." → extraire 450
+   → surfacesDetaillees: ["1250", "450"]
+
+   Exemple 3 - Un seul bâtiment :
+   "1   Entrepôt   2458   216..." → extraire 2458
    → surfacesDetaillees: ["2458"]
 
    RÈGLES :
    - TOUJOURS extraire ce champ (même si 1 seul bâtiment)
+   - Extraire pour TOUTES les lignes numérotées (quelle que soit l'activité)
    - Si tu ne trouves vraiment pas ce tableau → mettre null
-   - Ne PAS confondre avec surfaceEclairee (qui est le total de la fiche identité)
+   - Ne PAS confondre avec surfaceEclairee (qui est le total de la fiche identité pages 2-3)
 
 8. NOMS ALTERNATIFS DES SECTIONS (anciens dossiers) :
    Les sections peuvent avoir des noms différents selon les versions :
