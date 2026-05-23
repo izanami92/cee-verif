@@ -2983,6 +2983,131 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
       return month <= 12; // Format JJ/MM/AAAA acceptable si mois ≤ 12
     }
 
+    // Extraire le nombre de bâtiments mentionnés dans une adresse
+    // Exemples : "Bât 1" → 1, "bâtiments 1,2,3" → 3, "bâtiments 1 à 3" → 3, "batiment 1 2 et 3" → 3
+    function extraireNombreBatiments(adresse) {
+      if (!adresse) return 1;
+
+      // Pattern : bat/batiment/bâtiment(s) + numéros/plages (avec virgules, tirets, "à", "et")
+      const pattern = /\b(bat|batiment|bâtiment|batiments|bâtiments)\s*(?:[\d,\-\sà]|\bet\b)+/gi;
+      const match = adresse.match(pattern);
+
+      if (!match || match.length === 0) return 1; // Pas de mention = 1 bâtiment par défaut
+
+      // Extraire tous les numéros de la première mention trouvée
+      const numeros = match[0].match(/\d+/g);
+
+      if (!numeros || numeros.length === 0) return 1;
+
+      // Cas "bâtiments 1 à 3" : calculer l'intervalle (max - min + 1)
+      if (match[0].includes('à')) {
+        const nums = numeros.map(n => parseInt(n, 10));
+        const min = Math.min(...nums);
+        const max = Math.max(...nums);
+        return max - min + 1;
+      }
+
+      // Cas "bâtiments 1,2,3" ou "batiment 1 2 et 3" : compter les numéros distincts
+      return numeros.length;
+    }
+
+    // Normaliser une adresse en supprimant les mentions de bâtiment
+    // Utilisé pour regrouper les attestations par adresse
+    function normaliserAdresseSansBatiment(adresse) {
+      if (!adresse) return '';
+
+      let cleaned = normalize(String(adresse));
+
+      // Supprimer TOUTES les mentions de bâtiment (avec numéros, virgules, tirets, "à", "et", etc.)
+      // Exemples : "Bât 1", "bâtiments 1,2,3", "batiments 1 à 3", "batiment 1 2 et 3"
+      cleaned = cleaned
+        .replace(/\b(bat|batiment|bâtiment|batiments|bâtiments)\s*(?:[\d,\-\sà]|\bet\b)+/gi, '')
+        .replace(/\b(bat|batiment|bâtiment|batiments|bâtiments)\b/gi, '')
+        .replace(/,/g, ' ')
+        .replace(/\bfrance\b/gi, '')
+        .replace(/–/g, ' ')
+        .replace(/-/g, ' ')
+        .replace(/_/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+      return cleaned;
+    }
+
+    // Regrouper les attestations CEE qui ont la même adresse normalisée (= même chantier, plusieurs bâtiments)
+    function regrouperAttestationsParAdresse(attestations) {
+      if (!attestations || !Array.isArray(attestations)) return [];
+
+      const groupes = {};
+
+      attestations.forEach((attestation, index) => {
+        const adresseNormalisee = normaliserAdresseSansBatiment(attestation.adresse || '');
+
+        if (!groupes[adresseNormalisee]) {
+          groupes[adresseNormalisee] = {
+            adresseOriginale: attestation.adresse, // Garder la première adresse comme référence
+            adresseNormalisee: adresseNormalisee,
+            attestations: [],
+            ledTotal: 0,
+            surfaces: [],
+            parcelles: [],
+            secteurs: [],
+            nbBatiments: 0
+          };
+        }
+
+        const groupe = groupes[adresseNormalisee];
+        const nbBatiments = extraireNombreBatiments(attestation.adresse || '');
+
+        groupe.attestations.push(attestation);
+        groupe.ledTotal += parseInt(attestation.ledTotal || 0, 10);
+        groupe.nbBatiments += nbBatiments;
+
+        // Ajouter les surfaces (peut être un tableau ou une string)
+        if (Array.isArray(attestation.surfaces)) {
+          groupe.surfaces = groupe.surfaces.concat(attestation.surfaces);
+        } else if (attestation.surfaces) {
+          groupe.surfaces.push(attestation.surfaces);
+        }
+
+        // Ajouter les parcelles (concaténer avec tiret)
+        if (attestation.parcelles) {
+          groupe.parcelles.push(attestation.parcelles);
+        }
+
+        // Ajouter le secteur d'activité
+        if (attestation.secteurActivite) {
+          groupe.secteurs.push(attestation.secteurActivite);
+        }
+      });
+
+      // Convertir l'objet groupes en tableau et finaliser les données
+      return Object.values(groupes).map(groupe => {
+        // Concaténer les parcelles avec un tiret
+        const parcellesConcatenees = groupe.parcelles
+          .filter(p => p)
+          .join(' - ')
+          .trim();
+
+        // Vérifier si tous les secteurs sont identiques
+        const secteursUniques = [...new Set(groupe.secteurs.filter(s => s))];
+        const secteurUnique = secteursUniques.length === 1 ? secteursUniques[0] : null;
+        const secteurConflict = secteursUniques.length > 1;
+
+        return {
+          adresse: groupe.adresseOriginale,
+          adresseNormalisee: groupe.adresseNormalisee,
+          ledTotal: groupe.ledTotal,
+          surfaces: groupe.surfaces,
+          parcelles: parcellesConcatenees,
+          secteurActivite: secteurUnique || secteursUniques.join(' / '), // Si conflit, montrer tous
+          secteurConflict: secteurConflict, // Flag pour détecter les conflits
+          nbBatiments: groupe.nbBatiments,
+          nbAttestations: groupe.attestations.length
+        };
+      });
+    }
+
     // Comparer deux adresses (ordre flexible, ignore "France", tirets, virgules, etc.)
     function compareAddress(addr1, addr2) {
       const clean = (a) => {
@@ -3549,7 +3674,10 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
 
       // Check 9d : LED par chantier vs CEE (si attestations ont ledTotal)
       const attestationsCEE = norm.cee?.attestations || [];
-      const attestationsAvecLed = attestationsCEE.filter(att => att.ledTotal);
+
+      // Regrouper les attestations CEE par adresse (gérer les multi-bâtiments)
+      const attestationsRegroupees = regrouperAttestationsParAdresse(attestationsCEE);
+      const attestationsAvecLed = attestationsRegroupees.filter(att => att.ledTotal);
 
       if (attestationsAvecLed.length > 0) {
         const chantiers = matchChantiers(norm.audits, norm.syntheses);
@@ -3566,6 +3694,8 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
             const ledCEE = parseFloat(String(attestationCorrespondante.ledTotal || 0).replace(/\s+/g, '')) || 0;
             const ledAudit = chantier.audit ? parseFloat(String(chantier.audit.ledTotal || 0).replace(/\s+/g, '')) || 0 : null;
             const ledSynthese = chantier.synthese ? parseFloat(String(chantier.synthese.ledTotal || 0).replace(/\s+/g, '')) || 0 : null;
+            const nbBatiments = attestationCorrespondante.nbBatiments || 1;
+            const batimentsLabel = nbBatiments > 1 ? ` (${nbBatiments} bâtiments)` : '';
 
             // Vérifier cohérence Audit vs CEE
             if (ledAudit !== null) {
@@ -3577,9 +3707,9 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
                 champ: `LED ${adresseCEE} : Audit vs CEE`,
                 localisation: `${adresseCEE}`,
                 detail: auditOk ?
-                  `LED Audit conforme au CEE : ${ledAudit}` :
-                  `LED différentes : ${ledCEE} attendues (CEE) vs ${ledAudit} trouvées (Audit)`,
-                valeur_attendue: ledCEE.toString(),
+                  `LED Audit conforme au CEE : ${ledAudit}${batimentsLabel}` :
+                  `LED différentes : ${ledCEE} attendues (CEE)${batimentsLabel} vs ${ledAudit} trouvées (Audit)`,
+                valeur_attendue: `${ledCEE}${batimentsLabel}`,
                 valeur_trouvee: ledAudit.toString(),
                 chantierIndex // ⭐ Chantier détecté depuis la case d'import
               });
@@ -3595,9 +3725,9 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
                 champ: `LED ${adresseCEE} : Synthèse vs CEE`,
                 localisation: `${adresseCEE}`,
                 detail: syntheseOk ?
-                  `LED Synthèse conforme au CEE : ${ledSynthese}` :
-                  `LED différentes : ${ledCEE} attendues (CEE) vs ${ledSynthese} trouvées (Synthèse)`,
-                valeur_attendue: ledCEE.toString(),
+                  `LED Synthèse conforme au CEE : ${ledSynthese}${batimentsLabel}` :
+                  `LED différentes : ${ledCEE} attendues (CEE)${batimentsLabel} vs ${ledSynthese} trouvées (Synthèse)`,
+                valeur_attendue: `${ledCEE}${batimentsLabel}`,
                 valeur_trouvee: ledSynthese.toString(),
                 chantierIndex // ⭐ Chantier détecté depuis la case d'import
               });
@@ -3671,15 +3801,35 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
       });
 
       // Check 14 : Secteur d'activité par chantier (si attestations disponibles)
-      if (attestationsCEE.length > 0 && norm.syntheses.length > 0) {
-        // Vérifier chaque synthèse avec l'attestation correspondante
+      if (attestationsRegroupees.length > 0 && norm.syntheses.length > 0) {
+        // Vérifier chaque synthèse avec l'attestation correspondante (matching par adresse)
         norm.syntheses.forEach((synthese, syntheseIndex) => {
-          const attestation = attestationsCEE[syntheseIndex];
+          // Trouver l'attestation correspondante par adresse
+          const attestation = attestationsRegroupees.find(att =>
+            compareAddress(synthese.adresse, att.adresse)
+          );
+
           if (attestation && attestation.secteurActivite) {
-            const secteurOk = compareSecteurEtude(synthese.secteurActivite, attestation.secteurActivite);
             const suffix = norm.syntheses.length > 1 ? ` chantier ${syntheseIndex + 1}` : '';
             const idSuffix = norm.syntheses.length > 1 ? `_c${syntheseIndex + 1}` : '';
 
+            // Vérifier si les secteurs des bâtiments sont en conflit dans le CEE
+            if (attestation.secteurConflict) {
+              checks.push({
+                id: `check_14_conflict${idSuffix}`,
+                categorie: 'synthese',
+                niveau: 'majeur',
+                champ: `Secteur d'activité CEE${suffix}`,
+                localisation: `Attestations CEE`,
+                detail: `Conflit de secteurs entre bâtiments du CEE : ${attestation.secteurActivite}`,
+                valeur_attendue: 'Secteur unique',
+                valeur_trouvee: attestation.secteurActivite,
+                chantierIndex: syntheseIndex + 1
+              });
+            }
+
+            // Vérifier si le secteur de la synthèse correspond au secteur CEE
+            const secteurOk = compareSecteurEtude(synthese.secteurActivite, attestation.secteurActivite);
             checks.push({
               id: `check_14${idSuffix}`,
               categorie: 'synthese',
@@ -3726,14 +3876,15 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
       }
 
       // Checks 15-18 : Parcelles + Périmètre + Inventaire - PAR CHANTIER
-      // Note: attestationsCEE déjà déclaré ligne 3546
       norm.syntheses.forEach((synthese, syntheseIndex) => {
         const suffix = norm.syntheses.length > 1 ? ` chantier ${syntheseIndex + 1}` : '';
         const idSuffix = norm.syntheses.length > 1 ? `_c${syntheseIndex + 1}` : '';
         const chantierIndex = syntheseIndex + 1;
 
-        // Récupérer les parcelles de l'attestation correspondante (match par index)
-        const attestationCorrespondante = attestationsCEE[syntheseIndex];
+        // Récupérer les parcelles de l'attestation correspondante (match par adresse)
+        const attestationCorrespondante = attestationsRegroupees.find(att =>
+          compareAddress(synthese.adresse, att.adresse)
+        );
         const parcellesAttendues = attestationCorrespondante?.parcelles || references.parcelles || '';
         const parcellesOk = compareParcelles(synthese.parcelles, parcellesAttendues);
 
@@ -3805,9 +3956,12 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
 
       // ========== SYNTHÈSE - Indicateurs éclairage initial (20) ==========
       // Check 20 : Secteur étude par chantier (si attestations disponibles)
-      if (attestationsCEE.length > 0 && norm.syntheses.length > 0) {
+      if (attestationsRegroupees.length > 0 && norm.syntheses.length > 0) {
         norm.syntheses.forEach((synthese, syntheseIndex) => {
-          const attestation = attestationsCEE[syntheseIndex];
+          // Trouver l'attestation correspondante par adresse
+          const attestation = attestationsRegroupees.find(att =>
+            compareAddress(synthese.adresse, att.adresse)
+          );
           if (attestation && attestation.secteurActivite) {
             const secteurOk = compareSecteurEtude(synthese.secteurEtude, attestation.secteurActivite);
             const suffix = norm.syntheses.length > 1 ? ` chantier ${syntheseIndex + 1}` : '';
@@ -3893,9 +4047,12 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
       });
 
       // Check 23 : Activité bâtiment par chantier (si attestations disponibles)
-      if (attestationsCEE.length > 0 && norm.syntheses.length > 0) {
+      if (attestationsRegroupees.length > 0 && norm.syntheses.length > 0) {
         norm.syntheses.forEach((synthese, syntheseIndex) => {
-          const attestation = attestationsCEE[syntheseIndex];
+          // Trouver l'attestation correspondante par adresse
+          const attestation = attestationsRegroupees.find(att =>
+            compareAddress(synthese.adresse, att.adresse)
+          );
           if (attestation && attestation.secteurActivite) {
             const activiteOk = compareSecteurEtude(synthese.activiteBatiment, attestation.secteurActivite);
             const suffix = norm.syntheses.length > 1 ? ` chantier ${syntheseIndex + 1}` : '';
