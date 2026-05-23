@@ -3721,29 +3721,19 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
       }
 
       // Checks 15-18 : Parcelles + Périmètre + Inventaire - PAR CHANTIER
-      // Vérifier les parcelles chantier par chantier en matchant avec les attestations
-      const attestationsCEE = norm.cee?.attestations || [];
-
       norm.syntheses.forEach((synthese, syntheseIndex) => {
         const suffix = norm.syntheses.length > 1 ? ` chantier ${syntheseIndex + 1}` : '';
         const idSuffix = norm.syntheses.length > 1 ? `_c${syntheseIndex + 1}` : '';
         const chantierIndex = syntheseIndex + 1;
 
-        // Récupérer les parcelles de l'attestation correspondante (match par index)
-        const attestationCorrespondante = attestationsCEE[syntheseIndex];
-        const parcellesAttendues = attestationCorrespondante?.parcelles || references.parcelles || '';
-        const parcellesOk = compareParcelles(synthese.parcelles, parcellesAttendues);
-
         checks.push({
           id: `check_15${idSuffix}`,
           categorie: 'synthese',
-          niveau: parcellesOk ? 'ok' : 'majeur',
+          niveau: compareParcelles(synthese.parcelles, references.parcelles) ? 'ok' : 'majeur',
           champ: `Parcelles cadastrales Synthèse fiche identité${suffix}`,
           localisation: `Synthèse${suffix}, fiche identité du site`,
-          detail: parcellesOk ?
-            'Parcelles cadastrales conformes au dossier CEE pour ce chantier' :
-            'Parcelles cadastrales différentes du dossier CEE',
-          valeur_attendue: parcellesAttendues,
+          detail: 'Vérification parcelles (format 000/0B/XXXX)',
+          valeur_attendue: references.parcelles || '',
           valeur_trouvee: synthese.parcelles || '',
           chantierIndex
         });
