@@ -534,6 +534,46 @@ CREATE TABLE analyses (
 
 ---
 
+### ✅ TODO #20 : Gestion attestations CEE manquantes
+
+**Statut** : ✅ **COMPLÉTÉ** (25 mai 2026)
+
+**Problème** :
+- Confusion entre 2 types d'attestations (matériel vs entrepôt)
+- Si attestation entrepôt absente : erreur MAJEUR "Attendu: = 0 m²"
+- Pas de saisie manuelle déclenchée si NAF agricole
+
+**Solution implémentée** :
+1. **API - Distinction 2 attestations** (api/analyze.js lignes 221-253)
+   - Instructions explicites : "ATTESTATION SUR L'HONNEUR" + "Existence d'un entrepôt"
+   - Exclusion explicite attestation d'installation matériel
+
+2. **Détection surfaces vides** (index.html lignes 2728-2753)
+   - Si `surfaces: []` → `surfaceManuelle = true` (prioritaire)
+   - Raison : "Attestation CEE non trouvée"
+
+3. **Check INFO au lieu de MAJEUR** (index.html lignes 4540-4572)
+   - Vérification avant génération checks 42, 45, 45b
+   - Check INFO + `return` si attestations vides
+
+4. **Check 45b protection défensive** (index.html lignes 4713-4727)
+   - Vérification surfaces attestations avant comparaison
+
+**Résultat** : Attestations manquantes détectées + saisie manuelle automatique ✅
+
+**Fichiers modifiés** :
+- `api/analyze.js` (+23 lignes)
+- `index.html` (+68 lignes, -23 lignes)
+
+**Commits** :
+- `158e33b` - "fix: détection attestations CEE manquantes + distinction 2 types attestations"
+
+**Sources** :
+- [Session 25 mai 2026]
+- [ADR 013]
+
+---
+
 ## 📊 STATISTIQUES
 
 **TODOs actifs** : 6
@@ -541,15 +581,16 @@ CREATE TABLE analyses (
 - 🟡 Importantes : 3
 - 🟢 Nice to have : 3
 
-**TODOs complétés récemment** : 13 (7-23 mai 2026)
+**TODOs complétés récemment** : 14 (7-25 mai 2026)
 - 7 mai : Multi-chantiers (ADR 003)
 - 8 mai : Sélecteur LED (ADR 006), Normalisation adresses (ADR 007), Extraction CLIENT (ADR 008)
 - 9 mai : UX hiérarchique (ADR 009), Secteur par chantier (ADR 010), Matching INDEX (ADR 011)
 - 11 mai : Google Sheets (ADR 004), Support NAF (ADR 005)
 - 12 mai : Documentation Phase 1-2-3 (TODO #18), Checks 39-47 (TODO #1), Check 27 tolérance (TODO #2)
 - 23 mai : Surfaces individuelles (ADR 012, TODO #19)
+- 25 mai : Attestations manquantes (ADR 013, TODO #20)
 
-**Taux de complétion** : 68% (13/19) 🎯
+**Taux de complétion** : 70% (14/20) 🎯
 
 ---
 
@@ -595,5 +636,5 @@ Ce document doit être mis à jour :
 
 ---
 
-**Dernière révision** : 23 mai 2026 (session TODO #19 - Surfaces individuelles)
+**Dernière révision** : 25 mai 2026 (session TODO #20 - Attestations manquantes)
 **Prochaine révision** : Fin de session actuelle

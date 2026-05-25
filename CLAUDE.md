@@ -165,6 +165,7 @@ Les décisions techniques majeures sont documentées dans `docs/decisions/` sous
 - **004-google-sheets-feedback.md** (11 mai) - Persistence du feedback utilisateur
 - **005-support-naf-surfaces-manuelles.md** (11 mai) - Gestion secteur "Autres"
 - **012-parsing-surfaces-client-side.md** (23 mai) - Parser JavaScript surfaces tableau Synthèse
+- **013-detection-attestations-manquantes.md** (25 mai) - Gestion attestations CEE absentes
 
 Chaque ADR contient : Date, Statut, Contexte, Décision, Alternatives, Conséquences, Sources.
 
@@ -390,5 +391,5 @@ git push origin main
 
 ---
 
-**Dernière mise à jour** : 23 mai 2026
-**Version** : Phase 1 complète + Détection surfaces individuelles
+**Dernière mise à jour** : 25 mai 2026
+**Version** : Phase 1 complète + Détection attestations manquantes
