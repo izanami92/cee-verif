@@ -28,3 +28,6 @@ npm-debug.log*
 /playwright-report/
 /blob-report/
 /playwright/.cache/
+
+# Test fixtures (PDFs de test, potentiellement sensibles)
+tests/fixtures/*.pdf
