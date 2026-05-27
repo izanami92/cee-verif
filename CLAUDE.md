@@ -1,5 +1,11 @@
 # CLAUDE.md — CEE Vérif
 
+## RÉFÉRENCE MÉTIER
+
+Le fichier docs/SOURCE_DE_VERITE_CHECKS.md est la source de vérité UNIQUE des règles métier, des niveaux de gravité et des points de contrôle. Les évolutions à venir sont dans docs/ROADMAP_EVOLUTIONS.md. En cas de doute sur une règle, c'est SOURCE_DE_VERITE_CHECKS.md qui fait foi. Les anciens fichiers dans docs/archive/ sont OBSOLÈTES et ne doivent jamais servir de référence.
+
+---
+
 ## Vue d'ensemble du projet
 
 **Application web interne** de vérification des dossiers CEE LED (opération BAT-EQ-127).
