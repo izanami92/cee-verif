@@ -3441,13 +3441,6 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
         }
       }
 
-      // Vérifier dans CEE (secteur)
-      if (extracted.cee?.secteurActivite && regex.test(extracted.cee.secteurActivite)) {
-        if (!compareStrings(extracted.cee.secteurActivite, nomSociete)) {
-          return { found: true, location: 'Dossier CEE - Secteur activité' };
-        }
-      }
-
       return { found: false, location: null };
     }
 
@@ -4285,7 +4278,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
         checks.push({
           id: `check_${i}`,
           categorie: i === 32 ? 'audit' : 'synthese',
-          niveau: mentionsAgri.found ? 'bloquant' : 'ok',
+          niveau: mentionsAgri.found ? 'majeur' : 'ok',
           champ: `Mention agricole ${i - 30}`,
           localisation: mentionsAgri.location || 'Documents',
           detail: mentionsAgri.found ? `Mention agricole trouvée : ${mentionsAgri.location}` : 'Aucune mention agricole',
