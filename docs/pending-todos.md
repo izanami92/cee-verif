@@ -2,7 +2,7 @@
 
 **Document de suivi** des fonctionnalités discutées, en cours, ou à implémenter.
 
-**Dernière mise à jour** : 11 mai 2026
+**Dernière mise à jour** : 27 mai 2026
 
 ---
 
@@ -69,62 +69,31 @@ Math.abs(sumSurfaces(audit.surfaces) - parseFloat(...)) < 1  // ✅ Tolérance �
 
 ### TODO #3 : Modularisation de index.html
 
-**Statut** : 💭 **EN DISCUSSION**
+**Statut** : ⏸️ **REPORTÉE** (27 mai 2026)
 
-**Problème** :
-- `index.html` = ~6000 lignes (difficile à naviguer)
-- Mélange HTML, CSS, JS dans un seul fichier
+**Raison du report** :
+Tentative de modularisation ES6 effectuée (26-27 mai), mais échec critique lors de l'extraction initiale :
+- Fonction `generateChecks` tronquée à 400 lignes au lieu de 1263 lignes
+- 80% du code manquant (checks 10-46+, return, closures)
+- Bugs en cascade : dépendances circulaires, code orphelin, case-sensitivity
+- **Décision** : Retour sur main stable, suppression branche feature/modularization
 
-**Solutions envisagées** :
+**Planification future** :
+À refaire proprement, **module par module**, après les corrections de bugs B1/B2, en validant contre la source de vérité (docs/SOURCE_DE_VERITE_CHECKS.md).
 
-#### Option A : Modules ES6
-```javascript
-// Séparer en modules
-import { generateChecks } from './modules/checks.js';
-import { normalizeAddress } from './modules/utils.js';
-import { displayResults } from './modules/ui.js';
-```
+**Approche retenue pour la prochaine tentative** :
+1. Extraire un petit module à la fois (ex: utils/text.js uniquement)
+2. Valider immédiatement que le code extrait est complet
+3. Tester l'import/export avant de continuer
+4. Avancer progressivement (pas tout d'un coup)
 
-**Avantages** :
-- Code mieux organisé
-- Réutilisabilité
-- Debugging plus facile
+**Alternative temporaire** : Conserver index.html mono-fichier en Phase 1.
 
-**Inconvénients** :
-- Perte de la simplicité "tout dans un fichier"
-- Build step potentiellement nécessaire
-- Plus complexe pour utilisateur non-tech
-
-#### Option B : Rester mono-fichier avec sections claires
-```html
-<!-- ============================================ -->
-<!-- SECTION 1 : CONSTANTS & CONFIGURATION       -->
-<!-- ============================================ -->
-
-<!-- ============================================ -->
-<!-- SECTION 2 : UTILITY FUNCTIONS               -->
-<!-- ============================================ -->
-
-<!-- ============================================ -->
-<!-- SECTION 3 : COMPARISON FUNCTIONS            -->
-<!-- ============================================ -->
-```
-
-**Avantages** :
-- Garde la simplicité
-- Pas de build step
-- Juste mieux organisé
-
-**Inconvénients** :
-- Toujours un gros fichier
-- Pas de vraie modularisation
-
-**Décision** : ⏳ À trancher avec utilisateur
-
-**Estimation** : 4-6 heures (Option A), 2 heures (Option B)
+**Estimation** : 1-2 semaines (approche progressive)
 
 **Sources** :
 - [Phase 1 Analyse - Recommandation #6]
+- [Session 26-27 mai 2026 - Échec modularisation]
 
 ---
 
@@ -574,14 +543,63 @@ CREATE TABLE analyses (
 
 ---
 
+### ✅ TODO #21 : Restructuration documentation et archivage
+
+**Statut** : ✅ **COMPLÉTÉ** (27 mai 2026)
+
+**Problème** :
+- Règles métier dispersées dans 3 fichiers (CHECKLIST_COMPLETE.md, business-rules.md, points-controle.md)
+- Redondances et incohérences entre sources
+- Pas de vision claire des évolutions à venir
+
+**Solution implémentée** :
+1. **Nouvelle source de vérité unique** : `docs/SOURCE_DE_VERITE_CHECKS.md`
+   - Checks détaillés par identifiant et logique, nombre variable selon le nombre de chantiers
+   - Règles métier consolidées
+   - Format structuré pour maintenance
+
+2. **Roadmap des évolutions** : `docs/ROADMAP_EVOLUTIONS.md`
+   - Vision claire Phase 2-3-4
+   - Priorités documentées
+
+3. **Archivage anciennes docs** : `docs/archive/`
+   - CHECKLIST_COMPLETE.md (obsolète)
+   - business-rules.md (obsolète)
+   - points-controle.md (obsolète)
+   - Avertissement ajouté en haut de chaque fichier
+
+4. **Mise à jour CLAUDE.md** :
+   - Section "RÉFÉRENCE MÉTIER" en haut
+   - Pointe vers SOURCE_DE_VERITE_CHECKS.md comme référence unique
+
+**Résultat** : Documentation consolidée, source de vérité unique, historique préservé ✅
+
+**Fichiers modifiés** :
+- `docs/SOURCE_DE_VERITE_CHECKS.md` (nouveau)
+- `docs/ROADMAP_EVOLUTIONS.md` (nouveau)
+- `docs/archive/CHECKLIST_COMPLETE.md` (déplacé + avertissement)
+- `docs/archive/business-rules.md` (déplacé + avertissement)
+- `docs/archive/points-controle.md` (déplacé + avertissement)
+- `CLAUDE.md` (section RÉFÉRENCE MÉTIER ajoutée)
+
+**Commits** :
+- `afea612` - "docs: source de vérité métier + roadmap évolutions"
+- `58cc177` - "docs: archivage anciennes docs obsolètes"
+- `9ccf93c` - "docs: CLAUDE.md pointe vers la source de vérité"
+
+**Sources** :
+- [Session 27 mai 2026]
+
+---
+
 ## 📊 STATISTIQUES
 
-**TODOs actifs** : 6
+**TODOs actifs** : 5
 - 🔴 Critiques : 0 ✅
-- 🟡 Importantes : 3
+- 🟡 Importantes : 2 (TODO #3 reportée)
 - 🟢 Nice to have : 3
 
-**TODOs complétés récemment** : 14 (7-25 mai 2026)
+**TODOs complétés récemment** : 15 (7-27 mai 2026)
 - 7 mai : Multi-chantiers (ADR 003)
 - 8 mai : Sélecteur LED (ADR 006), Normalisation adresses (ADR 007), Extraction CLIENT (ADR 008)
 - 9 mai : UX hiérarchique (ADR 009), Secteur par chantier (ADR 010), Matching INDEX (ADR 011)
@@ -589,8 +607,12 @@ CREATE TABLE analyses (
 - 12 mai : Documentation Phase 1-2-3 (TODO #18), Checks 39-47 (TODO #1), Check 27 tolérance (TODO #2)
 - 23 mai : Surfaces individuelles (ADR 012, TODO #19)
 - 25 mai : Attestations manquantes (ADR 013, TODO #20)
+- 27 mai : Documentation restructurée (TODO #21)
 
-**Taux de complétion** : 70% (14/20) 🎯
+**TODOs reportés** : 1
+- 27 mai : Modularisation index.html (TODO #3) - À refaire proprement module par module après bugs B1/B2
+
+**Taux de complétion** : 75% (15/20) 🎯
 
 ---
 
@@ -636,5 +658,5 @@ Ce document doit être mis à jour :
 
 ---
 
-**Dernière révision** : 25 mai 2026 (session TODO #20 - Attestations manquantes)
+**Dernière révision** : 27 mai 2026 (session TODO #21 - Documentation restructurée)
 **Prochaine révision** : Fin de session actuelle
