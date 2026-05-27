@@ -1,3 +1,5 @@
+⚠️ OBSOLÈTE — règles dépassées. Voir docs/SOURCE_DE_VERITE_CHECKS.md qui fait foi.
+
 # Points de contrôle — CEE Vérif
 
 **Dernière mise à jour** : 06/05/2026

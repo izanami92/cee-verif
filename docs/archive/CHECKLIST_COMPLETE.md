@@ -1,3 +1,5 @@
+⚠️ OBSOLÈTE — règles dépassées. Voir docs/SOURCE_DE_VERITE_CHECKS.md qui fait foi.
+
 # CHECKLIST EXHAUSTIVE - VÉRIFICATION CEE LED
 
 **IMPORTANT** : TOUS ces points doivent être vérifiés à CHAQUE analyse, sans exception.

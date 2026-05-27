@@ -1,3 +1,5 @@
+⚠️ OBSOLÈTE — règles dépassées. Voir docs/SOURCE_DE_VERITE_CHECKS.md qui fait foi.
+
 # RÈGLES MÉTIER - CEE LED (BAT-EQ-127)
 
 **Document de référence exhaustif** pour toutes les règles de vérification des dossiers CEE LED.
