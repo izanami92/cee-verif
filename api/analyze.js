@@ -325,9 +325,10 @@ CEE - RÉFÉRENCE LED (DÉTECTION AUTOMATIQUE) :
 
 CEE - SECTEUR D'ACTIVITÉ PAR CHANTIER (CRITIQUE) :
 - Pour CHAQUE attestation sur l'honneur, extraire le secteur SPÉCIFIQUE à ce chantier
-- Chercher SOUS l'adresse du chantier dans l'attestation
-- Format typique : "Bâtiment tertiaire / Secteur d'activité : Entrepôts"
+- Chercher dans la FACTURE du CEE, dans le bloc associé à chaque chantier (identifié par son adresse + ses parcelles cadastrales)
+- Format typique : ligne "Bâtiment tertiaire / Secteur d'activité : Entrepôts" accolée au bloc chantier
 - Extraire la valeur après "Secteur d'activité :" (exemple : "Entrepôts")
+- Si non trouvé dans la facture, chercher sous l'adresse du chantier dans l'attestation sur l'honneur (fallback)
 - Chercher aussi variantes : "Type de local", "Activité"
 - IMPORTANT : Chaque chantier peut avoir un secteur DIFFÉRENT
 - Exemple : Chantier 1 = "Entrepôts", Chantier 2 = "Autres secteurs"
