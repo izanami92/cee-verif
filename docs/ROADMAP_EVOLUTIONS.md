@@ -107,11 +107,20 @@ Le code a les valeurs dans `FICHES_TECHNIQUES` mais ne compare activement que TH
 
 ---
 
-## PRÉREQUIS TRANSVERSAL : corriger le bug B2 d'abord
+## BUGS À INVESTIGUER
 
-La Phase 1 repose entièrement sur le mécanisme d'alerte confirmable par chantier. Or **ce mécanisme ne fonctionne pas en multi-chantiers aujourd'hui** (bug B2 de la source de vérité). 
+### Matching de chantiers par adresse dupliquée
+- **Problème** : quand deux chantiers ont la même adresse (souvent par erreur de saisie sur Synthèse/Audit), l'outil les confond via le matching par adresse (`compareAddress` / `matchChantiers`) et compare les données au mauvais chantier, produisant un faux « conforme ».
+- **Exemple** : chantier 3 avec adresse Synthèse erronée (identique au chantier 1) → parcelle comparée à celle du chantier 1 → faux OK.
+- **À investiguer** : détecter les doublons d'adresse comme anomalie au lieu de fusionner silencieusement.
 
-➡️ **Corriger B2 est le prérequis n°1** : il faut un mécanisme d'alerte fiable sur tous les chantiers avant d'y brancher les contrôles de la Phase 1.
+---
+
+## PRÉREQUIS TRANSVERSAL — résolu
+
+La Phase 1 repose sur le mécanisme d'alerte confirmable par chantier. Ce mécanisme ne fonctionnait pas en multi-chantiers (bug B2 de la source de vérité).
+
+✅ **B2 corrigé le 28/05/2026** (commit `7242107`) — Phase 1 débloquée.
 
 ---
 

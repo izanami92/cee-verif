@@ -91,9 +91,7 @@ Mécanisme `confirm()` qui interrompt **au moment de l'extraction du CEE, avant 
 
 **Raison métier** : CEE LED (BAT-EQ-127) = bâtiments tertiaires entrepôts. L'agriculture relève d'une autre opération CEE.
 
-> 🐞 **BUG CONFIRMÉ (à corriger)** : la fonction `checkMentionsAgricoles` (checks 31-34) :
-> 1. marque les mentions en **`'bloquant'`** → doit être **`'majeur'`** ;
-> 2. cherche aussi dans **`extracted.cee.secteurActivite`** → doit chercher **uniquement** dans Audit et Synthèse (retirer le CEE).
+> ✅ **Bug B1 résolu (27/05/2026)** — commit `b3450c2`. La fonction `checkMentionsAgricoles` marque désormais les mentions en `'majeur'` et ne cherche plus que dans Audit + Synthèse.
 
 ---
 
@@ -155,7 +153,7 @@ Mécanisme `confirm()` qui interrompt **au moment de l'extraction du CEE, avant 
 ### Mentions agricoles (Règle B)
 | ID | Vérifie | Niveau | Portée |
 |----|---------|--------|--------|
-| `check_31`→`check_34` | Aucune mention agricole (Audit + Synthèse) | 🟠 *(à corriger : actuellement 🔴)* | UNIQUE (×4) |
+| `check_31`→`check_34` | Aucune mention agricole (Audit + Synthèse) | 🟠 | UNIQUE (×4) |
 
 ### Spécifications LED
 | ID | Vérifie | Niveau | Portée |
@@ -208,12 +206,12 @@ Règle R05 = tolérance ZÉRO (1 LED d'écart = erreur). Code = `Math.abs(...) <
 
 ---
 
-## 7. BUGS MÉTIER À CORRIGER (priorité)
+## 7. BUGS MÉTIER — historique des corrections
 
-| # | Bug | Règle violée | Correctif |
-|---|-----|--------------|-----------|
-| B1 | `checkMentionsAgricoles` en `bloquant` + cherche dans le CEE | Règle B | Passer en `majeur` ; retirer le CEE (Audit + Synthèse seulement) |
-| B2 | Alerte secteur « Autres » non déclenchée en multi-chantiers | Règle A | Diagnostiquer la boucle `attestations` ; déclencher l'alerte pour chaque chantier |
+| # | Bug | Règle violée | Correctif appliqué | Statut |
+|---|-----|--------------|--------------------|--------|
+| B1 | `checkMentionsAgricoles` en `bloquant` + cherche dans le CEE | Règle B | Passé en `majeur` ; recherche limitée à Audit + Synthèse | ✅ **Résolu 27/05/2026** — commit `b3450c2` |
+| B2 | Alerte secteur « Autres » non déclenchée en multi-chantiers | Règle A | Prompt d'extraction reformulé : secteur cherché dans la facture, par bloc chantier (adresse + parcelles), fallback attestation | ✅ **Résolu 28/05/2026** — commit `7242107` |
 
 ---
 
