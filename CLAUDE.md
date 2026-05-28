@@ -397,5 +397,5 @@ git push origin main
 
 ---
 
-**Dernière mise à jour** : 25 mai 2026
-**Version** : Phase 1 complète + Détection attestations manquantes
+**Dernière mise à jour** : 28 mai 2026
+**Version** : Phase 1 complète + B1/B2 résolus — modèle Chantier/Cellule à cadrer (TODO #22)
