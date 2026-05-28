@@ -2,11 +2,34 @@
 
 **Document de suivi** des fonctionnalités discutées, en cours, ou à implémenter.
 
-**Dernière mise à jour** : 27 mai 2026
+**Dernière mise à jour** : 28 mai 2026
 
 ---
 
 ## 🔴 PRIORITÉ 1 - CRITIQUES (À faire AVANT Phase 2)
+
+### TODO #22 : Cadrage modèle de données Chantier / Cellule
+
+**Statut** : 📋 **À CADRER** (28 mai 2026) — **PRIORITÉ N°1**
+
+**Pourquoi** :
+L'outil repose sur l'hypothèse « 1 chantier = 1 adresse » et utilise l'adresse comme clé de regroupement. C'est faux dans beaucoup de cas réels et cause des erreurs silencieuses (faux « conforme » sur parcelles/surfaces).
+
+**Structure réelle (validée métier 28/05/2026)** :
+Dossier → Chantiers → Cellules. Détail complet dans `docs/ROADMAP_EVOLUTIONS.md` (section « CHANTIER MAJEUR — Modèle de données Chantier / Cellule »).
+
+**Prochaine étape** : session de cadrage technique dédiée pour :
+- Modéliser la cellule comme entité distincte du chantier
+- Auditer les amorces existantes (`extraireNombreBatiments`, `normaliserAdresseSansBatiment`, `regrouperAttestationsParAdresse`, `matchChantiers`)
+- Définir l'approche d'extraction, de regroupement et de vérification au niveau cellule
+
+**Lien** : le bug « matching adresses dupliquées » (noté dans `ROADMAP_EVOLUTIONS.md`, section « BUGS À INVESTIGUER ») est probablement une manifestation de ce même problème.
+
+**Sources** :
+- [Session 28 mai 2026 — cadrage métier]
+- [docs/ROADMAP_EVOLUTIONS.md — section CHANTIER MAJEUR]
+
+---
 
 ### ✅ TODO #1 : Implémenter checks 39-47 conformes à la documentation
 
@@ -79,7 +102,8 @@ Tentative de modularisation ES6 effectuée (26-27 mai), mais échec critique lor
 - **Décision** : Retour sur main stable, suppression branche feature/modularization
 
 **Planification future** :
-À refaire proprement, **module par module**, après les corrections de bugs B1/B2, en validant contre la source de vérité (docs/SOURCE_DE_VERITE_CHECKS.md).
+À refaire proprement, **module par module**, après le cadrage du modèle Chantier/Cellule (TODO #22), en validant contre la source de vérité (docs/SOURCE_DE_VERITE_CHECKS.md).
+Note : les bugs B1 et B2 (prérequis initialement listés ici) sont corrigés — voir TODO #23 et #24.
 
 **Approche retenue pour la prochaine tentative** :
 1. Extraire un petit module à la fois (ex: utils/text.js uniquement)
@@ -257,6 +281,58 @@ CREATE TABLE analyses (
 ---
 
 ## ✅ COMPLÉTÉS RÉCEMMENT
+
+### ✅ TODO #23 : Correction bug B1 — mentions agricoles
+
+**Statut** : ✅ **COMPLÉTÉ** (27 mai 2026)
+
+**Problème** (Règle B de la source de vérité) :
+- `checkMentionsAgricoles` marquait les checks 31-34 en `'bloquant'` au lieu de `'majeur'`
+- Cherchait aussi dans `extracted.cee.secteurActivite` au lieu de se limiter à Audit + Synthèse
+
+**Correctif appliqué** :
+- Niveau passé en `'majeur'` (`index.html:4288`)
+- Bloc de recherche dans le CEE supprimé (`index.html:3444-3449`)
+
+**Fichiers modifiés** :
+- `index.html` (+1, -8)
+
+**Commits** :
+- `b3450c2` - "fix(B1): mentions agricoles en majeur + recherche limitée à Audit/Synthèse"
+- `e90d14c` - "Merge branch 'fix/mentions-agricoles' into main"
+
+**Sources** :
+- [docs/SOURCE_DE_VERITE_CHECKS.md — Règle B / Bug B1]
+- [Session 27 mai 2026]
+
+---
+
+### ✅ TODO #24 : Correction bug B2 — alerte secteur multi-chantiers
+
+**Statut** : ✅ **COMPLÉTÉ** (28 mai 2026)
+
+**Problème** (Règle A de la source de vérité) :
+- L'alerte `confirm()` pour secteur « Autres » fonctionnait en mono-chantier mais pas en multi-chantiers
+- Cause : le prompt d'extraction CEE demandait à Claude de chercher le secteur « SOUS l'adresse du chantier dans l'attestation », alors qu'il est en réalité dans le bloc facture du chantier (adresse + parcelles + secteur ensemble)
+- Conséquence : `attestation.secteurActivite` était `undefined` en multi-chantiers → l'alerte ne se déclenchait jamais
+
+**Correctif appliqué** :
+- Reformulation de la section « CEE - SECTEUR D'ACTIVITÉ PAR CHANTIER » du prompt (`api/analyze.js:328-331`)
+- Précision : chercher dans la FACTURE, dans le bloc associé à chaque chantier (identifié par adresse + parcelles cadastrales)
+- Fallback explicite vers l'attestation sur l'honneur si non trouvé dans la facture
+
+**Fichiers modifiés** :
+- `api/analyze.js` (+3, -2)
+
+**Commits** :
+- `7242107` - "fix(B2): secteur d'activité extrait par chantier depuis la facture du CEE"
+- `5556c29` - "Merge branch 'fix/alerte-secteur-multichantiers' into main"
+
+**Sources** :
+- [docs/SOURCE_DE_VERITE_CHECKS.md — Règle A / Bug B2]
+- [Session 28 mai 2026]
+
+---
 
 ### ✅ TODO #9 : Support multi-chantiers
 
@@ -594,12 +670,12 @@ CREATE TABLE analyses (
 
 ## 📊 STATISTIQUES
 
-**TODOs actifs** : 5
-- 🔴 Critiques : 0 ✅
+**TODOs actifs** : 6
+- 🔴 Critiques : 1 (TODO #22 — modèle Chantier/Cellule, à cadrer)
 - 🟡 Importantes : 2 (TODO #3 reportée)
 - 🟢 Nice to have : 3
 
-**TODOs complétés récemment** : 15 (7-27 mai 2026)
+**TODOs complétés récemment** : 17 (7-28 mai 2026)
 - 7 mai : Multi-chantiers (ADR 003)
 - 8 mai : Sélecteur LED (ADR 006), Normalisation adresses (ADR 007), Extraction CLIENT (ADR 008)
 - 9 mai : UX hiérarchique (ADR 009), Secteur par chantier (ADR 010), Matching INDEX (ADR 011)
@@ -607,12 +683,13 @@ CREATE TABLE analyses (
 - 12 mai : Documentation Phase 1-2-3 (TODO #18), Checks 39-47 (TODO #1), Check 27 tolérance (TODO #2)
 - 23 mai : Surfaces individuelles (ADR 012, TODO #19)
 - 25 mai : Attestations manquantes (ADR 013, TODO #20)
-- 27 mai : Documentation restructurée (TODO #21)
+- 27 mai : Documentation restructurée (TODO #21), Bug B1 mentions agricoles (TODO #23)
+- 28 mai : Bug B2 alerte secteur multi-chantiers (TODO #24)
 
 **TODOs reportés** : 1
-- 27 mai : Modularisation index.html (TODO #3) - À refaire proprement module par module après bugs B1/B2
+- 27 mai : Modularisation index.html (TODO #3) - À refaire après cadrage modèle Chantier/Cellule (TODO #22)
 
-**Taux de complétion** : 75% (15/20) 🎯
+**Taux de complétion** : 74% (17/23) 🎯
 
 ---
 
@@ -658,5 +735,5 @@ Ce document doit être mis à jour :
 
 ---
 
-**Dernière révision** : 27 mai 2026 (session TODO #21 - Documentation restructurée)
+**Dernière révision** : 28 mai 2026 (session B1/B2 résolus + cadrage modèle Chantier/Cellule)
 **Prochaine révision** : Fin de session actuelle
