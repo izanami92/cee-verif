@@ -47,6 +47,12 @@ Le cadrage a fait émerger une structure naturelle, fidèle au principe « le CE
 2. **ANALYSE DES DOCUMENTS** (Audit + Synthèse vs CEE) — checks existants + à venir.
 3. **RAPPELS / AIDE-MÉMOIRE** (affichés dans le rapport) — actions manuelles à ne pas oublier.
 
+Évolutions UX de la pré-vérification (todos futurs, non prioritaires) :
+
+- Groupage des alertes : à mesure que les alertes Phase 1 s'accumulent (1.1 à 1.5), empiler des confirm() natifs successifs devient pénible. Cible : une alerte unique agrégeant toutes les anomalies détectées, avec une seule validation. Constaté dès 2 alertes (secteur + reste à payer) le 28/05.
+- Modale custom : remplacer les confirm() natifs (UX brute) par une modale soignée — se fera naturellement avec le groupage.
+- Déplacement au stade extraction : faire déclencher ces vérifications au moment de l'import du CEE (« Extraire depuis le CEE »), avant l'analyse complète, conformément au principe « le CEE est le dossier référent ». Aujourd'hui le mécanisme vit dans l'analyse (après generateChecks). Ces trois todos convergent vers un écran unique de pré-vérification CEE.
+
 ---
 
 ## PHASE 1 — PRÉ-VÉRIFICATION DU CEE (priorité haute)
@@ -54,11 +60,8 @@ Le cadrage a fait émerger une structure naturelle, fidèle au principe « le CE
 > **Mécanisme commun** : « alerte bloquante confirmable » au stade extraction. Si la condition n'est pas remplie → l'outil interrompt et prévient l'utilisateur, qui peut soit confirmer l'exception (et poursuivre), soit corriger son CEE et le réimporter.
 > C'est le **même mécanisme `confirm()`** que l'alerte secteur « Autres » déjà existante. Toutes ces vérifications doivent fonctionner en **mono ET multi-chantiers** (voir bug B2 à corriger en prérequis).
 
-### 1.1 — Reste à payer ≠ 0€  *(déjà partiellement présent, à fiabiliser au stade extraction)*
-- **Source** : Dossier CEE, champ « Reste à payer ».
-- **Règle** : doit être 0€. Si ≠ 0€ → alerte confirmable.
-- **Note** : cas rares mais réels (restes à charge > 0). L'utilisateur confirme si normal.
-- **À vérifier dans le code** : aujourd'hui c'est `check_40` dans l'analyse. À transformer/compléter en alerte au stade extraction.
+### 1.1 — Reste à payer ≠ 0€  ✅ IMPLÉMENTÉ
+Implémenté le 28/05/2026 (commit 0aaf465) — voir SOURCE_DE_VERITE_CHECKS.md §1 (alerte de confirmation) et §7bis. Alerte confirmable à 3 états (absent / ≠0 / =0) remplaçant l'ancien check_40.
 
 ### 1.2 — Délais de travaux  *(non codé — extraction des dates à ajouter)*
 - **Source** : Dossier CEE, champs « Date de début des travaux » et « Date de fin des travaux ».
@@ -144,6 +147,15 @@ Le code a les valeurs dans `FICHES_TECHNIQUES` mais ne compare activement que TH
 - **Exemple** : chantier 3 avec adresse Synthèse erronée (identique au chantier 1) → parcelle comparée à celle du chantier 1 → faux OK.
 - **À investiguer** : détecter les doublons d'adresse comme anomalie au lieu de fusionner silencieusement.
 
+### Crash norm.cee null dans generateChecks  ⚠️ TOUCHE LA PRODUCTION
+
+- Problème : generateChecks lève TypeError: null is not an object (evaluating 'norm.cee.adresseSiege') quand l'extraction /api/analyze renvoie un dossier sans objet cee. Les checks 41 (adresseSiege) et 42 (dateSignature) accèdent à norm.cee.* sans ?. (5 accès non gardés) ; les ~9 autres accès du fichier sont protégés. normalizeExtracted ne crée pas de cee par défaut → un cee null passe tel quel jusqu'au premier accès non gardé.
+- Intermittent : l'extraction (temperature:0, max_tokens:8000) peut tronquer/omettre cee sur dossiers volumineux ou incohérents. Cas test ayant révélé le bug : CEE « Le Miroir » + Audit « Boiry-Notre-Dame ».
+- Diagnostiqué le 28/05/2026 comme préexistant et indépendant de l'évolution 1.1 (présent à l'identique sur main — 1.1 a seulement déplacé le point d'impact de check_40 vers check_41).
+- Priorité : touche la production → à corriger avant la suite de la Phase 1.
+- Approches évoquées (non tranchées) : early-return dans generateChecks si cee null ; ou normaliser cee = cee || {} dans normalizeExtracted ; ou protéger les 5 accès par ?.. À cadrer en session dédiée.
+- Cousin de : le bug « matching adresses dupliquées » ci-dessus (tous deux liés aux dossiers incohérents).
+
 ---
 
 ## PRÉREQUIS TRANSVERSAL — résolu
@@ -155,4 +167,4 @@ La Phase 1 repose sur le mécanisme d'alerte confirmable par chantier. Ce mécan
 ---
 
 *Établi le 27/05/2026 — cadrage métier détaillé.*
-*Ordre de réalisation suggéré : B2 → Phase 1 → Phase 2 → Phase 3 → Phase 4.*
+*Ordre de réalisation suggéré : B2 ✓ → 1.1 ✓ → crash norm.cee null (prod) → reste Phase 1 (1.5, 1.4, 1.2, 1.3) → Phase 2 → Phase 3 → Phase 4.*

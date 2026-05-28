@@ -39,12 +39,12 @@ Synthèse, Audit (hors page de garde), cohérence multi-chantiers, vérification
 ### 🔵 INFO — vérification manuelle ou optionnel
 Cas nécessitant un jugement humain, ou champs optionnels (contacts).
 
-### ⚠️ ALERTE DE CONFIRMATION (au stade extraction) — cas particulier (≠ erreur)
-Mécanisme `confirm()` qui interrompt **au moment de l'extraction du CEE, avant l'analyse complète**, pour demander une validation à l'utilisateur. L'utilisateur peut confirmer l'exception (et poursuivre) ou corriger son CEE et le réimporter. Ce n'est ni un check ni une erreur : c'est une question posée à l'utilisateur.
+### ⚠️ ALERTE DE CONFIRMATION (pendant l'analyse) — cas particulier (≠ erreur)
+Mécanisme `confirm()` qui interrompt pendant la phase d'analyse (après generateChecks(), avant le calcul de la page de garde), pour demander une validation à l'utilisateur. L'utilisateur peut confirmer l'exception (et poursuivre) ou corriger son CEE et le réimporter. Ce n'est ni un check ni une erreur : c'est une question posée à l'utilisateur.
 
 **Déclencheur existant** : Règle A (secteur ≠ entrepôt sur le CEE).
 
-**Déclencheur existant à fiabiliser** : **Reste à payer ≠ 0€** (champ « Reste à payer » du CEE). Doit être 0€ ; sinon alerte. Cas rares mais réels (restes à charge > 0) → l'utilisateur confirme si normal. Aujourd'hui présent sous forme de `check_40` dans l'analyse ; à transformer/compléter en alerte au stade extraction.
+Déclencheur actif — Reste à payer ≠ 0€ (champ « Reste à payer » du CEE, valeur globale du dossier). Implémenté le 28/05/2026 (commit 0aaf465) sous forme d'alerte confirmable à trois états : valeur absente / non interprétable → alerte « non détecté » ; valeur ≠ 0 → alerte « montant anormal, confirmer ou corriger » ; valeur = 0 → aucune alerte. Remplace l'ancien check_40 (supprimé). La distinction des trois états comble un faux « conforme » : auparavant une valeur non extraite passait silencieusement pour 0.
 
 > Les autres déclencheurs de ce mécanisme (délais de travaux, attestation agricole BAT-EQ-127, Clichy, Prime Evolution) sont des **évolutions à venir** — voir `ROADMAP_EVOLUTIONS.md`, Phase 1.
 
@@ -167,11 +167,10 @@ Mécanisme `confirm()` qui interrompt **au moment de l'extraction du CEE, avant 
 | ID | Vérifie | Niveau | Portée |
 |----|---------|--------|--------|
 | `check_39` | Nb audits = synthèses = attestations | 🟠 | UNIQUE |
-| `check_40` | Reste à payer = 0€ | 🔴 *(voir anomalie A2)* | UNIQUE |
 | `check_41` | Adresse siège = CEE | 🔴 *(voir anomalie A2)* | UNIQUE |
 | `check_42` | Date de signature = CEE | 🟠 | UNIQUE |
 
-> ⚠️ Note : `check_40` et `check_41` sont codés en `bloquant` mais ne font PAS partie de la page de garde Audit. **À revoir** : selon le principe §1, ils devraient être majeurs. À valider avec le responsable.
+> ⚠️ Note : check_41 (adresse siège) est codé en bloquant mais ne fait PAS partie de la page de garde Audit. À revoir : selon le principe §1, il devrait être majeur. (check_40 a été supprimé le 28/05 — voir §1, désormais une alerte de confirmation.)
 
 ### Attestations & surfaces (par chantier)
 | ID | Vérifie | Niveau | Portée |
@@ -191,10 +190,10 @@ Plusieurs checks différents (audit / synthèse / info) partagent le même id `c
 ➡️ Risque au recalcul (saisie manuelle) : `findIndex(id)` écrase le mauvais check.
 ➡️ Correctif : préfixer par type → `check_45_audit_N`, `check_45_synthese_N`.
 
-### A2 — check_40 / check_41 / check_42 : doublon d'id + niveau
-- doublon d'ids documenté dans `known-pitfalls.md` Bug #7, jamais soldé.
-- `check_40` (reste à payer) et `check_41` (siège) sont en `bloquant` alors que **seule la page de garde Audit doit bloquer** (§1).
-➡️ Correctif : ids uniques + repasser ces checks en `majeur`.
+### A2 — check_41 : niveau bloquant à tort
+check_41 (adresse siège) est codé en bloquant alors que seule la page de garde Audit doit bloquer (§1) → il devrait être majeur.
+➡️ Correctif : repasser check_41 en majeur.
+*(Note historique : l'ancien doublon d'id entre check_40 et la date de signature était déjà résolu — la date de signature est check_42. Et check_40 lui-même a été supprimé le 28/05, remplacé par l'alerte de confirmation « reste à payer ». A2 ne concerne donc plus que le niveau de check_41.)*
 
 ### A3 — check_47_global utilisé deux fois
 Deux checks globaux (manuelles=audits / manuelles=synthèses) portent le même id `check_47_global`.
@@ -215,6 +214,16 @@ Règle R05 = tolérance ZÉRO (1 LED d'écart = erreur). Code = `Math.abs(...) <
 
 ---
 
+## 7bis. ÉVOLUTIONS IMPLÉMENTÉES — journal des livraisons
+
+Évolutions de la roadmap implémentées, testées et mergées sur main. Distinct du §7 (corrections de bugs).
+
+| Évolution | Description | Implémenté le | Commit |
+|-----------|-------------|---------------|--------|
+| 1.1 | Alerte confirmable « Reste à payer » (3 états : absent / ≠0 / =0) remplaçant l'ancien check_40 | 28/05/2026 | 0aaf465 |
+
+---
+
 ## 8. RÈGLES MÉTIER CRITIQUES — toutes présentes dans le code
 
 | Règle | Présente | Où |
@@ -223,7 +232,7 @@ Règle R05 = tolérance ZÉRO (1 LED d'écart = erreur). Code = `Math.abs(...) <
 | THD 3,7% (DAEWOO) | OUI | `check_35` |
 | Parcelles cadastrales | OUI | `check_15`, `compareParcelles()` |
 | SIRET 14 ch. (du CLIENT, pas Prime Evolution) | OUI | `check_11/26`, `compareSIRET()` |
-| Reste à payer = 0€ | OUI | `check_40` |
+| Reste à payer = 0€ | OUI | Alerte de confirmation (§1) — ex-check_40 |
 | Cohérence LED total + par chantier | OUI | `check_09a/b/c/d` |
 | Cohérence nb chantiers | OUI | `check_39` |
 | Adresses : ignorer bâtiments/parcelles | OUI | `compareAddress()` |
