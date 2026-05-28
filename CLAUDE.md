@@ -52,7 +52,7 @@ cee-verif/
 │   └── extract-cee.js            ← Extraction CEE (149 lignes, legacy?)
 ├── docs/
 │   ├── decisions/                ← ADRs (Architecture Decision Records)
-│   ├── business-rules.md         ← Règles métier critiques
+│   ├── SOURCE_DE_VERITE_CHECKS.md         ← Règles métier critiques
 │   ├── known-pitfalls.md         ← Bugs résolus et pièges connus
 │   └── pending-todos.md          ← Modifications planifiées
 ├── taches/
@@ -115,7 +115,7 @@ Définies dans **Vercel Dashboard** → Project → Settings → Environment Var
 
 ## Règles métier critiques
 
-⚠️ **IMPORTANT** : Ces règles sont EXHAUSTIVES dans `docs/business-rules.md`
+⚠️ **IMPORTANT** : Ces règles sont EXHAUSTIVES dans `docs/SOURCE_DE_VERITE_CHECKS.md`
 
 ### Niveaux de priorité
 
@@ -150,7 +150,7 @@ Définies dans **Vercel Dashboard** → Project → Settings → Environment Var
 ✅ Tout OK → Envoi CEE complet à Total Energies
 ```
 
-**Détails complets** → `docs/business-rules.md`
+**Détails complets** → `docs/SOURCE_DE_VERITE_CHECKS.md`
 
 ---
 
@@ -203,7 +203,7 @@ Chaque ADR contient : Date, Statut, Contexte, Décision, Alternatives, Conséque
 1. **Lire la documentation** :
    ```bash
    cat CLAUDE.md
-   cat docs/business-rules.md
+   cat docs/SOURCE_DE_VERITE_CHECKS.md
    cat docs/pending-todos.md
    ls docs/decisions/
    ```
@@ -223,7 +223,7 @@ Chaque ADR contient : Date, Statut, Contexte, Décision, Alternatives, Conséque
 2. **Expliquer** : Présenter le diagnostic à l'utilisateur
 3. **Proposer** : 2-3 approches avec avantages/inconvénients
 4. **Attendre validation** : Ne JAMAIS coder sans validation
-5. **Vérifier** : Aucune règle de `docs/business-rules.md` n'est violée
+5. **Vérifier** : Aucune règle de `docs/SOURCE_DE_VERITE_CHECKS.md` n'est violée
 
 ### ✅ Après chaque modification
 
@@ -236,7 +236,7 @@ Chaque ADR contient : Date, Statut, Contexte, Décision, Alternatives, Conséque
 
 1. **Lister** les modifications faites (fichiers, fonctionnalités, commits)
 2. **Proposer mises à jour** : CLAUDE.md, nouveaux ADR si décisions architecturales
-3. **Vérifier** qu'aucune règle dans `docs/business-rules.md` n'a été violée
+3. **Vérifier** qu'aucune règle dans `docs/SOURCE_DE_VERITE_CHECKS.md` n'a été violée
 4. **Mettre à jour** `docs/pending-todos.md` avec l'état actuel
 5. **Faire spontanément** sans attendre qu'on me le demande
 
@@ -333,7 +333,7 @@ curl -X POST http://localhost:3000/api/analyze \
 - `CHECKLIST_MANUELLE.md` — Vérifications manuelles utilisateur
 - `RESUME_EXECUTIF.md` — Synthèse transcripts 5-11 mai
 - `RAPPORT_ANALYSE_TRANSCRIPTS_COMPLET.md` — Analyse complète des décisions
-- `docs/business-rules.md` — Règles métier détaillées
+- `docs/SOURCE_DE_VERITE_CHECKS.md` — Règles métier détaillées
 - `docs/decisions/` — ADRs des décisions architecturales
 - `docs/known-pitfalls.md` — Bugs résolus et pièges à éviter
 - `docs/pending-todos.md` — Modifications planifiées
@@ -398,4 +398,4 @@ git push origin main
 ---
 
 **Dernière mise à jour** : 28 mai 2026
-**Version** : Phase 1 complète + B1/B2 résolus — modèle Chantier/Cellule à cadrer (TODO #22)
+**Version** : Phase 1 complète + B1/B2 résolus + évolution 1.1 (alerte reste à payer) — modèle Chantier/Cellule à cadrer (TODO #22)

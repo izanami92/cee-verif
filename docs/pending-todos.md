@@ -334,6 +334,31 @@ CREATE TABLE analyses (
 
 ---
 
+### ✅ TODO #25 : Évolution 1.1 — alerte confirmable « reste à payer »
+
+**Statut** : ✅ **COMPLÉTÉ** (28 mai 2026)
+
+**Évolution** (ROADMAP 1.1) :
+- `check_40` (reste à payer = 0€), codé en `bloquant` à tort, remplacé par une alerte de confirmation à 3 états
+- Valeur absente / non interprétable → alerte « non détecté » ; valeur ≠ 0 → alerte « montant anormal, confirmer ou corriger » ; valeur = 0 → aucune alerte
+- La distinction des 3 états comble un faux « conforme » : auparavant une valeur non extraite passait silencieusement pour 0 (`compareMoney(undefined, '0')` renvoyait `true`)
+- Pattern repris de l'alerte secteur « Autres » ; `compareMoney` non modifiée (détection locale des états)
+
+**Fichiers modifiés** :
+- `index.html` (+41, -14)
+- `docs/SOURCE_DE_VERITE_CHECKS.md`, `docs/ROADMAP_EVOLUTIONS.md`
+
+**Commits** :
+- `0aaf465` - "feat(reste-a-payer): remplace check_40 bloquant par alerte confirmable 3 états (absent/≠0/=0)"
+- `87d24d5` - "docs: màj source de vérité + roadmap après implémentation 1.1"
+
+**Sources** :
+- [docs/SOURCE_DE_VERITE_CHECKS.md — §1 alerte de confirmation / §7bis]
+- [docs/ROADMAP_EVOLUTIONS.md — Évolution 1.1]
+- [Session 28 mai 2026]
+
+---
+
 ### ✅ TODO #9 : Support multi-chantiers
 
 **Statut** : ✅ **COMPLÉTÉ** (7 mai 2026)
@@ -675,7 +700,9 @@ CREATE TABLE analyses (
 - 🟡 Importantes : 2 (TODO #3 reportée)
 - 🟢 Nice to have : 3
 
-**TODOs complétés récemment** : 17 (7-28 mai 2026)
+> ⚠️ Bug prod à traiter en priorité (non numéroté) : crash `norm.cee` null dans `generateChecks` — détaillé dans `ROADMAP_EVOLUTIONS.md` (section BUGS À INVESTIGUER).
+
+**TODOs complétés récemment** : 18 (7-28 mai 2026)
 - 7 mai : Multi-chantiers (ADR 003)
 - 8 mai : Sélecteur LED (ADR 006), Normalisation adresses (ADR 007), Extraction CLIENT (ADR 008)
 - 9 mai : UX hiérarchique (ADR 009), Secteur par chantier (ADR 010), Matching INDEX (ADR 011)
@@ -685,11 +712,12 @@ CREATE TABLE analyses (
 - 25 mai : Attestations manquantes (ADR 013, TODO #20)
 - 27 mai : Documentation restructurée (TODO #21), Bug B1 mentions agricoles (TODO #23)
 - 28 mai : Bug B2 alerte secteur multi-chantiers (TODO #24)
+- 28 mai : Évolution 1.1 alerte confirmable reste à payer (TODO #25)
 
 **TODOs reportés** : 1
 - 27 mai : Modularisation index.html (TODO #3) - À refaire après cadrage modèle Chantier/Cellule (TODO #22)
 
-**Taux de complétion** : 74% (17/23) 🎯
+**Taux de complétion** : 75% (18/24) 🎯
 
 ---
 
@@ -735,5 +763,5 @@ Ce document doit être mis à jour :
 
 ---
 
-**Dernière révision** : 28 mai 2026 (session B1/B2 résolus + cadrage modèle Chantier/Cellule)
-**Prochaine révision** : Fin de session actuelle
+**Dernière révision** : 28 mai 2026 (session 1.1 implémentée — alerte reste à payer + doc source de vérité/roadmap à jour)
+**Prochaine révision** : Prochaine session de développement
