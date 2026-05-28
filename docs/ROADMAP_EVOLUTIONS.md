@@ -9,6 +9,36 @@
 
 ---
 
+## CHANTIER MAJEUR — Modèle de données Chantier / Cellule (PRIORITÉ N°1)
+
+### Le problème
+L'outil repose sur l'hypothèse « 1 chantier = 1 adresse » et utilise l'adresse comme clé de regroupement. C'est faux dans beaucoup de cas réels et cause des erreurs silencieuses (faux « conforme » sur parcelles/surfaces).
+
+### La structure réelle (validée métier 28/05/2026)
+**Hiérarchie : Dossier → Chantiers → Cellules.**
+
+- **Chantier** = unité documentaire : 1 audit + 1 synthèse + 1 adresse + 1 type de local/secteur d'activité (le secteur est UN par chantier, jamais par cellule).
+- **Cellule** (appelée aussi « bâtiment » dans les documents) = unité physique : porte sa propre surface, sa propre parcelle cadastrale, sa hauteur sous plafond, son nombre de points lumineux, ses caractéristiques.
+- **Surface du chantier** = somme des surfaces de ses cellules.
+- Un chantier peut avoir 1 ou plusieurs cellules. Les parcelles peuvent être identiques entre cellules ou différentes selon les dossiers.
+
+### La difficulté
+Les nomenclatures varient d'un dossier à l'autre : les cellules sont identifiées par des mentions « bat / bât / batiment / bâtiment » (singulier ou pluriel, toutes orthographes), avec des numéros en notations variées (« 1,2,3 », « 1 à 3 », « 1-3 », « bât 1 »). Configurations possibles : 1 adresse / 1 cellule, 1 adresse / plusieurs cellules / 1 chantier, parfois 1 parcelle pour plusieurs cellules, parfois 1 parcelle par cellule.
+
+### Ce qu'il faut faire (à cadrer techniquement en session dédiée)
+Introduire le niveau « cellule » dans le modèle de données :
+- **Extraction** : repérer les cellules et leurs attributs propres.
+- **Regroupement** : associer les bonnes cellules au bon chantier, sans se fier uniquement à l'adresse.
+- **Vérification** : comparer surfaces et parcelles au niveau cellule, pas au niveau adresse.
+
+### Amorces existantes dans le code (à auditer avant de coder)
+`extraireNombreBatiments`, `normaliserAdresseSansBatiment`, `regrouperAttestationsParAdresse`, et le matching par index (`matchChantiers`, ADR 011). Ne pas dupliquer — compléter l'existant.
+
+### Lien avec d'autres sujets
+Le bug « matching adresses dupliquées » est probablement une manifestation de ce problème. La cohérence facture ↔ case cochée (évolution notée) devra tenir compte de ce modèle.
+
+---
+
 ## ARCHITECTURE CIBLE : 3 temps de vérification
 
 Le cadrage a fait émerger une structure naturelle, fidèle au principe « le CEE est la base, on le valide d'abord » :
