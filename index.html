@@ -1119,6 +1119,21 @@
           <textarea id="refParcelles" placeholder="000/0B/0001, 000/0B/0002..." rows="2" style="resize: vertical;"></textarea>
         </div>
 
+        <div class="ref-input">
+          <label for="refEmail">Email client (CEE)</label>
+          <input type="text" id="refEmail" placeholder="contact@exemple.fr">
+        </div>
+
+        <div class="ref-input">
+          <label for="refTelephone">Téléphone client (CEE)</label>
+          <input type="text" id="refTelephone" placeholder="06 12 34 56 78">
+        </div>
+
+        <div class="ref-input">
+          <label for="refContact">Contact nom/prénom (CEE)</label>
+          <input type="text" id="refContact" placeholder="Nom Prénom">
+        </div>
+
         <button id="btnExtractFromCEE" class="btn-extract" style="width: 100%; padding: 0.75rem; background: rgba(255, 255, 255, 0.15); color: var(--color-white); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: var(--radius-md); font-size: 0.875rem; font-weight: 600; margin-top: var(--spacing-md); cursor: pointer; transition: all 0.2s;" disabled>
           📋 Extraire depuis le Dossier CEE
         </button>
@@ -1417,6 +1432,9 @@
       refTotalLed: document.getElementById('refTotalLed'),
       refTypeLocal: document.getElementById('refTypeLocal'),
       refParcelles: document.getElementById('refParcelles'),
+      refEmail: document.getElementById('refEmail'),
+      refTelephone: document.getElementById('refTelephone'),
+      refContact: document.getElementById('refContact'),
 
       btnExtractFromCEE: document.getElementById('btnExtractFromCEE'),
 
@@ -1852,6 +1870,9 @@ Extrait les informations suivantes du document et retourne-les en JSON :
    - Si plusieurs chantiers avec même valeur → retourner cette valeur
    - Si différent entre chantiers → retourner le premier trouvé
    - Si non trouvé → retourner null
+11. email : email du client bénéficiaire (coordonnées en-tête / contact) - null si absent
+12. telephone : téléphone du client bénéficiaire (coordonnées en-tête / contact) - null si absent
+13. contact : nom/prénom de la personne contact / signataire (ex. champ "Représenté par") - null si absent
 
 Format de réponse attendu (JSON uniquement) :
 \`\`\`json
@@ -1865,7 +1886,10 @@ Format de réponse attendu (JSON uniquement) :
   "dateDevis": "YYYY-MM-DD",
   "dateSignature": "YYYY-MM-DD",
   "referenceLed": "DAEWOO ou TECH ou null",
-  "secteurActivite": "Entrepôts ou autre type de local ou null"
+  "secteurActivite": "Entrepôts ou autre type de local ou null",
+  "email": "email du client ou null",
+  "telephone": "téléphone du client ou null",
+  "contact": "nom/prénom du contact (Représenté par) ou null"
 }
 \`\`\`
 
@@ -1905,6 +1929,18 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
           if (extracted.siret) {
             elements.refSiret.value = extracted.siret;
             elements.refSiret.classList.add('auto-filled');
+          }
+          if (extracted.email) {
+            elements.refEmail.value = extracted.email;
+            elements.refEmail.classList.add('auto-filled');
+          }
+          if (extracted.telephone) {
+            elements.refTelephone.value = extracted.telephone;
+            elements.refTelephone.classList.add('auto-filled');
+          }
+          if (extracted.contact) {
+            elements.refContact.value = extracted.contact;
+            elements.refContact.classList.add('auto-filled');
           }
           if (extracted.adresses && Array.isArray(extracted.adresses) && extracted.adresses.length > 0) {
             // NOUVEAU : Initialiser les chantiers avec TOUTES les adresses trouvées
@@ -2435,6 +2471,9 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
           totalLed: elements.refTotalLed.value,
           typeLocal: elements.refTypeLocal.value,
           parcelles: elements.refParcelles.value.trim(),
+          email: elements.refEmail.value.trim(),
+          telephone: elements.refTelephone.value.trim(),
+          contact: elements.refContact.value.trim(),
           refLed: refLedSelected
         };
 
@@ -3008,6 +3047,17 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
       console.log(`  Codes char 2:`, Array.from(norm2).map(c => c.charCodeAt(0)).join(','));
 
       return false;
+    }
+
+    // Comparer deux numéros de téléphone (ignore espaces/ponctuation, gère +33 / 0033 → 0)
+    function comparePhone(phone1, phone2) {
+      const normPhone = (p) => {
+        let digits = String(p || '').replace(/\D/g, '');
+        if (digits.startsWith('0033')) digits = '0' + digits.slice(4);
+        else if (digits.startsWith('33') && digits.length === 11) digits = '0' + digits.slice(2);
+        return digits;
+      };
+      return normPhone(phone1) === normPhone(phone2);
     }
 
     // Comparer deux dates (gère les formats JJ/MM/AAAA et AAAA-MM-JJ)
@@ -3671,42 +3721,39 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
           chantierIndex
         });
 
-        // Checks 6-8 : Contacts (optionnels)
-        checks.push({
-          id: `check_06${idSuffix}`,
-          categorie: 'synthese',
-          niveau: synthese.email ? 'ok' : 'info',
-          champ: `Email Synthèse page 1${suffix}`,
-          localisation: `Synthèse${suffix} page 1, contact client`,
-          detail: synthese.email ? 'Email présent' : 'Email non présent (optionnel)',
-          valeur_attendue: '',
-          valeur_trouvee: synthese.email || 'Non présent',
-          chantierIndex
-        });
-
-        checks.push({
-          id: `check_07${idSuffix}`,
-          categorie: 'synthese',
-          niveau: synthese.telephone ? 'ok' : 'info',
-          champ: `Téléphone Synthèse page 1${suffix}`,
-          localisation: `Synthèse${suffix} page 1, contact client`,
-          detail: synthese.telephone ? 'Téléphone présent' : 'Téléphone non présent (optionnel)',
-          valeur_attendue: '',
-          valeur_trouvee: synthese.telephone || 'Non présent',
-          chantierIndex
-        });
-
-        checks.push({
-          id: `check_08${idSuffix}`,
-          categorie: 'synthese',
-          niveau: synthese.contact ? 'ok' : 'info',
-          champ: `Contact nom/prénom Synthèse page 1${suffix}`,
-          localisation: `Synthèse${suffix} page 1, contact client`,
-          detail: synthese.contact ? 'Contact présent' : 'Contact non présent (optionnel)',
-          valeur_attendue: '',
-          valeur_trouvee: synthese.contact || 'Non présent',
-          chantierIndex
-        });
+        // Checks 6-8 : Contacts (email / téléphone / contact) — comparaison Synthèse vs référence CEE
+        // Matrice : conforme → ok ; présent des deux côtés mais différent → majeur ;
+        // absent côté Synthèse, ou pas de référence CEE → info (jamais de faux conforme via '' === '').
+        const pushContactCheck = (id, champ, refVal, synVal, compareFn) => {
+          let niveau, detail;
+          if (!refVal) {
+            niveau = 'info';
+            detail = 'Pas de référence CEE — à vérifier manuellement';
+          } else if (!synVal) {
+            niveau = 'info';
+            detail = 'Absent sur la Synthèse';
+          } else if (compareFn(synVal, refVal)) {
+            niveau = 'ok';
+            detail = 'Conforme';
+          } else {
+            niveau = 'majeur';
+            detail = 'Différent de la référence CEE';
+          }
+          checks.push({
+            id: `${id}${idSuffix}`,
+            categorie: 'synthese',
+            niveau,
+            champ: `${champ}${suffix}`,
+            localisation: `Synthèse${suffix} page 1, contact client`,
+            detail,
+            valeur_attendue: refVal || '',
+            valeur_trouvee: synVal || 'Non présent',
+            chantierIndex
+          });
+        };
+        pushContactCheck('check_06', 'Email Synthèse page 1', references.email, synthese.email, compareStrings);
+        pushContactCheck('check_07', 'Téléphone Synthèse page 1', references.telephone, synthese.telephone, comparePhone);
+        pushContactCheck('check_08', 'Contact nom/prénom Synthèse page 1', references.contact, synthese.contact, compareStrings);
       });
 
       // Checks 9-30 : Autres vérifications Synthèse et Audit (simplifié pour l'instant)
