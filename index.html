@@ -4470,33 +4470,50 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
 
       // ========== CHECKS 41-42 : VÉRIFICATIONS FINANCIÈRES ET ADMINISTRATIVES ==========
 
-      // Check 41 : Adresse siège social
-      const adresseSiegeOk = compareAddress(norm.cee.adresseSiege, references.adresseSiege);
-      checks.push({
-        id: 'check_41',
-        categorie: 'audit',
-        niveau: adresseSiegeOk ? 'ok' : 'bloquant',
-        champ: 'Adresse siège social Dossier CEE',
-        localisation: 'Dossier CEE, haut à droite',
-        detail: adresseSiegeOk ? 'Adresse siège conforme' : 'Adresse siège différente de la référence',
-        valeur_attendue: references.adresseSiege || '',
-        valeur_trouvee: norm.cee.adresseSiege || ''
-      });
+      // Si l'extraction n'a renvoyé aucun objet CEE, les checks 41/42 (adresse siège,
+      // date de signature) n'ont plus de quoi se comparer : on émet UN signal explicite
+      // au lieu de deux lignes trompeuses (faux échec, ou faux "conforme" si les références
+      // sont vides aussi). Niveau majeur, jamais bloquant (§1 : seule la page de garde Audit bloque).
+      if (!norm.cee) {
+        checks.push({
+          id: 'check_cee_incomplet',
+          categorie: 'cee',
+          niveau: 'majeur',
+          champ: 'Extraction du Dossier CEE',
+          localisation: 'Dossier CEE',
+          detail: '⚠️ Extraction CEE incomplète — réimporter le Dossier CEE',
+          valeur_attendue: 'Données du Dossier CEE extraites',
+          valeur_trouvee: 'Aucune donnée CEE extraite'
+        });
+      } else {
+        // Check 41 : Adresse siège social
+        const adresseSiegeOk = compareAddress(norm.cee?.adresseSiege, references.adresseSiege);
+        checks.push({
+          id: 'check_41',
+          categorie: 'audit',
+          niveau: adresseSiegeOk ? 'ok' : 'bloquant',
+          champ: 'Adresse siège social Dossier CEE',
+          localisation: 'Dossier CEE, haut à droite',
+          detail: adresseSiegeOk ? 'Adresse siège conforme' : 'Adresse siège différente de la référence',
+          valeur_attendue: references.adresseSiege || '',
+          valeur_trouvee: norm.cee?.adresseSiege || ''
+        });
 
-      // Check 42 : Date de signature
-      const dateSignatureOk = compareDate(norm.cee.dateSignature, references.dateSignature);
-      checks.push({
-        id: 'check_42',
-        categorie: 'synthese',
-        niveau: dateSignatureOk ? 'ok' : 'majeur',
-        champ: 'Date de signature / Date d\'engagement Dossier CEE',
-        localisation: 'Dossier CEE, informations engagement',
-        detail: dateSignatureOk ?
-          'Date de signature conforme' :
-          `Date différente : ${norm.cee.dateSignature || 'non trouvée'} vs référence ${references.dateSignature || ''}`,
-        valeur_attendue: references.dateSignature || '',
-        valeur_trouvee: norm.cee.dateSignature || ''
-      });
+        // Check 42 : Date de signature
+        const dateSignatureOk = compareDate(norm.cee?.dateSignature, references.dateSignature);
+        checks.push({
+          id: 'check_42',
+          categorie: 'synthese',
+          niveau: dateSignatureOk ? 'ok' : 'majeur',
+          champ: 'Date de signature / Date d\'engagement Dossier CEE',
+          localisation: 'Dossier CEE, informations engagement',
+          detail: dateSignatureOk ?
+            'Date de signature conforme' :
+            `Date différente : ${norm.cee?.dateSignature || 'non trouvée'} vs référence ${references.dateSignature || ''}`,
+          valeur_attendue: references.dateSignature || '',
+          valeur_trouvee: norm.cee?.dateSignature || ''
+        });
+      }
 
       // ========== VÉRIFICATIONS ATTESTATIONS SUR L'HONNEUR + SURFACES ==========
 
