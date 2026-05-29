@@ -16,7 +16,7 @@ Toutes les valeurs des autres documents (Audit Dialux, Synthèse) se comparent �
 
 > ⚠️ **Hypothèse de fonctionnement** : les champs de référence restent éditables à la main, mais en pratique ils ne sont PAS modifiés après extraction. La fiabilité des checks bloquants repose sur ce respect du flux « Extraire depuis le CEE ».
 
-**Infos extraites automatiquement du CEE** : nom société, SIRET, date d'envoi du devis, date de signature, adresse siège social, nombre total de LED, type de local, référence LED, parcelles cadastrales.
+**Infos extraites automatiquement du CEE** : nom société, SIRET, date d'envoi du devis, date de signature, adresse siège social, nombre total de LED, type de local, référence LED, parcelles cadastrales, email, téléphone et contact du client.
 
 ---
 
@@ -113,7 +113,10 @@ Déclencheur actif — Reste à payer ≠ 0€ (champ « Reste à payer » du CE
 |----|---------|--------|--------|
 | `check_04` | Nom = CEE | 🟠 | × CHANTIER |
 | `check_05` | Date = date prévisite | 🟠 | × CHANTIER |
-| `check_06/07/08` | Email / Téléphone / Contact (optionnels) | 🔵 | × CHANTIER |
+| `check_06/07/08` | Email / Téléphone / Contact = CEE | 🟢/🟠/🔵 | × CHANTIER |
+
+> ℹ️ check_06/07/08 (page de garde Synthèse) : **comparaison réelle** Synthèse vs référence CEE (depuis le 29/05/2026, commit `e47cfe3`), à trois états — présent des deux côtés + conforme → 🟢 ; présent + **différent du CEE** → 🟠 majeur ; **absent** côté Synthèse ou **pas de référence** CEE → 🔵 info (jamais de faux « conforme »). Fonctions : `compareStrings` (email, contact) ; `comparePhone` (téléphone — normalisation chiffres, +33/0033 → 0).
+> 📌 Historique : **pas une régression**. Depuis leur toute première version (confirmé par git), ces checks ne faisaient qu'un **test de présence** (`synthese.X ? 'ok' : 'info'`), sans aucune comparaison → faux « conforme » présent **dès l'origine**, corrigé le 29/05/2026.
 
 ### Total LED
 | ID | Vérifie | Niveau | Portée |
