@@ -167,10 +167,13 @@ Déclencheur actif — Reste à payer ≠ 0€ (champ « Reste à payer » du CE
 | ID | Vérifie | Niveau | Portée |
 |----|---------|--------|--------|
 | `check_39` | Nb audits = synthèses = attestations | 🟠 | UNIQUE |
-| `check_41` | Adresse siège = CEE | 🔴 *(voir anomalie A2)* | UNIQUE |
+| `check_41` | Adresse siège = CEE | 🟠 | UNIQUE |
 | `check_42` | Date de signature = CEE | 🟠 | UNIQUE |
+| `check_cee_incomplet` | Émis si extraction CEE sans objet `cee` (remplace 41/42) | 🟠 | UNIQUE (si `cee` absent) |
 
-> ⚠️ Note : check_41 (adresse siège) est codé en bloquant mais ne fait PAS partie de la page de garde Audit. À revoir : selon le principe §1, il devrait être majeur. (check_40 a été supprimé le 28/05 — voir §1, désormais une alerte de confirmation.)
+> ✅ Note : check_41 (adresse siège) est désormais **majeur** (corrigé le 29/05/2026, commit `f976521` — anomalie A2). Il ne bloque pas, car il ne fait pas partie de la page de garde Audit (§1). (check_40 a été supprimé le 28/05 — voir §1, désormais une alerte de confirmation.)
+>
+> ℹ️ `check_cee_incomplet` (categorie `cee`, niveau majeur) : signal unique poussé par `generateChecks` quand l'extraction `/api/analyze` ne renvoie aucun objet `cee`. Il remplace alors les checks 41/42 (qui n'auraient rien à comparer) plutôt que d'afficher de faux échecs/conformes. Ajouté le 29/05/2026 (commit `27e7918`).
 
 ### Attestations & surfaces (par chantier)
 | ID | Vérifie | Niveau | Portée |
@@ -190,9 +193,9 @@ Plusieurs checks différents (audit / synthèse / info) partagent le même id `c
 ➡️ Risque au recalcul (saisie manuelle) : `findIndex(id)` écrase le mauvais check.
 ➡️ Correctif : préfixer par type → `check_45_audit_N`, `check_45_synthese_N`.
 
-### A2 — check_41 : niveau bloquant à tort
+### A2 — check_41 : niveau bloquant à tort  ✅ RÉSOLU
 check_41 (adresse siège) est codé en bloquant alors que seule la page de garde Audit doit bloquer (§1) → il devrait être majeur.
-➡️ Correctif : repasser check_41 en majeur.
+➡️ ✅ **Résolu 29/05/2026** — commit `f976521` : check_41 repassé en `majeur`.
 *(Note historique : l'ancien doublon d'id entre check_40 et la date de signature était déjà résolu — la date de signature est check_42. Et check_40 lui-même a été supprimé le 28/05, remplacé par l'alerte de confirmation « reste à payer ». A2 ne concerne donc plus que le niveau de check_41.)*
 
 ### A3 — check_47_global utilisé deux fois
@@ -211,6 +214,7 @@ Règle R05 = tolérance ZÉRO (1 LED d'écart = erreur). Code = `Math.abs(...) <
 |---|-----|--------------|--------------------|--------|
 | B1 | `checkMentionsAgricoles` en `bloquant` + cherche dans le CEE | Règle B | Passé en `majeur` ; recherche limitée à Audit + Synthèse | ✅ **Résolu 27/05/2026** — commit `b3450c2` |
 | B2 | Alerte secteur « Autres » non déclenchée en multi-chantiers | Règle A | Prompt d'extraction reformulé : secteur cherché dans la facture, par bloc chantier (adresse + parcelles), fallback attestation | ✅ **Résolu 28/05/2026** — commit `7242107` |
+| Crash | `generateChecks` lève TypeError sur `norm.cee.adresseSiege` quand l'extraction omet l'objet `cee` (checks 41/42) | — *(bug technique de robustesse, pas une règle métier)* | Garde `if (!norm.cee)` → signal majeur `check_cee_incomplet` à la place de 41/42 ; `?.` sur les 5 accès | ✅ **Résolu 29/05/2026** — commit `27e7918` |
 
 ---
 

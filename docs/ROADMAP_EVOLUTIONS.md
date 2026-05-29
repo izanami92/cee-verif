@@ -100,6 +100,21 @@ Implémenté le 28/05/2026 (commit 0aaf465) — voir SOURCE_DE_VERITE_CHECKS.md 
 - **Règle 2** : si la **fonction** (Gérant, Président…) diffère de l'API → signaler.
 - **Niveau** : signalement / rappel (à préciser à l'implémentation).
 
+### 2.3 — Nom de la société cliente vs source officielle  *(non codé — croisement externe)*
+- **Source** : Dossier CEE (nom du bénéficiaire) vs recherche-entreprises.api.gouv.fr / Greffe.
+- **Règle** : si le nom du CEE diffère de la raison sociale officielle → alerte confirmable / rappel.
+- **Niveau** : à préciser à l'implémentation (rappel ou alerte confirmable) — **JAMAIS bloquant** (§1).
+- **Dépend de** : 2.1 (API étendue).
+
+### 2.4 — Adresse siège vs source officielle  *(non codé — croisement externe)*
+- **Source** : Dossier CEE (adresse siège) vs adresse officielle recherche-entreprises / Greffe.
+- **Règle** : si l'adresse siège du CEE diffère de l'adresse officielle → alerte confirmable / rappel.
+- **Niveau** : à préciser à l'implémentation (rappel ou alerte confirmable) — **JAMAIS bloquant** (§1).
+- **Dépend de** : 2.1 (API étendue).
+- **Distinct de check_41** : check_41 compare l'adresse siège du CEE à la référence **saisie** (interne, majeur) ; ici on croise avec la source **officielle externe**.
+
+> **Note de contexte (volet pré-vérification CEE)** : ces deux croisements, comme toutes les vérifications du CEE, ont vocation à terme à se déclencher **au stade extraction** (« Extraire depuis le CEE », avant l'import Audit/Synthèse), conformément au principe « le CEE est la référence, on le valide d'abord ». Dans un premier temps, ils seront implémentés **pendant l'analyse** (comme les alertes actuelles). Le portail à 2 étapes / écran unique de pré-vérification reste une **cible UX future, non prioritaire** (cf. note Phase 1 « Déplacement au stade extraction »).
+
 ---
 
 ## PHASE 3 — RAPPELS / AIDE-MÉMOIRE (priorité basse, simples)
@@ -147,14 +162,13 @@ Le code a les valeurs dans `FICHES_TECHNIQUES` mais ne compare activement que TH
 - **Exemple** : chantier 3 avec adresse Synthèse erronée (identique au chantier 1) → parcelle comparée à celle du chantier 1 → faux OK.
 - **À investiguer** : détecter les doublons d'adresse comme anomalie au lieu de fusionner silencieusement.
 
-### Crash norm.cee null dans generateChecks  ⚠️ TOUCHE LA PRODUCTION
+### Crash norm.cee null dans generateChecks  ✅ RÉSOLU
+✅ **Corrigé le 29/05/2026** (commit `27e7918`) — garde `if (!norm.cee)` + signal majeur `check_cee_incomplet` à la place des checks 41/42 + `?.` sur les 5 accès non gardés. Détail complet : `SOURCE_DE_VERITE_CHECKS.md` §7.
 
-- Problème : generateChecks lève TypeError: null is not an object (evaluating 'norm.cee.adresseSiege') quand l'extraction /api/analyze renvoie un dossier sans objet cee. Les checks 41 (adresseSiege) et 42 (dateSignature) accèdent à norm.cee.* sans ?. (5 accès non gardés) ; les ~9 autres accès du fichier sont protégés. normalizeExtracted ne crée pas de cee par défaut → un cee null passe tel quel jusqu'au premier accès non gardé.
-- Intermittent : l'extraction (temperature:0, max_tokens:8000) peut tronquer/omettre cee sur dossiers volumineux ou incohérents. Cas test ayant révélé le bug : CEE « Le Miroir » + Audit « Boiry-Notre-Dame ».
-- Diagnostiqué le 28/05/2026 comme préexistant et indépendant de l'évolution 1.1 (présent à l'identique sur main — 1.1 a seulement déplacé le point d'impact de check_40 vers check_41).
-- Priorité : touche la production → à corriger avant la suite de la Phase 1.
-- Approches évoquées (non tranchées) : early-return dans generateChecks si cee null ; ou normaliser cee = cee || {} dans normalizeExtracted ; ou protéger les 5 accès par ?.. À cadrer en session dédiée.
-- Cousin de : le bug « matching adresses dupliquées » ci-dessus (tous deux liés aux dossiers incohérents).
+### Étiquette de catégorie de check_41 (adresse siège) — à investiguer
+- **Constat** : `check_41` porte une donnée du **CEE** (adresse siège) mais est rangé en `categorie: 'audit'` dans index.html.
+- **Effet** : la vue hiérarchique le classe correctement « Dossier CEE » (via `getCheckProvenance`, qui détecte « adresse siège »), mais les onglets legacy filtrent par `categorie` → il apparaît dans l'onglet « Audit ». Probable **bug d'étiquette d'affichage**, **sans effet sur le résultat** du check (la comparaison reste correcte).
+- **Distinct de A2** (qui ne concernait que le niveau, désormais résolu). À investiguer plus tard.
 
 ---
 
@@ -167,4 +181,4 @@ La Phase 1 repose sur le mécanisme d'alerte confirmable par chantier. Ce mécan
 ---
 
 *Établi le 27/05/2026 — cadrage métier détaillé.*
-*Ordre de réalisation suggéré : B2 ✓ → 1.1 ✓ → crash norm.cee null (prod) → reste Phase 1 (1.5, 1.4, 1.2, 1.3) → Phase 2 → Phase 3 → Phase 4.*
+*Ordre de réalisation suggéré : B2 ✓ → 1.1 ✓ → crash norm.cee null (prod) ✓ → reste Phase 1 (1.5, 1.4, 1.2, 1.3) → Phase 2 → Phase 3 → Phase 4.*

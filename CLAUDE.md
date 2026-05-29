@@ -397,5 +397,5 @@ git push origin main
 
 ---
 
-**Dernière mise à jour** : 28 mai 2026
-**Version** : Phase 1 complète + B1/B2 résolus + évolution 1.1 (alerte reste à payer) — modèle Chantier/Cellule à cadrer (TODO #22)
+**Dernière mise à jour** : 29 mai 2026
+**Version** : Phase 1 complète + B1/B2 résolus + évolution 1.1 (alerte reste à payer) + crash `cee` null & anomalie A2 résolus (29/05) — modèle Chantier/Cellule à cadrer (TODO #22)

@@ -700,9 +700,9 @@ CREATE TABLE analyses (
 - 🟡 Importantes : 2 (TODO #3 reportée)
 - 🟢 Nice to have : 3
 
-> ⚠️ Bug prod à traiter en priorité (non numéroté) : crash `norm.cee` null dans `generateChecks` — détaillé dans `ROADMAP_EVOLUTIONS.md` (section BUGS À INVESTIGUER).
+> ✅ Bug prod (non numéroté) **résolu 29/05/2026** : crash `norm.cee` null dans `generateChecks` (commit `27e7918`). Anomalie A2 (check_41 majeur) résolue le même jour (commit `f976521`). Voir `SOURCE_DE_VERITE_CHECKS.md` §7/§6.
 
-**TODOs complétés récemment** : 18 (7-28 mai 2026)
+**TODOs complétés récemment** : 20 (7-29 mai 2026)
 - 7 mai : Multi-chantiers (ADR 003)
 - 8 mai : Sélecteur LED (ADR 006), Normalisation adresses (ADR 007), Extraction CLIENT (ADR 008)
 - 9 mai : UX hiérarchique (ADR 009), Secteur par chantier (ADR 010), Matching INDEX (ADR 011)
@@ -713,6 +713,8 @@ CREATE TABLE analyses (
 - 27 mai : Documentation restructurée (TODO #21), Bug B1 mentions agricoles (TODO #23)
 - 28 mai : Bug B2 alerte secteur multi-chantiers (TODO #24)
 - 28 mai : Évolution 1.1 alerte confirmable reste à payer (TODO #25)
+- 29 mai : Crash `norm.cee` null dans generateChecks corrigé (commit 27e7918)
+- 29 mai : Anomalie A2 — check_41 adresse siège bloquant→majeur (commit f976521)
 
 **TODOs reportés** : 1
 - 27 mai : Modularisation index.html (TODO #3) - À refaire après cadrage modèle Chantier/Cellule (TODO #22)
