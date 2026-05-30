@@ -253,6 +253,7 @@ RÈGLE D'EXTRACTION :
     * Format typique : "000/0B/0551 - 000/0B/0547 - 000/0B/0549 - 000/0B/0045"
     * Si plusieurs chantiers : CHAQUE attestation a ses propres parcelles
     * Si un seul chantier : toutes les parcelles vont dans cette attestation
+  - etudeDimensionnement : entreprise citée dans la mention "Etude de dimensionnement réalisée par l'entreprise ..." de la FACTURE, pour CE chantier (ex: "PRIME EVOLUTION"). null si la mention est absente. Extraire UNIQUEMENT l'entreprise (pas SIRET/adresse/représentant).
 - COMBINER facture + attestations pour obtenir : {adresse: "...", surfaces: ["850"], ledTotal: "35", secteurActivite: "Entrepôts", parcelles: "000/0B/0551 - 000/0B/0547"}
 
 CEE - ADRESSE DU SIÈGE SOCIAL (CRITIQUE) :
@@ -495,14 +496,16 @@ FORMAT DE RÉPONSE (JSON uniquement) :
         "surfaces": ["850", "456"],
         "ledTotal": "35",
         "secteurActivite": "Entrepôts",
-        "parcelles": "000/0B/0551 - 000/0B/0547 - 000/0B/0549"
+        "parcelles": "000/0B/0551 - 000/0B/0547 - 000/0B/0549",
+        "etudeDimensionnement": "PRIME EVOLUTION"
       },
       {
         "adresse": "25 avenue Test 60130 VILLE2",
         "surfaces": ["1240"],
         "ledTotal": "31",
         "secteurActivite": "Entrepôts",
-        "parcelles": "000/0E/0277"
+        "parcelles": "000/0E/0277",
+        "etudeDimensionnement": "PRIME EVOLUTION"
       }
     ],
     "mentionsAgricoles": {
