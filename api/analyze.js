@@ -279,6 +279,9 @@ Si tu vois :
    86110 AMBERRE"
 → adresseSiege: "2 Rue de Prepson, 86110 AMBERRE"
 
+CEE - PROFESSIONNEL AYANT MIS EN ŒUVRE (section C de l'attestation sur l'honneur Total Énergies) :
+- entrepriseMiseEnOeuvre : raison sociale de l'entreprise citée dans la section C "Professionnel ayant mis en œuvre l'opération ..." de l'attestation sur l'honneur. Extraire UNIQUEMENT la raison sociale (pas le SIRET, pas l'adresse, pas le nom du signataire). null si la section est absente ou illisible.
+
 ⚠️ RÈGLE CRITIQUE - EXTRACTION DES SURFACES DEPUIS LES ATTESTATIONS :
 
 Les attestations sur l'honneur ont un FORMAT STANDARD. Chercher la phrase EXACTE suivante :
@@ -488,6 +491,7 @@ FORMAT DE RÉPONSE (JSON uniquement) :
     "dateDevis": "Date envoi devis",
     "dateSignature": "Date signature/engagement",
     "resteAPayer": "Reste à payer / reste à charge",
+    "entrepriseMiseEnOeuvre": "Energie Responsable",
     "parcelles": "Parcelles cadastrales",
     "referenceLed": "DAEWOO ou TECH (détecté depuis facture)",
     "attestations": [
