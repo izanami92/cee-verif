@@ -2408,6 +2408,12 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
     // ========== ANALYSE ==========
     elements.btnAnalyze.addEventListener('click', async () => {
       try {
+        // Reset du code NAF à chaque analyse : évite d'hériter du NAF d'un dossier
+        // précédent dans la même session (faux négatif silencieux sur isAgricole) et force
+        // la re-récupération via le SIRET du CEE — « le CEE est la référence absolue ».
+        window.selectedCodeNaf = '';
+        localStorage.removeItem('ceeVerifCodeNaf');
+
         // Masquer l'état vide, afficher la progression
         elements.emptyState.style.display = 'none';
         elements.resultsContainer.classList.remove('show');
