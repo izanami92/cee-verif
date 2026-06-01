@@ -214,6 +214,8 @@ Application des règles lors de l'analyse
 
 ## 🟢 PRIORITÉ 3 - NICE TO HAVE (Phase 3-4)
 
+- §9 SOURCE_DE_VERITE — retirer la mention "Prime Evolution" (1.5 livrée le 01/06, oubli de nettoyage)
+
 ### TODO #6 : Export des résultats en PDF
 
 **Statut** : 💭 **EN DISCUSSION**
