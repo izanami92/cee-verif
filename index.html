@@ -2743,6 +2743,49 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
             }
           }
 
+          // ========== VÉRIFICATION PROFESSIONNEL AYANT MIS EN ŒUVRE (ALERTE CONFIRMABLE) ==========
+          // Évolution 1.4 : la section C de l'attestation sur l'honneur Total Énergies
+          // (« Professionnel ayant mis en œuvre l'opération … ») ne doit PAS être "Energie Responsable" (sous-traitant).
+          // Valeur GLOBALE du dossier CEE (pas par chantier) → patron "reste à payer". Jamais bloquant (§1).
+          // Logique MIROIR de 1.5 : ici le déclencheur est la PRÉSENCE de "energie responsable" (1.5 = absence de "prime evolution").
+          {
+            const rawEntreprise = extractedData.cee?.entrepriseMiseEnOeuvre;
+            const entrepriseStr = (rawEntreprise == null) ? '' : String(rawEntreprise).trim();
+            // Normalisation identique au test "prime evolution" de 1.5 (index.html:3651) : normalize() (casse + accents) puis ponctuation→espaces.
+            // .includes('energie responsable') couvre casse / accents / ponctuation / suffixe juridique (SAS, SARL),
+            // mais PAS le pluriel "energies responsables" ni les fautes de frappe (lacune assumée ; parade possible : regex /energ\w* responsabl\w*/).
+            const entrepriseNorm = normalize(entrepriseStr).replace(/[^a-z0-9]+/g, ' ').replace(/\s+/g, ' ').trim();
+
+            let msgEntreprise = null;
+            if (!entrepriseStr) {
+              // État 1 : absente / illisible / null
+              msgEntreprise = `⚠️ ATTENTION : Professionnel ayant mis en œuvre NON DÉTECTÉ\n\n` +
+                `La section C « Professionnel ayant mis en œuvre l'opération… » de l'attestation sur l'honneur n'a PAS pu être lue dans le dossier CEE.\n\n` +
+                `⚠️ Impossible de vérifier automatiquement qu'il ne s'agit pas d'Energie Responsable (sous-traitant).\n\n` +
+                `Cliquer OK ne signifie PAS « tout va bien » :\n` +
+                `OK = je m'engage à VÉRIFIER MANUELLEMENT le professionnel sur le CEE\n` +
+                `Annuler = arrêter l'analyse`;
+            } else if (entrepriseNorm.includes('energie responsable')) {
+              // État 2 : Energie Responsable (sous-traitant) — exception possible (rare installation par équipe interne)
+              msgEntreprise = `⚠️ Professionnel ayant mis en œuvre détecté : ${rawEntreprise}\n\n` +
+                `Il s'agit d'Energie Responsable (sous-traitant).\n` +
+                `Normalement, l'opération doit avoir été mise en œuvre par l'installateur du dossier, pas par Energie Responsable.\n\n` +
+                `Confirmez-vous que c'est NORMAL pour ce dossier (rare installation par équipe interne) ?\n\n` +
+                `OK = je confirme l'exception (équipe interne)\n` +
+                `Annuler = corriger le CEE`;
+            }
+            // État 3 : présente et ≠ "energie responsable" → msgEntreprise reste null → aucune alerte, l'analyse continue
+
+            if (msgEntreprise) {
+              if (!confirm(msgEntreprise)) {
+                updateProgress(0, 'Analyse annulée par l\'utilisateur');
+                return; // Arrêter l'analyse (identique au pattern secteur / reste à payer / dimensionnement)
+              } else {
+                console.log('✅ Utilisateur a acquitté l\'alerte professionnel ayant mis en œuvre');
+              }
+            }
+          }
+
           // Vérifier page de garde (checks 1-3)
           const pageGardeChecks = checks.slice(0, 3);
           const pageGardeOk = pageGardeChecks.every(c => c.niveau === 'ok');
