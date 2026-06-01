@@ -1732,6 +1732,10 @@
       } else {
         // Fichier unique
         state.files[fileKey] = files[0];
+        // Invalide le texte CEE en cache : au changement de fichier, forcer la ré-extraction.
+        // Sinon l'analyse du nouveau dossier réutilise le texte du précédent (la garde 2428/2437
+        // saute la ré-extraction tant que le texte est présent) → données périmées.
+        state.extractedTexts[fileKey] = '';
         filenameElement.innerHTML = `
           <span class="upload-zone-filename-text">${files[0].name}</span>
           <button class="btn-remove-file" onclick="removeFile('${fileKey}', this)">× Retirer</button>
@@ -1749,6 +1753,8 @@
     function removeFile(fileKey, buttonElement) {
       // Supprimer le fichier du state
       state.files[fileKey] = null;
+      // Invalide aussi le texte CEE en cache associé (même raison qu'à l'upload).
+      state.extractedTexts[fileKey] = '';
 
       // Trouver la zone d'upload parente
       const zoneElement = buttonElement.closest('.upload-zone');
