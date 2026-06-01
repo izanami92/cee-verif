@@ -16,7 +16,7 @@ Toutes les valeurs des autres documents (Audit Dialux, Synthèse) se comparent �
 
 > ⚠️ **Hypothèse de fonctionnement** : les champs de référence restent éditables à la main, mais en pratique ils ne sont PAS modifiés après extraction. La fiabilité des checks bloquants repose sur ce respect du flux « Extraire depuis le CEE ».
 
-**Infos extraites automatiquement du CEE** : nom société, SIRET, date d'envoi du devis, date de signature, adresse siège social, nombre total de LED, type de local, référence LED, parcelles cadastrales, email, téléphone et contact du client.
+**Infos extraites automatiquement du CEE** : nom société, SIRET, date d'envoi du devis, date de signature, adresse siège social, nombre total de LED, type de local, référence LED, parcelles cadastrales, email, téléphone et contact du client, étude de dimensionnement (entreprise citée, par chantier).
 
 ---
 
@@ -46,7 +46,9 @@ Mécanisme `confirm()` qui interrompt pendant la phase d'analyse (après generat
 
 Déclencheur actif — Reste à payer ≠ 0€ (champ « Reste à payer » du CEE, valeur globale du dossier). Implémenté le 28/05/2026 (commit 0aaf465) sous forme d'alerte confirmable à trois états : valeur absente / non interprétable → alerte « non détecté » ; valeur ≠ 0 → alerte « montant anormal, confirmer ou corriger » ; valeur = 0 → aucune alerte. Remplace l'ancien check_40 (supprimé). La distinction des trois états comble un faux « conforme » : auparavant une valeur non extraite passait silencieusement pour 0.
 
-> Les autres déclencheurs de ce mécanisme (délais de travaux, attestation agricole BAT-EQ-127, Clichy, Prime Evolution) sont des **évolutions à venir** — voir `ROADMAP_EVOLUTIONS.md`, Phase 1.
+Déclencheur actif — Étude de dimensionnement ≠ « PRIME EVOLUTION » (mention « Etude de dimensionnement réalisée par l'entreprise … » de la facture CEE, par chantier). Implémenté le 01/06/2026 (commits `a4130d6` extraction + `ba1fcce` alerte) sous forme d'alerte confirmable agrégée multi-chantiers à 3 états : présent et contient « PRIME EVOLUTION » → aucune alerte ; présent mais autre entreprise → fautif « étude réalisée par X » ; absent / non extrait → fautif « non détectée — à vérifier » (jamais conforme silencieux). Anti-régression B2. Jamais bloquant.
+
+> Les autres déclencheurs de ce mécanisme (délais de travaux, attestation agricole BAT-EQ-127, Clichy) sont des **évolutions à venir** — voir `ROADMAP_EVOLUTIONS.md`, Phase 1.
 
 ---
 
@@ -228,6 +230,7 @@ Règle R05 = tolérance ZÉRO (1 LED d'écart = erreur). Code = `Math.abs(...) <
 | Évolution | Description | Implémenté le | Commit |
 |-----------|-------------|---------------|--------|
 | 1.1 | Alerte confirmable « Reste à payer » (3 états : absent / ≠0 / =0) remplaçant l'ancien check_40 | 28/05/2026 | 0aaf465 |
+| 1.5 | Alerte confirmable « Étude de dimensionnement = PRIME EVOLUTION » par chantier (3 états : conforme / autre / non détectée), agrégée multi-chantiers, fin de message dynamique, jamais bloquant | 01/06/2026 | a4130d6 (extraction) + ba1fcce (alerte) |
 
 ---
 

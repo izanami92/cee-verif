@@ -81,10 +81,8 @@ Implémenté le 28/05/2026 (commit 0aaf465) — voir SOURCE_DE_VERITE_CHECKS.md 
 - **Règle** : si la ville = **Clichy** (adresse de la société Energie Responsable) → alerte confirmable.
 - **Exception** : rares installations par équipe interne (l'utilisateur confirme).
 
-### 1.5 — Étude de dimensionnement = Prime Evolution  *(non codé)*
-- **Source** : Dossier CEE, facture, mention « Etude de dimensionnement réalisée par l'entreprise … », présente **pour chaque chantier**.
-- **Règle** : la mention doit contenir **« PRIME EVOLUTION »**. Si absent ou différent → alerte confirmable.
-- **Périmètre** : vérifier uniquement la présence de « PRIME EVOLUTION ». Le reste (SIRET, adresse, représentant) est automatique, pas à valider.
+### 1.5 — Étude de dimensionnement = Prime Evolution  ✅ IMPLÉMENTÉ
+Implémenté le 01/06/2026 — voir SOURCE_DE_VERITE_CHECKS.md §1 (alerte de confirmation) et §7bis. Extraction par chantier du champ `attestations[].etudeDimensionnement` (commit `a4130d6`) + alerte confirmable agrégée multi-chantiers à 3 états (conforme / autre entreprise / non détectée), fin de message dynamique selon les types de fautifs présents, jamais bloquant (commit `ba1fcce`).
 
 ---
 
@@ -181,4 +179,4 @@ La Phase 1 repose sur le mécanisme d'alerte confirmable par chantier. Ce mécan
 ---
 
 *Établi le 27/05/2026 — cadrage métier détaillé.*
-*Ordre de réalisation suggéré : B2 ✓ → 1.1 ✓ → crash norm.cee null (prod) ✓ → reste Phase 1 (1.5, 1.4, 1.2, 1.3) → Phase 2 → Phase 3 → Phase 4.*
+*Ordre de réalisation suggéré : B2 ✓ → 1.1 ✓ → crash norm.cee null (prod) ✓ → 1.5 ✓ → reste Phase 1 (1.4, 1.2, 1.3) → Phase 2 → Phase 3 → Phase 4.*
