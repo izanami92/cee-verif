@@ -31,6 +31,14 @@ Dossier → Chantiers → Cellules. Détail complet dans `docs/ROADMAP_EVOLUTION
 
 ---
 
+### 🐞 Bug « état dossier » volet 2/2 : champs ref* conditionnels
+
+**Statut** : 🔴 **À CORRIGER** (volet 2/2 — le volet 1/2 est déjà en prod)
+
+Champs ref* conditionnels (bug "état dossier", volet 2/2) — Les 12 champs ref* (+ refLed + classe auto-filled) remplis conditionnellement par « Extraire depuis le CEE » ne sont jamais vidés → un champ absent pour le dossier B garde l'affichage du dossier A. resetApplication est aussi incomplet sur ces champs. À corriger en vidant ces champs au chargement d'un nouveau CEE (PAS au début de l'analyse — ce sont les références des checks, les vider là casserait toutes les comparaisons). Le volet 1/2 (cache texte CEE périmé, la racine) est déjà corrigé en prod (commits 7f15377 + 86a5906). ⚠️ Documenter le bug "état dossier" en §7 de SOURCE_DE_VERITE_CHECKS.md une fois CE volet 2/2 livré (pas avant — sinon doc trompeuse, le bug n'est pas entièrement clos).
+
+---
+
 ### ✅ TODO #1 : Implémenter checks 39-47 conformes à la documentation
 
 **Statut** : ✅ **COMPLÉTÉ** (12 mai 2026)
