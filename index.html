@@ -2705,6 +2705,44 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
             }
           }
 
+          // ========== VÉRIFICATION ÉTUDE DE DIMENSIONNEMENT (ALERTE CONFIRMABLE) ==========
+          // Évolution 1.5 : la mention "Etude de dimensionnement réalisée par l'entreprise ..."
+          // de la facture CEE doit contenir "PRIME EVOLUTION" pour chaque chantier.
+          // Patron multi-chantiers calqué sur Règle A secteur (anti-régression B2). Jamais bloquant (§1).
+          if (extractedData.cee?.attestations) {
+            const fautifsDim = detectFautifsDimensionnement(extractedData.cee.attestations);
+
+            if (fautifsDim.length > 0) {
+              const hasAutre  = fautifsDim.some(f => f.type === 'autre');
+              const hasAbsent = fautifsDim.some(f => f.type === 'absent');
+
+              const lignesChantiers = fautifsDim.map(f => {
+                const adr = (f.adresse || '').substring(0, 50);
+                const suite = (f.adresse || '').length > 50 ? '...' : '';
+                return f.type === 'autre'
+                  ? `Chantier ${f.index} : étude réalisée par "${f.valeur}"\n${adr}${suite}`
+                  : `Chantier ${f.index} : mention non détectée — à vérifier sur le CEE\n${adr}${suite}`;
+              }).join('\n\n');
+
+              const okLines = [];
+              if (hasAutre)  okLines.push(`OK = je confirme l'exception (étude par une autre entreprise)`);
+              if (hasAbsent) okLines.push(`OK pour les chantiers « mention non détectée » = je passe outre malgré l'absence d'information (à contrôler sur le CEE)`);
+
+              const msg = `⚠️ ATTENTION : Étude de dimensionnement ≠ PRIME EVOLUTION\n\n` +
+                lignesChantiers +
+                `\n\n⚠️ Normalement, l'étude de dimensionnement doit être réalisée par PRIME EVOLUTION (pour chaque chantier de la facture CEE).\n\n` +
+                okLines.join('\n') +
+                `\nAnnuler = corriger le CEE`;
+
+              if (!confirm(msg)) {
+                updateProgress(0, 'Analyse annulée par l\'utilisateur');
+                return; // Arrêter l'analyse (identique au pattern secteur / reste à payer)
+              } else {
+                console.log('✅ Utilisateur a acquitté l\'alerte étude de dimensionnement');
+              }
+            }
+          }
+
           // Vérifier page de garde (checks 1-3)
           const pageGardeChecks = checks.slice(0, 3);
           const pageGardeOk = pageGardeChecks.every(c => c.niveau === 'ok');
@@ -3599,6 +3637,28 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
     }
 
     // Générer les checks (adapté multi-chantiers)
+    // Détection des chantiers fautifs pour l'évolution 1.5 (étude de dimensionnement = Prime Evolution).
+    // Pure (utilise normalize global). Retourne [{index, adresse, type, valeur}] avec type ∈ {'autre','absent'}.
+    //   type 'autre'  → mention présente mais ≠ Prime Evolution
+    //   type 'absent' → mention absente / non extraite (jamais un conforme silencieux)
+    // Robuste à la ponctuation (tirets, points) : "PRIME-EVOLUTION" / "PRIME.EVOLUTION" passent OK.
+    function detectFautifsDimensionnement(attestations) {
+      const fautifs = [];
+      (attestations || []).forEach((att, i) => {
+        const brut = att && att.etudeDimensionnement;
+        const norm = normalize(brut); // normalize('') = normalize(null) = normalize(undefined) = ''
+        // Ramener la ponctuation à des espaces avant le .includes (robustesse "PRIME-EVOLUTION" etc.)
+        const normForCheck = norm.replace(/[^a-z0-9]+/g, ' ').replace(/\s+/g, ' ').trim();
+        if (!brut) {
+          fautifs.push({ index: i + 1, adresse: (att && att.adresse) || '', type: 'absent', valeur: null });
+        } else if (!normForCheck.includes('prime evolution')) {
+          fautifs.push({ index: i + 1, adresse: (att && att.adresse) || '', type: 'autre', valeur: brut });
+        }
+        // sinon → contient "prime evolution" normalisé → OK, pas de fautif
+      });
+      return fautifs;
+    }
+
     function generateChecks(extracted, references) {
       const checks = [];
       const norm = normalizeExtracted(extracted);
