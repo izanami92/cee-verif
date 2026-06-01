@@ -48,7 +48,9 @@ Déclencheur actif — Reste à payer ≠ 0€ (champ « Reste à payer » du CE
 
 Déclencheur actif — Étude de dimensionnement ≠ « PRIME EVOLUTION » (mention « Etude de dimensionnement réalisée par l'entreprise … » de la facture CEE, par chantier). Implémenté le 01/06/2026 (commits `a4130d6` extraction + `ba1fcce` alerte) sous forme d'alerte confirmable agrégée multi-chantiers à 3 états : présent et contient « PRIME EVOLUTION » → aucune alerte ; présent mais autre entreprise → fautif « étude réalisée par X » ; absent / non extrait → fautif « non détectée — à vérifier » (jamais conforme silencieux). Anti-régression B2. Jamais bloquant.
 
-> Les autres déclencheurs de ce mécanisme (délais de travaux, attestation agricole BAT-EQ-127, Clichy) sont des **évolutions à venir** — voir `ROADMAP_EVOLUTIONS.md`, Phase 1.
+Déclencheur actif — Professionnel ayant mis en œuvre = « Energie Responsable » (section C « Professionnel ayant mis en œuvre l'opération … » de l'attestation sur l'honneur Total Énergies ; champ global `cee.entrepriseMiseEnOeuvre` = raison sociale). Implémenté le 01/06/2026 (commits `91bf93d` extraction + `5392776` alerte) sous forme d'alerte confirmable globale (pas par chantier — patron « reste à payer ») à 3 états : absent / illisible → alerte « non détecté — à vérifier » ; présent et contenant « Energie Responsable » (sous-traitant) → alerte « exception confirmable (rare installation par équipe interne) » ; présent et autre → aucune alerte. Test `.includes('energie responsable')` normalisé (couvre casse / accents / ponctuation / suffixe juridique ; ne couvre pas le pluriel « energies responsables » ni les fautes de frappe — lacune assumée). Jamais bloquant.
+
+> Les autres déclencheurs de ce mécanisme (délais de travaux, attestation agricole BAT-EQ-127) sont des **évolutions à venir** — voir `ROADMAP_EVOLUTIONS.md`, Phase 1.
 
 ---
 
@@ -231,6 +233,7 @@ Règle R05 = tolérance ZÉRO (1 LED d'écart = erreur). Code = `Math.abs(...) <
 |-----------|-------------|---------------|--------|
 | 1.1 | Alerte confirmable « Reste à payer » (3 états : absent / ≠0 / =0) remplaçant l'ancien check_40 | 28/05/2026 | 0aaf465 |
 | 1.5 | Alerte confirmable « Étude de dimensionnement = PRIME EVOLUTION » par chantier (3 états : conforme / autre / non détectée), agrégée multi-chantiers, fin de message dynamique, jamais bloquant | 01/06/2026 | a4130d6 (extraction) + ba1fcce (alerte) |
+| 1.4 | Alerte confirmable « Professionnel ayant mis en œuvre = Energie Responsable » (3 états : non détecté / Energie Responsable → exception / autre → silence), valeur globale du dossier (patron reste à payer), jamais bloquant | 01/06/2026 | 91bf93d (extraction) + 5392776 (alerte) |
 
 ---
 
@@ -254,7 +257,7 @@ Règle R05 = tolérance ZÉRO (1 LED d'écart = erreur). Code = `Math.abs(...) <
 
 ## 9. LIEN AVEC LA ROADMAP
 
-Ce document décrit **l'existant** (ce que l'outil fait aujourd'hui). Les évolutions du process métier non encore codées (délais de travaux, attestation agricole bloquante, vérif Clichy, Prime Evolution, croisement dirigeants API, justificatifs, Betool/xls) sont décrites dans **`ROADMAP_EVOLUTIONS.md`**.
+Ce document décrit **l'existant** (ce que l'outil fait aujourd'hui). Les évolutions du process métier non encore codées (délais de travaux, attestation agricole bloquante, Prime Evolution, croisement dirigeants API, justificatifs, Betool/xls) sont décrites dans **`ROADMAP_EVOLUTIONS.md`**.
 
 Quand une évolution de la roadmap est implémentée et testée, elle est déplacée ici.
 

@@ -76,10 +76,8 @@ Implémenté le 28/05/2026 (commit 0aaf465) — voir SOURCE_DE_VERITE_CHECKS.md 
 - **Cohérence** : une entreprise agricole déclare un usage NON-agricole de l'entrepôt → les Règles A (secteur entrepôts) et B (pas de mention agricole sur Audit/Synthèse) restent **inchangées**.
 - **Note code** : la logique `isAgricole` (NAF 01./02.) et la détection des attestations + extraction surfaces existent déjà partiellement. NE PAS dupliquer — compléter l'existant.
 
-### 1.4 — Professionnel ayant mis en œuvre ≠ Clichy  *(non codé)*
-- **Source** : Attestation sur l'honneur Total Énergies, **section C** « Professionnel ayant mis en œuvre l'opération… », champ **ville**.
-- **Règle** : si la ville = **Clichy** (adresse de la société Energie Responsable) → alerte confirmable.
-- **Exception** : rares installations par équipe interne (l'utilisateur confirme).
+### 1.4 — Professionnel ayant mis en œuvre = Energie Responsable  ✅ IMPLÉMENTÉ
+Implémenté le 01/06/2026 — voir SOURCE_DE_VERITE_CHECKS.md §1 (alerte de confirmation) et §7bis. Extraction du champ global `cee.entrepriseMiseEnOeuvre` (section C « Professionnel ayant mis en œuvre l'opération… » de l'attestation sur l'honneur Total Énergies — raison sociale, commit `91bf93d`) + alerte confirmable globale à 3 états (non détecté / « Energie Responsable » → exception confirmable / autre → aucune alerte), valeur globale du dossier (patron « reste à payer »), jamais bloquant (commit `5392776`). Cible recentrée en cours de réalisation : raison sociale « Energie Responsable » plutôt que ville « Clichy » (ambiguë : Clichy-sous-Bois…).
 
 ### 1.5 — Étude de dimensionnement = Prime Evolution  ✅ IMPLÉMENTÉ
 Implémenté le 01/06/2026 — voir SOURCE_DE_VERITE_CHECKS.md §1 (alerte de confirmation) et §7bis. Extraction par chantier du champ `attestations[].etudeDimensionnement` (commit `a4130d6`) + alerte confirmable agrégée multi-chantiers à 3 états (conforme / autre entreprise / non détectée), fin de message dynamique selon les types de fautifs présents, jamais bloquant (commit `ba1fcce`).
@@ -179,4 +177,4 @@ La Phase 1 repose sur le mécanisme d'alerte confirmable par chantier. Ce mécan
 ---
 
 *Établi le 27/05/2026 — cadrage métier détaillé.*
-*Ordre de réalisation suggéré : B2 ✓ → 1.1 ✓ → crash norm.cee null (prod) ✓ → 1.5 ✓ → reste Phase 1 (1.4, 1.2, 1.3) → Phase 2 → Phase 3 → Phase 4.*
+*Ordre de réalisation suggéré : B2 ✓ → 1.1 ✓ → crash norm.cee null (prod) ✓ → 1.5 ✓ → 1.4 ✓ → reste Phase 1 (1.2, 1.3) → Phase 2 → Phase 3 → Phase 4.*
