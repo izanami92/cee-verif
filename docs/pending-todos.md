@@ -2,7 +2,7 @@
 
 **Document de suivi** des fonctionnalités discutées, en cours, ou à implémenter.
 
-**Dernière mise à jour** : 28 mai 2026
+**Dernière mise à jour** : 2 juin 2026
 
 ---
 
@@ -31,11 +31,23 @@ Dossier → Chantiers → Cellules. Détail complet dans `docs/ROADMAP_EVOLUTION
 
 ---
 
-### 🐞 Bug « état dossier » volet 2/2 : champs ref* conditionnels
+### ✅ Bug « état dossier » volet 2/2 : champs ref* conditionnels
 
-**Statut** : 🔴 **À CORRIGER** (volet 2/2 — le volet 1/2 est déjà en prod)
+**Statut** : ✅ **COMPLÉTÉ** (2 juin 2026)
 
-Champs ref* conditionnels (bug "état dossier", volet 2/2) — Les 12 champs ref* (+ refLed + classe auto-filled) remplis conditionnellement par « Extraire depuis le CEE » ne sont jamais vidés → un champ absent pour le dossier B garde l'affichage du dossier A. resetApplication est aussi incomplet sur ces champs. À corriger en vidant ces champs au chargement d'un nouveau CEE (PAS au début de l'analyse — ce sont les références des checks, les vider là casserait toutes les comparaisons). Le volet 1/2 (cache texte CEE périmé, la racine) est déjà corrigé en prod (commits 7f15377 + 86a5906). ⚠️ Documenter le bug "état dossier" en §7 de SOURCE_DE_VERITE_CHECKS.md une fois CE volet 2/2 livré (pas avant — sinon doc trompeuse, le bug n'est pas entièrement clos).
+Bug « état dossier » entièrement clos (deux volets) :
+- **Volet 1/2** (racine, déjà en prod) : le texte du CEE restait en cache entre analyses et le code NAF s'héritait d'un dossier à l'autre → données périmées. Corrigé par invalidation du cache texte CEE + reset NAF au changement de dossier (commits `86a5906` + `7f15377`).
+- **Volet 2/2** (ce livrable) : les 13 champs ref* (12 ref* + refLed) remplis conditionnellement par « Extraire depuis le CEE » n'étaient jamais vidés (ni la classe `auto-filled`), et `resetApplication` ne les nettoyait pas → un champ absent du nouveau CEE conservait la valeur du dossier précédent. Corrigé par le helper `clearReferenceFields()` appelé en tête du bloc `if (extracted)` à l'extraction et dans `resetApplication` — jamais pendant l'analyse (ce sont les références des checks). Commit `1ec2c49`, mergé sur `main` (`6a38915`).
+
+**Documenté** : §7 (BUGS MÉTIER) de `docs/SOURCE_DE_VERITE_CHECKS.md`.
+
+---
+
+### 🔍 Suivi : fuite state.chantiers entre dossiers (hors périmètre volet 2/2)
+
+**Statut** : 🔍 **À INVESTIGUER** (noté le 2 juin 2026 pendant le diagnostic du volet 2/2)
+
+Observation relevée pendant le diagnostic du volet 2/2 : `state.chantiers` n'est pas reconstruit dans le chemin mono `else if (extracted.adresse)` ni quand l'extraction CEE ne renvoie aucune adresse → il pourrait conserver les chantiers du dossier précédent. **Hors périmètre** du fix volet 2/2 (périmètre strict ref* choisi). À rattacher au **TODO #22** (modèle Chantier/Cellule), même territoire. Le bouton « Réinitialiser » (`resetApplication`) couvre déjà ce cas via le reset de `state.chantiers`.
 
 ---
 
@@ -705,14 +717,15 @@ CREATE TABLE analyses (
 
 ## 📊 STATISTIQUES
 
-**TODOs actifs** : 6
-- 🔴 Critiques : 1 (TODO #22 — modèle Chantier/Cellule, à cadrer)
-- 🟡 Importantes : 2 (TODO #3 reportée)
+**TODOs actifs** : 5
+- 🔴 Critiques : 1 (TODO #22 — modèle Chantier/Cellule, à cadrer ; englobe l'observation `state.chantiers` notée le 2 juin)
+- 🟡 Importantes : 1 (TODO #3 reportée)
 - 🟢 Nice to have : 3
 
+> ✅ Bug « état dossier » volet 2/2 (champs ref* conditionnels) **résolu le 2 juin 2026** (commit `1ec2c49`, mergé `6a38915`) — bug entièrement clos avec le volet 1/2 (commits `86a5906` + `7f15377`). Voir `SOURCE_DE_VERITE_CHECKS.md` §7.
 > ✅ Bug prod (non numéroté) **résolu 29/05/2026** : crash `norm.cee` null dans `generateChecks` (commit `27e7918`). Anomalie A2 (check_41 majeur) résolue le même jour (commit `f976521`). Voir `SOURCE_DE_VERITE_CHECKS.md` §7/§6.
 
-**TODOs complétés récemment** : 21 (7 mai - 1er juin 2026)
+**TODOs complétés récemment** : 23 (7 mai - 2 juin 2026)
 - 7 mai : Multi-chantiers (ADR 003)
 - 8 mai : Sélecteur LED (ADR 006), Normalisation adresses (ADR 007), Extraction CLIENT (ADR 008)
 - 9 mai : UX hiérarchique (ADR 009), Secteur par chantier (ADR 010), Matching INDEX (ADR 011)
@@ -726,11 +739,11 @@ CREATE TABLE analyses (
 - 29 mai : Crash `norm.cee` null dans generateChecks corrigé (commit 27e7918)
 - 29 mai : Anomalie A2 — check_41 adresse siège bloquant→majeur (commit f976521)
 - 1er juin : Évolution 1.5 alerte confirmable étude de dimensionnement = Prime Evolution (commits a4130d6 extraction + ba1fcce alerte)
+- 1er juin : Évolution 1.4 alerte confirmable professionnel = Energie Responsable (commits 91bf93d + 5392776)
+- 2 juin : Bug état dossier volet 2/2, champs ref* conditionnels (commit 1ec2c49, mergé 6a38915)
 
 **TODOs reportés** : 1
 - 27 mai : Modularisation index.html (TODO #3) - À refaire après cadrage modèle Chantier/Cellule (TODO #22)
-
-**Taux de complétion** : 75% (18/24) 🎯
 
 ---
 
@@ -776,5 +789,5 @@ Ce document doit être mis à jour :
 
 ---
 
-**Dernière révision** : 28 mai 2026 (session 1.1 implémentée — alerte reste à payer + doc source de vérité/roadmap à jour)
+**Dernière révision** : 2 juin 2026 (bug « état dossier » volet 2/2 clos + observation state.chantiers tracée ; doc §7/roadmap à jour)
 **Prochaine révision** : Prochaine session de développement

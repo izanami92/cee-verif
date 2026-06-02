@@ -153,6 +153,13 @@ Le code a les valeurs dans `FICHES_TECHNIQUES` mais ne compare activement que TH
 
 ## BUGS À INVESTIGUER
 
+### Fiche technique LED — détection non déterministe (faux « conforme » possible)  ⚠️
+- **Constat** : sur un même dossier, l'analyse renvoie tantôt « fiche technique non trouvée » (info), tantôt « conforme », alors que la fiche est réellement présente (page 14 de la synthèse). Reproduit sur **2 navigateurs / pages fraîches**.
+- **Cause** : extraction IA **non déterministe** (variabilité de la réponse Claude), PAS un bug d'état — le fix « état dossier » (cache texte CEE + champs ref*) n'y est pour rien.
+- **Risque** : faux « conforme » **silencieux** — le **danger n°1** (une fiche réellement manquante passerait pour conforme).
+- **Piste de fond** : remplacer la détection IA par un **parsing JavaScript déterministe côté client**, comme l'**ADR 012** l'a fait pour les surfaces (même problème de non-déterminisme IA, même solution probable).
+- **À cadrer en session dédiée** — ne pas traiter dans l'immédiat.
+
 ### Matching de chantiers par adresse dupliquée
 - **Problème** : quand deux chantiers ont la même adresse (souvent par erreur de saisie sur Synthèse/Audit), l'outil les confond via le matching par adresse (`compareAddress` / `matchChantiers`) et compare les données au mauvais chantier, produisant un faux « conforme ».
 - **Exemple** : chantier 3 avec adresse Synthèse erronée (identique au chantier 1) → parcelle comparée à celle du chantier 1 → faux OK.
