@@ -1928,6 +1928,11 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
 
         // Pré-remplir les champs
         if (extracted) {
+          // Vider les références du dossier précédent AVANT de re-remplir : un champ
+          // absent du nouveau CEE ne doit pas conserver la valeur de l'ancien dossier
+          // (bug « état dossier » volet 2/2). Ici = chargement du CEE, jamais à l'analyse.
+          clearReferenceFields();
+
           if (extracted.nom) {
             elements.refNom.value = extracted.nom;
             elements.refNom.classList.add('auto-filled');
@@ -6449,6 +6454,28 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
       }
     });
 
+    // ========== VIDER LES CHAMPS DE RÉFÉRENCE ==========
+    // Les 13 champs ref* SONT les références des comparaisons (le CEE est la base, §0
+    // de la source de vérité). On les vide UNIQUEMENT au chargement d'un nouveau CEE
+    // et au reset — JAMAIS pendant l'analyse, sinon toutes les comparaisons perdraient
+    // leur référence. refTypeLocal et refLed (selects sans option vide) sont remis à ''
+    // (refLed retombe sur DAEWOO par défaut à l'analyse). On retire aussi auto-filled
+    // pour ne pas laisser un champ vidé surligné en vert (trompeur).
+    function clearReferenceFields() {
+      const refFields = [
+        elements.refNom, elements.refSiret, elements.refAdresse,
+        elements.refDateDevis, elements.refDateSignature, elements.refAdresseSiege,
+        elements.refTotalLed, elements.refTypeLocal, elements.refParcelles,
+        elements.refEmail, elements.refTelephone, elements.refContact,
+        document.getElementById('refLed')
+      ];
+      refFields.forEach(field => {
+        if (!field) return;
+        field.value = '';
+        field.classList.remove('auto-filled');
+      });
+    }
+
     // ========== RÉINITIALISER APPLICATION ==========
     function resetApplication() {
       console.log('🔄 Réinitialisation de l\'application...');
@@ -6477,6 +6504,9 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
       // Réinitialiser les inputs file
       if (elements.fileDossier) elements.fileDossier.value = '';
       if (elements.fileFicheTechnique) elements.fileFicheTechnique.value = '';
+
+      // Vider les 13 champs de référence (resetApplication ne les nettoyait pas)
+      clearReferenceFields();
 
       // Décocher toutes les checkboxes manuelles
       document.querySelectorAll('.checklist-item input[type="checkbox"]').forEach(cb => {
