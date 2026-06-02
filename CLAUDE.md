@@ -228,9 +228,10 @@ Chaque ADR contient : Date, Statut, Contexte, Décision, Alternatives, Conséque
 ### ✅ Après chaque modification
 
 1. **Tester** : Vérifier console JavaScript (F12) - aucune erreur rouge
-2. **Commit** : Message clair format conventionnel
-3. **Push** : Immédiatement (Vercel déploie automatiquement)
-4. **Documenter** : Mettre à jour les fichiers concernés
+2. **Montrer le diff brut** : pour TOUT changement où la logique vit dans le code, lancer `git --no-pager diff` et **reproduire le diff verbatim** dans la réponse (bloc ```diff), JAMAIS un simple récapitulatif de cases cochées. ⚠️ L'utilisateur ne voit PAS la sortie des outils : un résumé l'empêche de relire. Attendre sa validation avant de committer. *(Pour de la pure doc, un récapitulatif suffit.)*
+3. **Commit** : Message clair format conventionnel
+4. **Push** : Immédiatement (Vercel déploie automatiquement)
+5. **Documenter** : Mettre à jour les fichiers concernés
 
 ### 📝 En fin de session
 
@@ -397,5 +398,5 @@ git push origin main
 
 ---
 
-**Dernière mise à jour** : 1er juin 2026
-**Version** : Phase 1 complète + B1/B2 résolus + évolution 1.1 (alerte reste à payer) + crash `cee` null & anomalie A2 résolus (29/05) + évolution 1.5 (alerte étude de dimensionnement, 01/06) — modèle Chantier/Cellule à cadrer (TODO #22)
+**Dernière mise à jour** : 2 juin 2026
+**Version** : Phase 1 complète + B1/B2 résolus + évolution 1.1 (alerte reste à payer) + crash `cee` null & anomalie A2 résolus (29/05) + évolutions 1.5 (étude de dimensionnement) & 1.4 (Energie Responsable) (01/06) + bug « état dossier » (volets 1/2 + 2/2) résolu et en prod (02/06, merge `6a38915`) — modèle Chantier/Cellule à cadrer (TODO #22)
