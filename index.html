@@ -2416,6 +2416,45 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
       checkAnalyzeButton();
     }
 
+    // Récupère le code NAF du client depuis le SIRET du CEE (API /api/search) si pas déjà connu.
+    // Idempotent : no-op si window.selectedCodeNaf est déjà renseigné (garde interne).
+    // Extrait du bloc d'enrichissement historique pour pouvoir être appelé AVANT la fenêtre d'alertes.
+    async function ensureCodeNafFromSiret(extractedData) {
+      if (!(extractedData && extractedData.cee && extractedData.cee.siret && !window.selectedCodeNaf)) {
+        return;
+      }
+      try {
+        console.log('🔍 SIRET détecté, récupération automatique du code NAF...');
+        const siret = extractedData.cee.siret;
+        console.log('   SIRET utilisé:', siret);
+        const nafResponse = await fetch(`/api/search?q=${encodeURIComponent(siret)}`);
+
+        console.log('   Statut réponse API:', nafResponse.status, nafResponse.statusText);
+
+        if (nafResponse.ok) {
+          const nafData = await nafResponse.json();
+          console.log('   Réponse API complète:', nafData);
+          console.log('   Nombre de résultats:', nafData.results?.length || 0);
+          console.log('   Premier résultat:', nafData.results?.[0]);
+
+          if (nafData.results && nafData.results[0] && nafData.results[0].codeNaf) {
+            window.selectedCodeNaf = nafData.results[0].codeNaf;
+            localStorage.setItem('ceeVerifCodeNaf', nafData.results[0].codeNaf);
+            console.log(`✅ Code NAF récupéré automatiquement: ${window.selectedCodeNaf}`);
+          } else {
+            console.warn('⚠️ Code NAF non trouvé dans la réponse API');
+            console.warn('   Structure reçue:', JSON.stringify(nafData, null, 2));
+          }
+        } else {
+          console.warn('⚠️ Erreur HTTP lors de la récupération du NAF:', nafResponse.status);
+        }
+      } catch (error) {
+        console.warn('⚠️ Erreur lors de la récupération automatique du NAF:', error);
+        console.warn('   Message:', error.message);
+        // On continue même si ça échoue
+      }
+    }
+
     // ========== ANALYSE ==========
     elements.btnAnalyze.addEventListener('click', async () => {
       try {
@@ -2607,6 +2646,10 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
           // Nouveau format : générer les checks via JavaScript (fiabilité 100%)
           const checks = generateChecks(extractedData, references);
           console.log(`✅ ${checks.length} checks générés. Seuls les ÉCHECS de comparaison seront affichés ci-dessous.`);
+
+          // PRÉREQUIS GATE NAF : récupérer le code NAF AVANT la fenêtre d'alertes, pour qu'une
+          // future vérification gatée sur isAgricole (NAF 01./02.) puisse le lire au bon moment.
+          await ensureCodeNafFromSiret(extractedData);
 
           // ========== VÉRIFICATION SECTEUR D'ACTIVITÉ PAR CHANTIER ==========
           if (extractedData.cee?.attestations) {
@@ -2831,39 +2874,9 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
 
         updateProgress(100, 'Analyse terminée !');
 
-        // ENRICHISSEMENT AUTOMATIQUE : Récupérer le code NAF si SIRET détecté mais pas de NAF
-        if (extractedData && extractedData.cee && extractedData.cee.siret && !window.selectedCodeNaf) {
-          try {
-            console.log('🔍 SIRET détecté, récupération automatique du code NAF...');
-            const siret = extractedData.cee.siret;
-            console.log('   SIRET utilisé:', siret);
-            const nafResponse = await fetch(`/api/search?q=${encodeURIComponent(siret)}`);
-
-            console.log('   Statut réponse API:', nafResponse.status, nafResponse.statusText);
-
-            if (nafResponse.ok) {
-              const nafData = await nafResponse.json();
-              console.log('   Réponse API complète:', nafData);
-              console.log('   Nombre de résultats:', nafData.results?.length || 0);
-              console.log('   Premier résultat:', nafData.results?.[0]);
-
-              if (nafData.results && nafData.results[0] && nafData.results[0].codeNaf) {
-                window.selectedCodeNaf = nafData.results[0].codeNaf;
-                localStorage.setItem('ceeVerifCodeNaf', nafData.results[0].codeNaf);
-                console.log(`✅ Code NAF récupéré automatiquement: ${window.selectedCodeNaf}`);
-              } else {
-                console.warn('⚠️ Code NAF non trouvé dans la réponse API');
-                console.warn('   Structure reçue:', JSON.stringify(nafData, null, 2));
-              }
-            } else {
-              console.warn('⚠️ Erreur HTTP lors de la récupération du NAF:', nafResponse.status);
-            }
-          } catch (error) {
-            console.warn('⚠️ Erreur lors de la récupération automatique du NAF:', error);
-            console.warn('   Message:', error.message);
-            // On continue même si ça échoue
-          }
-        }
+        // Filet : nouvelle tentative si le NAF n'a pas pu être récupéré en amont (avant la fenêtre
+        // d'alertes). No-op si window.selectedCodeNaf est déjà renseigné (garde interne du helper).
+        await ensureCodeNafFromSiret(extractedData);
 
         // Détecter les attestations manquantes (OPTION A : vérifier d'abord si surfaces présentes)
         if (extractedData && extractedData.cee && extractedData.cee.attestations) {
