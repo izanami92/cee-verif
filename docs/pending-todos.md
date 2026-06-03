@@ -60,17 +60,60 @@ Repérés en testant LES MOUETTES, **hors périmètre 1.3**, à traiter séparé
 
 ---
 
-### TODO #28 : Bug — extraction de la section C (Professionnel ayant mis en œuvre) non déterministe → alerte 1.4 faussée
+### TODO #28 : Extraction section C (Professionnel ayant mis en œuvre) — VOLET EXTRACTION ✅ / logique à 3 issues ⏳
 
-**Statut** : 🔍 **À INVESTIGUER** (3 juin 2026)
+**Statut** : ✅ **EXTRACTION CORRIGÉE en prod** (3 juin 2026, merge `e456b70`) — ⏳ **volet logique métier restant** (voir TODO #29).
 
-**Description** : la section C de l'attestation sur l'honneur (« C/ Professionnel ayant mis en œuvre l'opération… ») n'est pas lue de façon fiable par l'extraction (`cee.entrepriseMiseEnOeuvre`), ALORS qu'elle est présente dans le dossier. Constaté sur LES MOUETTES : section C remplie (nom signataire, fonction, raison sociale, SIRET) mais l'alerte 1.4 affiche « Professionnel ayant mis en œuvre NON DÉTECTÉ ». Comportement **non déterministe** : varie entre runs et entre branches.
+**Bug initial** : le champ global `cee.entrepriseMiseEnOeuvre` (section C de l'attestation sur l'honneur Total Énergies) était extrait de façon NON DÉTERMINISTE. Sur le même dossier (LES MOUETTES), il oscillait entre `null` (→ alerte « NON DÉTECTÉ ») et « Energie Responsable » (→ alerte exception), sans jamais atteindre la bonne valeur. Cause : l'IA confondait l'ÉMETTEUR de la facture (Energie Responsable, en-tête/pied de chaque page) avec le professionnel DÉCLARÉ en section C.
 
-**Hypothèse** : même nature que le bug de maille des attestations déjà résolu — non-détermination de l'extraction IA sur une section du CEE. Piste : durcir/stabiliser l'extraction de la section C dans `api/analyze.js`, ou parsing déterministe.
+**Cause racine confirmée (diagnostic 3 juin)** :
+- Prompt d'extraction trop faible (`api/analyze.js`) : aucun ancrage sur l'intitulé « Raison sociale » de la section C, piège « émetteur facture » jamais nommé.
+- Exemple JSON piège (`api/analyze.js`) : `"entrepriseMiseEnOeuvre": "Energie Responsable"` = few-shot involontaire vers la valeur-piège.
+- Température déjà à 0 → levier = prompt, pas sampling.
 
-**Périmètre** : hors immédiat — à cadrer en session dédiée (diagnostic plan mode d'abord). Interagit avec l'alerte 1.4 (Energie Responsable / professionnel).
+**Correctif livré (commit `e456b70`, patron `af21eb8`)** :
+- Ancrage de la SOURCE sur le titre EXACT de la section C (« C/ Professionnel ayant mis en œuvre l'opération d'économies d'énergie ou assuré sa maîtrise d'œuvre ») + lecture en face de l'intitulé « Raison sociale » À L'INTÉRIEUR de cette section.
+- Contre-exemple concret + piège (émetteur facture) nommé par sa SOURCE (en-tête/pied, R.C.S., Clichy), **jamais par la valeur** → la vraie détection État 2 (ER réellement sous-traitant en section C) est préservée.
+- Exemple JSON neutralisé en placeholder générique.
+- `api/analyze.js` uniquement. Champ inchangé (string global). `index.html` non touché.
 
-**Sources** : [Session 3 juin 2026 — tests évolution 1.2]
+**Testé en prod** : LES MOUETTES → « LES MOUETTES » stable sur plusieurs runs ; autres dossiers « client installe lui-même » → leur propre raison sociale ; cas « Energie Responsable sous-traitant » → alerte État 2 toujours déclenchée. Non-régression OK.
+
+**⚠️ RESTE À FAIRE — bascule vers TODO #29** : pendant ce diagnostic, on a découvert que la logique aval (`index.html:2806-2847`) est trop permissive. Son État 3 (« ≠ Energie Responsable → silence ») avale TOUTE valeur autre qu'Energie Responsable → faux « conforme » silencieux possible si l'extraction renvoie un tiers parasite. Règle métier réelle (validée 3 juin) : `entrepriseMiseEnOeuvre` ne peut légitimement valoir QUE (a) la société cliente — cas normal, silence — ou (b) Energie Responsable — exception confirmable. Toute autre valeur doit produire un signalement visible. → logique à 3 issues, traitée séparément en TODO #29.
+
+**Sources** : [Session 3 juin 2026 — diagnostic + correctif extraction #28]
+
+---
+
+### TODO #29 : Alerte 1.4 — logique à 3 issues (client / Energie Responsable / autre→signalement)
+
+**Statut** : 📋 **À CADRER** (3 juin 2026) — dépend de #28 (extraction fiabilisée) ✅ fait.
+
+**Pourquoi** : la logique actuelle de l'alerte 1.4 (`index.html:2806-2847`) n'a que 2 issues actives + un silence par défaut :
+- `null`/vide → État 1 « NON DÉTECTÉ »
+- contient « energie responsable » → État 2 « exception confirmable »
+- **tout le reste → silence** (État 3)
+
+L'État 3 est trop permissif : il traite comme « normal » TOUTE valeur ≠ Energie Responsable, y compris un tiers parasite mal extrait (fournisseur, délégataire, luminaire…). → faux « conforme » silencieux, contraire au principe n°1.
+
+**Règle métier réelle (validée 3 juin 2026)** : `entrepriseMiseEnOeuvre` ne peut légitimement valoir que deux choses :
+1. **la société cliente** (≈ 90 % des cas, le client installe lui-même) → normal, silence ;
+2. **Energie Responsable** (le sous-traitant fait la mise en œuvre) → exception confirmable (État 2 actuel).
+Il n'existe PAS de 3e cas légitime.
+
+**Cible** : logique à 3 issues fondée sur une COMPARAISON :
+- valeur extraite = société cliente → silence ;
+- valeur extraite = Energie Responsable → alerte exception confirmable (inchangé) ;
+- valeur extraite = autre / illisible / null → **alerte de signalement « valeur inattendue, à vérifier manuellement », JAMAIS bloquante**.
+
+**Prérequis technique à cadrer en diagnostic plan mode** :
+- Identifier le champ qui porte le nom du client/bénéficiaire (= celui du SIRET / page de garde — confirmé métier) et vérifier qu'il est disponible et fiable au moment de l'alerte 1.4.
+- Définir la normalisation de comparaison (helpers `normalize` existants ; gérer « LES MOUETTES » vs « SARL LES MOUETTES » vs « Les Mouettes »…).
+- Décider du sort de l'État 1 actuel (`null`) : fusionne-t-il avec « autre→signalement » ou reste-t-il distinct ?
+
+**Méthode** : sujet séparé, diagnostic plan mode dédié, branche `feat/*` propre, 1 commit. Touche `index.html` (logique aval), pas `api/analyze.js`.
+
+**Sources** : [Session 3 juin 2026 — découvert pendant le diagnostic #28]
 
 ---
 
@@ -760,11 +803,13 @@ CREATE TABLE analyses (
 
 ## 📊 STATISTIQUES
 
-**TODOs actifs** : 5
+**TODOs actifs** : 6
 - 🔴 Critiques : 1 (TODO #22 — modèle Chantier/Cellule, à cadrer) — *(TODO #26 / évolution 1.3 : ✅ TERMINÉE en prod)*
 - 🟡 Importantes : 1 (TODO #3 reportée)
 - 🟢 Nice to have : 3
-- 🔍 Bugs à investiguer (non comptés) : TODO #27 — `check_39` faux positif multi-chantiers même adresse ; appariement adresse « 4 » manquant ; réf produit `compareProductRef` · TODO #28 — extraction section C (professionnel) non déterministe → alerte 1.4 faussée
+- 📋 À cadrer : 1 (TODO #29 — alerte 1.4 logique à 3 issues client/ER/autre→signalement ; dépend de #28 ✅ fait)
+- 🔍 Bugs à investiguer (non comptés) : TODO #27 — `check_39` faux positif multi-chantiers même adresse ; appariement adresse « 4 » manquant ; réf produit `compareProductRef`
+- ✅ TODO #28 (extraction section C) — **volet extraction corrigé en prod** (`e456b70`) ; volet logique aval → TODO #29
 
 > ✅ Bug « état dossier » volet 2/2 (champs ref* conditionnels) **résolu le 2 juin 2026** (commit `1ec2c49`, mergé `6a38915`) — bug entièrement clos avec le volet 1/2 (commits `86a5906` + `7f15377`). Voir `SOURCE_DE_VERITE_CHECKS.md` §7.
 > ✅ Bug prod (non numéroté) **résolu 29/05/2026** : crash `norm.cee` null dans `generateChecks` (commit `27e7918`). Anomalie A2 (check_41 majeur) résolue le même jour (commit `f976521`). Voir `SOURCE_DE_VERITE_CHECKS.md` §7/§6.
@@ -788,6 +833,7 @@ CREATE TABLE analyses (
 - 3 juin : C1 — gate NAF fiable avant la fenêtre d'alertes (helper `ensureCodeNafFromSiret`, prérequis 1.3, merge `d499737`)
 - 3 juin : Évolution 1.3 COMPLÈTE — maille stabilisée (`af21eb8`) + C2 champ `attestationNonAgricole` (`0bef3d7`) + C3 détection/alerte gatée NAF (`5f1da89`) + C4 doc (`b475ef9`)
 - 3 juin : Évolution 1.2 — délais de travaux : 4 dates + 3 règles (R1 ≥ prévisite +14j / R2 fin>début strict / R3 facture>fin strict), alerte confirmable (`ab9242d`). **→ Phase 1 fonctionnelle (hors UI/UX) COMPLÈTE.**
+- 3 juin : Correctif extraction section C — `entrepriseMiseEnOeuvre` fiabilisé (ancrage SOURCE sur le titre + « Raison sociale », fin du non-déterminisme émetteur facture ↔ section C), patron `af21eb8`, commit `e456b70`. Volet logique aval à 3 issues → **TODO #29 (à cadrer)**.
 
 **TODOs reportés** : 1
 - 27 mai : Modularisation index.html (TODO #3) - À refaire après cadrage modèle Chantier/Cellule (TODO #22)
@@ -836,5 +882,5 @@ Ce document doit être mis à jour :
 
 ---
 
-**Dernière révision** : 3 juin 2026 (évolution 1.2 délais de travaux en prod `ab9242d` → **Phase 1 fonctionnelle hors UI/UX COMPLÈTE** ; évolution 1.3 complète ; nouveau bug TODO #28 — section C / alerte 1.4 — tracé ; bugs TODO #27 tracés)
+**Dernière révision** : 3 juin 2026 (évolution 1.2 délais de travaux en prod `ab9242d` → **Phase 1 fonctionnelle hors UI/UX COMPLÈTE** ; évolution 1.3 complète ; **TODO #28 volet extraction corrigé en prod** (`e456b70`) — volet logique à 3 issues bascule en **TODO #29 (à cadrer)** ; bugs TODO #27 tracés)
 **Prochaine révision** : Prochaine session de développement
