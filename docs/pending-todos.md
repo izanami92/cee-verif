@@ -31,6 +31,38 @@ Dossier → Chantiers → Cellules. Détail complet dans `docs/ROADMAP_EVOLUTION
 
 ---
 
+### TODO #29 : Alerte 1.4 — logique à 3 issues (client / Energie Responsable / autre→signalement)
+
+**Statut** : 🔴 **À CADRER — PRIORITÉ 1** (3 juin 2026) — dépend de #28 (extraction fiabilisée) ✅ fait.
+
+**Pourquoi** : la logique actuelle de l'alerte 1.4 (`index.html:2806-2847`) n'a que 2 issues actives + un silence par défaut :
+- `null`/vide → État 1 « NON DÉTECTÉ »
+- contient « energie responsable » → État 2 « exception confirmable »
+- **tout le reste → silence** (État 3)
+
+L'État 3 est trop permissif : il traite comme « normal » TOUTE valeur ≠ Energie Responsable, y compris un tiers parasite mal extrait (fournisseur, délégataire, luminaire…). → faux « conforme » silencieux, contraire au principe n°1.
+
+**Règle métier réelle (validée 3 juin 2026)** : `entrepriseMiseEnOeuvre` ne peut légitimement valoir que deux choses :
+1. **la société cliente** (≈ 90 % des cas, le client installe lui-même) → normal, silence ;
+2. **Energie Responsable** (le sous-traitant fait la mise en œuvre) → exception confirmable (État 2 actuel).
+Il n'existe PAS de 3e cas légitime.
+
+**Cible** : logique à 3 issues fondée sur une COMPARAISON :
+- valeur extraite = société cliente → silence ;
+- valeur extraite = Energie Responsable → alerte exception confirmable (inchangé) ;
+- valeur extraite = autre / illisible / null → **alerte de signalement « valeur inattendue, à vérifier manuellement », JAMAIS bloquante**.
+
+**Prérequis technique à cadrer en diagnostic plan mode** :
+- Identifier le champ qui porte le nom du client/bénéficiaire (= celui du SIRET / page de garde — confirmé métier) et vérifier qu'il est disponible et fiable au moment de l'alerte 1.4.
+- Définir la normalisation de comparaison (helpers `normalize` existants ; gérer « LES MOUETTES » vs « SARL LES MOUETTES » vs « Les Mouettes »…).
+- Décider du sort de l'État 1 actuel (`null`) : fusionne-t-il avec « autre→signalement » ou reste-t-il distinct ?
+
+**Méthode** : sujet séparé, diagnostic plan mode dédié, branche `feat/*` propre, 1 commit. Touche `index.html` (logique aval), pas `api/analyze.js`.
+
+**Sources** : [Session 3 juin 2026 — découvert pendant le diagnostic #28]
+
+---
+
 ### ✅ TODO #26 : Évolution 1.3 (attestation BAT-EQ-127) — COMPLÈTE et en prod
 
 **Statut** : ✅ **TERMINÉE** (3 juin 2026) — C1 + maille + C2 + C3 en prod. Évolution 1.3 complète.
@@ -82,38 +114,6 @@ Repérés en testant LES MOUETTES, **hors périmètre 1.3**, à traiter séparé
 **⚠️ RESTE À FAIRE — bascule vers TODO #29** : pendant ce diagnostic, on a découvert que la logique aval (`index.html:2806-2847`) est trop permissive. Son État 3 (« ≠ Energie Responsable → silence ») avale TOUTE valeur autre qu'Energie Responsable → faux « conforme » silencieux possible si l'extraction renvoie un tiers parasite. Règle métier réelle (validée 3 juin) : `entrepriseMiseEnOeuvre` ne peut légitimement valoir QUE (a) la société cliente — cas normal, silence — ou (b) Energie Responsable — exception confirmable. Toute autre valeur doit produire un signalement visible. → logique à 3 issues, traitée séparément en TODO #29.
 
 **Sources** : [Session 3 juin 2026 — diagnostic + correctif extraction #28]
-
----
-
-### TODO #29 : Alerte 1.4 — logique à 3 issues (client / Energie Responsable / autre→signalement)
-
-**Statut** : 📋 **À CADRER** (3 juin 2026) — dépend de #28 (extraction fiabilisée) ✅ fait.
-
-**Pourquoi** : la logique actuelle de l'alerte 1.4 (`index.html:2806-2847`) n'a que 2 issues actives + un silence par défaut :
-- `null`/vide → État 1 « NON DÉTECTÉ »
-- contient « energie responsable » → État 2 « exception confirmable »
-- **tout le reste → silence** (État 3)
-
-L'État 3 est trop permissif : il traite comme « normal » TOUTE valeur ≠ Energie Responsable, y compris un tiers parasite mal extrait (fournisseur, délégataire, luminaire…). → faux « conforme » silencieux, contraire au principe n°1.
-
-**Règle métier réelle (validée 3 juin 2026)** : `entrepriseMiseEnOeuvre` ne peut légitimement valoir que deux choses :
-1. **la société cliente** (≈ 90 % des cas, le client installe lui-même) → normal, silence ;
-2. **Energie Responsable** (le sous-traitant fait la mise en œuvre) → exception confirmable (État 2 actuel).
-Il n'existe PAS de 3e cas légitime.
-
-**Cible** : logique à 3 issues fondée sur une COMPARAISON :
-- valeur extraite = société cliente → silence ;
-- valeur extraite = Energie Responsable → alerte exception confirmable (inchangé) ;
-- valeur extraite = autre / illisible / null → **alerte de signalement « valeur inattendue, à vérifier manuellement », JAMAIS bloquante**.
-
-**Prérequis technique à cadrer en diagnostic plan mode** :
-- Identifier le champ qui porte le nom du client/bénéficiaire (= celui du SIRET / page de garde — confirmé métier) et vérifier qu'il est disponible et fiable au moment de l'alerte 1.4.
-- Définir la normalisation de comparaison (helpers `normalize` existants ; gérer « LES MOUETTES » vs « SARL LES MOUETTES » vs « Les Mouettes »…).
-- Décider du sort de l'État 1 actuel (`null`) : fusionne-t-il avec « autre→signalement » ou reste-t-il distinct ?
-
-**Méthode** : sujet séparé, diagnostic plan mode dédié, branche `feat/*` propre, 1 commit. Touche `index.html` (logique aval), pas `api/analyze.js`.
-
-**Sources** : [Session 3 juin 2026 — découvert pendant le diagnostic #28]
 
 ---
 
@@ -804,10 +804,9 @@ CREATE TABLE analyses (
 ## 📊 STATISTIQUES
 
 **TODOs actifs** : 6
-- 🔴 Critiques : 1 (TODO #22 — modèle Chantier/Cellule, à cadrer) — *(TODO #26 / évolution 1.3 : ✅ TERMINÉE en prod)*
+- 🔴 Critiques : 2 (TODO #22 — modèle Chantier/Cellule, à cadrer ; TODO #29 — alerte 1.4 logique à 3 issues, faux « conforme » silencieux, à cadrer) — *(TODO #26 / évolution 1.3 : ✅ TERMINÉE en prod)*
 - 🟡 Importantes : 1 (TODO #3 reportée)
 - 🟢 Nice to have : 3
-- 📋 À cadrer : 1 (TODO #29 — alerte 1.4 logique à 3 issues client/ER/autre→signalement ; dépend de #28 ✅ fait)
 - 🔍 Bugs à investiguer (non comptés) : TODO #27 — `check_39` faux positif multi-chantiers même adresse ; appariement adresse « 4 » manquant ; réf produit `compareProductRef`
 - ✅ TODO #28 (extraction section C) — **volet extraction corrigé en prod** (`e456b70`) ; volet logique aval → TODO #29
 
