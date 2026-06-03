@@ -399,7 +399,7 @@ git push origin main
 ---
 
 **Dernière mise à jour** : 3 juin 2026
-**Version** : Phase 1 complète + B1/B2 résolus + évolution 1.1 (alerte reste à payer) + crash `cee` null & anomalie A2 résolus (29/05) + évolutions 1.5 (étude de dimensionnement) & 1.4 (Energie Responsable) (01/06) + bug « état dossier » (volets 1/2 + 2/2) résolu et en prod (02/06, merge `6a38915`) — modèle Chantier/Cellule à cadrer (TODO #22) + **évolution 1.3 COMPLÈTE en prod** (C1 `d499737`, maille `af21eb8`, C2 `0bef3d7`, C3 `5f1da89`)
+**Version** : Phase 1 complète + B1/B2 résolus + évolution 1.1 (alerte reste à payer) + crash `cee` null & anomalie A2 résolus (29/05) + évolutions 1.5 (étude de dimensionnement) & 1.4 (Energie Responsable) (01/06) + bug « état dossier » (volets 1/2 + 2/2) résolu et en prod (02/06, merge `6a38915`) — modèle Chantier/Cellule à cadrer (TODO #22) + **évolution 1.3 COMPLÈTE en prod** (C1 `d499737`, maille `af21eb8`, C2 `0bef3d7`, C3 `5f1da89`) + **évolution 1.2 délais de travaux en prod** (`ab9242d`) — **pré-vérification CEE (évolutions 1.1–1.5) COMPLÈTE** ; nouveau bug à investiguer : section C / alerte 1.4 (TODO #28)
 
 ### Évolution 1.3 (attestation agricole BAT-EQ-127) — ✅ COMPLÈTE / EN PROD
 

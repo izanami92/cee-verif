@@ -60,6 +60,20 @@ Repérés en testant LES MOUETTES, **hors périmètre 1.3**, à traiter séparé
 
 ---
 
+### TODO #28 : Bug — extraction de la section C (Professionnel ayant mis en œuvre) non déterministe → alerte 1.4 faussée
+
+**Statut** : 🔍 **À INVESTIGUER** (3 juin 2026)
+
+**Description** : la section C de l'attestation sur l'honneur (« C/ Professionnel ayant mis en œuvre l'opération… ») n'est pas lue de façon fiable par l'extraction (`cee.entrepriseMiseEnOeuvre`), ALORS qu'elle est présente dans le dossier. Constaté sur LES MOUETTES : section C remplie (nom signataire, fonction, raison sociale, SIRET) mais l'alerte 1.4 affiche « Professionnel ayant mis en œuvre NON DÉTECTÉ ». Comportement **non déterministe** : varie entre runs et entre branches.
+
+**Hypothèse** : même nature que le bug de maille des attestations déjà résolu — non-détermination de l'extraction IA sur une section du CEE. Piste : durcir/stabiliser l'extraction de la section C dans `api/analyze.js`, ou parsing déterministe.
+
+**Périmètre** : hors immédiat — à cadrer en session dédiée (diagnostic plan mode d'abord). Interagit avec l'alerte 1.4 (Energie Responsable / professionnel).
+
+**Sources** : [Session 3 juin 2026 — tests évolution 1.2]
+
+---
+
 ### ✅ Bug « état dossier » volet 2/2 : champs ref* conditionnels
 
 **Statut** : ✅ **COMPLÉTÉ** (2 juin 2026)
@@ -750,12 +764,12 @@ CREATE TABLE analyses (
 - 🔴 Critiques : 1 (TODO #22 — modèle Chantier/Cellule, à cadrer) — *(TODO #26 / évolution 1.3 : ✅ TERMINÉE en prod)*
 - 🟡 Importantes : 1 (TODO #3 reportée)
 - 🟢 Nice to have : 3
-- 🔍 Bugs à investiguer (non comptés) : TODO #27 — `check_39` faux positif multi-chantiers même adresse ; appariement adresse « 4 » manquant ; réf produit `compareProductRef`
+- 🔍 Bugs à investiguer (non comptés) : TODO #27 — `check_39` faux positif multi-chantiers même adresse ; appariement adresse « 4 » manquant ; réf produit `compareProductRef` · TODO #28 — extraction section C (professionnel) non déterministe → alerte 1.4 faussée
 
 > ✅ Bug « état dossier » volet 2/2 (champs ref* conditionnels) **résolu le 2 juin 2026** (commit `1ec2c49`, mergé `6a38915`) — bug entièrement clos avec le volet 1/2 (commits `86a5906` + `7f15377`). Voir `SOURCE_DE_VERITE_CHECKS.md` §7.
 > ✅ Bug prod (non numéroté) **résolu 29/05/2026** : crash `norm.cee` null dans `generateChecks` (commit `27e7918`). Anomalie A2 (check_41 majeur) résolue le même jour (commit `f976521`). Voir `SOURCE_DE_VERITE_CHECKS.md` §7/§6.
 
-**TODOs complétés récemment** : 24 (7 mai - 3 juin 2026)
+**TODOs complétés récemment** : 26 (7 mai - 3 juin 2026)
 - 7 mai : Multi-chantiers (ADR 003)
 - 8 mai : Sélecteur LED (ADR 006), Normalisation adresses (ADR 007), Extraction CLIENT (ADR 008)
 - 9 mai : UX hiérarchique (ADR 009), Secteur par chantier (ADR 010), Matching INDEX (ADR 011)
@@ -772,6 +786,8 @@ CREATE TABLE analyses (
 - 1er juin : Évolution 1.4 alerte confirmable professionnel = Energie Responsable (commits 91bf93d + 5392776)
 - 2 juin : Bug état dossier volet 2/2, champs ref* conditionnels (commit 1ec2c49, mergé 6a38915)
 - 3 juin : C1 — gate NAF fiable avant la fenêtre d'alertes (helper `ensureCodeNafFromSiret`, prérequis 1.3, merge `d499737`)
+- 3 juin : Évolution 1.3 COMPLÈTE — maille stabilisée (`af21eb8`) + C2 champ `attestationNonAgricole` (`0bef3d7`) + C3 détection/alerte gatée NAF (`5f1da89`) + C4 doc (`b475ef9`)
+- 3 juin : Évolution 1.2 — délais de travaux : 4 dates + 3 règles (R1 ≥ prévisite +14j / R2 fin>début strict / R3 facture>fin strict), alerte confirmable (`ab9242d`). **→ Phase 1 fonctionnelle (hors UI/UX) COMPLÈTE.**
 
 **TODOs reportés** : 1
 - 27 mai : Modularisation index.html (TODO #3) - À refaire après cadrage modèle Chantier/Cellule (TODO #22)
@@ -820,5 +836,5 @@ Ce document doit être mis à jour :
 
 ---
 
-**Dernière révision** : 3 juin 2026 (évolution 1.3 COMPLÈTE en prod : C1 `d499737`, maille `af21eb8`, C2 `0bef3d7`, C3 `5f1da89`, C4 doc ; bugs console TODO #27 tracés)
+**Dernière révision** : 3 juin 2026 (évolution 1.2 délais de travaux en prod `ab9242d` → **Phase 1 fonctionnelle hors UI/UX COMPLÈTE** ; évolution 1.3 complète ; nouveau bug TODO #28 — section C / alerte 1.4 — tracé ; bugs TODO #27 tracés)
 **Prochaine révision** : Prochaine session de développement

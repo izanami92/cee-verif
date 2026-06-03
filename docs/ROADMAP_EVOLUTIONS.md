@@ -55,7 +55,7 @@ Le cadrage a fait émerger une structure naturelle, fidèle au principe « le CE
 
 ---
 
-## PHASE 1 — PRÉ-VÉRIFICATION DU CEE (priorité haute)
+## PHASE 1 — PRÉ-VÉRIFICATION DU CEE (priorité haute)  ✅ FONCTIONNELLE COMPLÈTE (1.1–1.5 en prod ; reste UI/UX uniquement)
 
 > **Mécanisme commun** : « alerte bloquante confirmable » au stade extraction. Si la condition n'est pas remplie → l'outil interrompt et prévient l'utilisateur, qui peut soit confirmer l'exception (et poursuivre), soit corriger son CEE et le réimporter.
 > C'est le **même mécanisme `confirm()`** que l'alerte secteur « Autres » déjà existante. Toutes ces vérifications doivent fonctionner en **mono ET multi-chantiers** (voir bug B2 à corriger en prérequis).
@@ -63,12 +63,12 @@ Le cadrage a fait émerger une structure naturelle, fidèle au principe « le CE
 ### 1.1 — Reste à payer ≠ 0€  ✅ IMPLÉMENTÉ
 Implémenté le 28/05/2026 (commit 0aaf465) — voir SOURCE_DE_VERITE_CHECKS.md §1 (alerte de confirmation) et §7bis. Alerte confirmable à 3 états (absent / ≠0 / =0) remplaçant l'ancien check_40.
 
-### 1.2 — Délais de travaux  *(non codé — extraction des dates à ajouter)*
-- **Source** : Dossier CEE, champs « Date de début des travaux » et « Date de fin des travaux ».
-- **Règle 1** : date de début des travaux ≥ date de prévisite + **14 jours calendaires**.
-- **Règle 2** : date de fin des travaux ≥ date de début des travaux + **7 jours calendaires**.
-- **Niveau** : alerte confirmable au stade extraction.
-- **Prérequis** : ces deux dates ne sont pas extraites aujourd'hui → ajouter leur extraction dans le prompt `api/analyze.js`.
+### 1.2 — Délais de travaux  ✅ IMPLÉMENTÉE / EN PROD (commit `ab9242d`, 03/06/2026)
+- **Source** : Dossier CEE, **page 1, encadré haut-gauche** (sous n° client / n° devis). **4 dates extraites** (`api/analyze.js`) : `datePrevisite`, `dateDebutTravaux`, `dateFinTravaux`, `dateFacture` (libellés exacts, format JJ/MM/AAAA, `null` si absent ; ne pas confondre prévisite avec « date d'étude de dimensionnement préalable »).
+- **R1** : date début travaux ≥ date prévisite **+ 14 jours calendaires** (écart de 14 j **accepté** : `>= 14`). ✅ aligné sur le cadrage initial (le « 15 » codé par erreur a été ramené à 14).
+- **R2** : date fin travaux **> date début travaux** (strictement ; même jour = fautif). *(révisé à l'implémentation : remplace l'ancien « + 7 jours » du cadrage.)*
+- **R3** : date facture **> date fin travaux** (strictement ; même jour = fautif). *(ajouté à l'implémentation.)*
+- **Mécanisme** : alerte **confirmable agrégée** (1 seul `confirm()`, patron 1.5), valeur globale du dossier, **jamais bloquante**. Helpers `parseDateFr` + `verifierDelaisTravaux` (`index.html`). Date manquante sur une règle → statut **`'non_verifiable'`** (jamais `'ok'`, jamais silencieux).
 
 ### 1.3 — Attestation agricole BAT-EQ-127  ✅ IMPLÉMENTÉE / EN PROD
 - **Source** : Dossier CEE, page(s) « ATTESTATION SUR L'HONNEUR — Existence d'un entrepôt de stockage non agricole — BAT-EQ-127 ».
@@ -194,4 +194,5 @@ La Phase 1 repose sur le mécanisme d'alerte confirmable par chantier. Ce mécan
 ---
 
 *Établi le 27/05/2026 — cadrage métier détaillé.*
-*Ordre de réalisation suggéré : B2 ✓ → 1.1 ✓ → crash norm.cee null (prod) ✓ → 1.5 ✓ → 1.4 ✓ → 1.3 ✓ [C1 `d499737` → maille `af21eb8` → C2 `0bef3d7` → C3 `5f1da89` → C4 doc] → 1.2 → Phase 2 → Phase 3 → Phase 4.*
+*Ordre de réalisation suggéré : B2 ✓ → 1.1 ✓ → crash norm.cee null (prod) ✓ → 1.5 ✓ → 1.4 ✓ → 1.3 ✓ [C1 `d499737` → maille `af21eb8` → C2 `0bef3d7` → C3 `5f1da89` → C4 doc] → 1.2 ✓ (`ab9242d`) → Phase 2 → Phase 3 → Phase 4.*
+*→ Phase 1 fonctionnelle (hors UI/UX) COMPLÈTE le 03/06/2026.*
