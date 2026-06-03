@@ -191,6 +191,8 @@ Déclencheur actif — Professionnel ayant mis en œuvre = « Energie Responsabl
 | `check_45_N` (synthèse) | Surface Synthèse = Somme attestation | 🟠 | SI ATTEST. |
 | `check_45b_N` | Surfaces par bâtiment (1 à 1) | 🟠 | SI SURFACES DÉTAILLÉES |
 
+> ℹ️ **Maille d'extraction des attestations** : le prompt `api/analyze.js` force « **1 occurrence de la phrase "La surface réelle de cet entrepôt…" = 1 élément `cee.attestations`, surface mono-valeur** » (commit `af21eb8`, 03/06/2026). Plusieurs surfaces → plusieurs éléments distincts, jamais empilés, même à adresse partagée. `ledTotal` et `parcelles` restent par chantier (facture). Pas de verrou numérique `length == N` (abandonné : pas d'ancrage fiable + casserait la détection d'attestation absente).
+
 ---
 
 ## 6. ANOMALIES TECHNIQUES À CORRIGER (ne cassent pas l'app)

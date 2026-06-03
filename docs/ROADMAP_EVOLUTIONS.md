@@ -70,7 +70,7 @@ Implémenté le 28/05/2026 (commit 0aaf465) — voir SOURCE_DE_VERITE_CHECKS.md 
 - **Niveau** : alerte confirmable au stade extraction.
 - **Prérequis** : ces deux dates ne sont pas extraites aujourd'hui → ajouter leur extraction dans le prompt `api/analyze.js`.
 
-### 1.3 — Attestation agricole BAT-EQ-127  *(EN COURS — gate NAF posé, maille à stabiliser avant le champ)*
+### 1.3 — Attestation agricole BAT-EQ-127  *(EN COURS — gate NAF ✅, maille stabilisée ✅, C2 à démarrer)*
 - **Source** : Dossier CEE, page(s) « ATTESTATION SUR L'HONNEUR — Existence d'un entrepôt de stockage non agricole — BAT-EQ-127 ».
 - **Règle** : si code NAF agricole (**01.xxx ou 02.xxx**), cette attestation est **obligatoire pour CHAQUE chantier** (elle contient aussi les superficies par chantier). Si elle manque pour au moins un chantier → alerte confirmable au stade analyse.
 - **Cohérence** : une entreprise agricole déclare un usage NON-agricole de l'entrepôt → les Règles A (secteur entrepôts) et B (pas de mention agricole sur Audit/Synthèse) restent **inchangées**.
@@ -80,11 +80,11 @@ Implémenté le 28/05/2026 (commit 0aaf465) — voir SOURCE_DE_VERITE_CHECKS.md 
 **Prérequis — branche 1 (`fix/naf-fiable-avant-alertes`)** :
 - ✅ **C1 fait, mergé en prod (03/06, merge `d499737`)** : helper `ensureCodeNafFromSiret` appelé avant la fenêtre d'alertes → `isAgricole` fiable au bon moment. Testé LES MOUETTES (NAF 01.11Z avant « ANALYSE SECTEURS »), anti-régression 1.4/1.5 OK.
 
-**⛔ Sous-chantier BLOQUANT — STABILISER LA MAILLE DES ATTESTATIONS (prérequis de C2)** :
-Constat sur LES MOUETTES (3 chantiers même adresse, NAF agricole) : **extraction IA non déterministe sur la maille**. Un run renvoie **3 éléments** `cee.attestations` (surfaces séparées `['274']`, `['363']`, `['441']`), un autre run **1 seul élément** empilé (surfaces `['274','363','441']`, `ledTotal` cumulé `'30'`) — même dossier. → un statut `attestationNonAgricole` **par élément** ne suffit pas : si l'IA empile, un statut unique couvrirait plusieurs chantiers → **perte de granularité par chantier → faux conforme silencieux (danger n°1)**. **Avant C2**, forcer un format constant (1 élément = 1 chantier/bâtiment), probablement précédé d'un **diagnostic ciblé du prompt d'extraction** `api/analyze.js`.
+**✅ Sous-chantier FAIT — MAILLE DES ATTESTATIONS STABILISÉE (prérequis de C2 levé, commit `af21eb8`, en prod)** :
+Constat initial sur LES MOUETTES (3 chantiers même adresse, NAF agricole) : **extraction IA non déterministe** (tantôt **3 éléments** `cee.attestations` à 1 surface, tantôt **1 élément empilé** à N surfaces `['274','363','441']`, même dossier → risque de **faux conforme silencieux, danger n°1**). **Solution retenue** : désambiguïsation du prompt `api/analyze.js` ancrée sur un élément réellement présent dans le texte — la phrase « La surface réelle de cet entrepôt… » : **1 occurrence = 1 élément, surfaces mono-valeur**, interdiction d'empiler/regrouper par adresse. **Verrou de cardinalité numérique (`length == N chantiers`) ABANDONNÉ** : pas de délimiteur d'ancrage fiable (zones audit/synthèse dédupliquées par adresse) + il aurait **saboté C2** (forçant un élément même pour une attestation absente). **`ledTotal` et `parcelles` non touchés** (déjà par chantier dans la facture — confirmé). Validé LES MOUETTES (3 runs concordants, maille constante à 3 éléments, anti-régression `check_09d`/`check_45` OK).
 
 **Plan de réalisation — branche 2 (`feat/1.3-attestation-non-agricole`)** :
-0. ⛔ **PRÉREQUIS NOUVEAU — stabiliser la maille des attestations** (ci-dessus). À faire AVANT C2.
+0. ✅ **PRÉREQUIS LEVÉ — maille des attestations stabilisée** (ci-dessus, commit `af21eb8`, en prod).
 1. **C2** — champ `attestationNonAgricole` dans le prompt `api/analyze.js` (additif). Point de contrôle console : les N attestations portent chacune un statut cohérent.
 2. **C3** — `detectFautifsAttestationNonAgricole(attestations)` (itération brute) + alerte gatée `isAgricole` dans la fenêtre d'alertes.
 3. **C4** — doc (déplacement vers `SOURCE_DE_VERITE_CHECKS.md` §1/§7bis).
@@ -199,4 +199,4 @@ La Phase 1 repose sur le mécanisme d'alerte confirmable par chantier. Ce mécan
 ---
 
 *Établi le 27/05/2026 — cadrage métier détaillé.*
-*Ordre de réalisation suggéré : B2 ✓ → 1.1 ✓ → crash norm.cee null (prod) ✓ → 1.5 ✓ → 1.4 ✓ → 1.3 [C1 gate NAF ✓ (03/06) → ⛔ stabiliser la maille des attestations → C2 champ → C3 alerte → C4 doc] → 1.2 → Phase 2 → Phase 3 → Phase 4.*
+*Ordre de réalisation suggéré : B2 ✓ → 1.1 ✓ → crash norm.cee null (prod) ✓ → 1.5 ✓ → 1.4 ✓ → 1.3 [C1 gate NAF ✓ (03/06) → maille stabilisée ✓ (`af21eb8`) → C2 champ → C3 alerte → C4 doc] → 1.2 → Phase 2 → Phase 3 → Phase 4.*

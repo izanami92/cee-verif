@@ -399,10 +399,10 @@ git push origin main
 ---
 
 **Dernière mise à jour** : 3 juin 2026
-**Version** : Phase 1 complète + B1/B2 résolus + évolution 1.1 (alerte reste à payer) + crash `cee` null & anomalie A2 résolus (29/05) + évolutions 1.5 (étude de dimensionnement) & 1.4 (Energie Responsable) (01/06) + bug « état dossier » (volets 1/2 + 2/2) résolu et en prod (02/06, merge `6a38915`) — modèle Chantier/Cellule à cadrer (TODO #22)
+**Version** : Phase 1 complète + B1/B2 résolus + évolution 1.1 (alerte reste à payer) + crash `cee` null & anomalie A2 résolus (29/05) + évolutions 1.5 (étude de dimensionnement) & 1.4 (Energie Responsable) (01/06) + bug « état dossier » (volets 1/2 + 2/2) résolu et en prod (02/06, merge `6a38915`) — modèle Chantier/Cellule à cadrer (TODO #22) + évolution 1.3 : gate NAF (`d499737`) & maille des attestations stabilisée (`af21eb8`) en prod — prérequis C2 levé
 
 ### Évolution 1.3 (attestation agricole BAT-EQ-127) — EN COURS
 
 - ✅ **C1 mergé en prod (03/06, merge `d499737`)** : helper `ensureCodeNafFromSiret(extractedData)` appelé AVANT la fenêtre d'alertes (après `generateChecks`) + conservé en filet tardif → `window.selectedCodeNaf` / `isAgricole` fiables au moment des alertes (prérequis « gate NAF » posé). Testé LES MOUETTES (NAF 01.11Z récupéré avant « ANALYSE SECTEURS »), anti-régression 1.4/1.5 OK, pas de double fetch.
-- ⛔ **Prochaine étape BLOQUÉE** : ne PAS attaquer le champ `attestationNonAgricole` (C2) avant d'avoir **stabilisé la maille d'extraction des attestations** (1 élément = 1 chantier). Constat sur LES MOUETTES : l'IA renvoie tantôt 3 éléments (surfaces séparées), tantôt 1 élément empilé (surfaces cumulées) → un statut par élément perdrait la granularité par chantier (risque de faux conforme silencieux). Diagnostic + commit de stabilisation requis AVANT C2.
+- ✅ **Maille d'extraction des attestations stabilisée (03/06, merge `af21eb8`, en prod)** : désambiguïsation du prompt `api/analyze.js` — 1 occurrence de la phrase « La surface réelle de cet entrepôt… » = 1 élément, surfaces mono-valeur, pas d'empilement/regroupement par adresse. Verrou de cardinalité numérique abandonné (pas d'ancrage fiable + aurait saboté C2) ; `ledTotal`/`parcelles` inchangés. Validé LES MOUETTES (3 runs concordants, anti-régression OK). **Prérequis de C2 levé → C2 peut démarrer.**
 - Détail complet : `docs/ROADMAP_EVOLUTIONS.md` §1.3 et `docs/pending-todos.md` (TODO #26).
