@@ -2,7 +2,7 @@
 
 **Document de suivi** des fonctionnalités discutées, en cours, ou à implémenter.
 
-**Dernière mise à jour** : 2 juin 2026
+**Dernière mise à jour** : 3 juin 2026
 
 ---
 
@@ -28,6 +28,31 @@ Dossier → Chantiers → Cellules. Détail complet dans `docs/ROADMAP_EVOLUTION
 **Sources** :
 - [Session 28 mai 2026 — cadrage métier]
 - [docs/ROADMAP_EVOLUTIONS.md — section CHANTIER MAJEUR]
+
+---
+
+### TODO #26 : Évolution 1.3 (attestation BAT-EQ-127) — gate NAF fait, maille à stabiliser
+
+**Statut** : 🟡 **EN COURS** (3 juin 2026) — C1 mergé en prod ; **C2 BLOQUÉ** par la maille des attestations
+
+**Fait** :
+- ✅ **C1** (branche `fix/naf-fiable-avant-alertes`, mergé `d499737` le 3 juin) : extraction du helper `ensureCodeNafFromSiret(extractedData)`, appelé AVANT la fenêtre d'alertes (après `generateChecks`) + conservé en filet tardif. → `window.selectedCodeNaf` / `isAgricole` fiables au moment des alertes (prérequis du gate NAF). Testé LES MOUETTES (NAF 01.11Z récupéré avant « ANALYSE SECTEURS »), anti-régression 1.4/1.5 OK, pas de double fetch.
+
+**⛔ Prochaine étape — PRÉREQUIS BLOQUANT de C2 : stabiliser la maille des attestations** :
+Extraction IA **non déterministe** sur la maille (constaté sur LES MOUETTES, 3 chantiers même adresse) : tantôt `cee.attestations` = **3 éléments** (surfaces séparées `['274']`, `['363']`, `['441']`), tantôt **1 élément** empilé (`['274','363','441']`, `ledTotal` cumulé `'30'`). → un statut `attestationNonAgricole` par élément perdrait la granularité par chantier si l'IA empile → **faux conforme silencieux (danger n°1)**. Forcer un format constant (1 élément = 1 chantier/bâtiment), précédé d'un **diagnostic ciblé du prompt** `api/analyze.js`. **À faire AVANT C2.**
+
+**Plan branche 2 (`feat/1.3-attestation-non-agricole`)** : (maille stable) → **C2** champ `attestationNonAgricole` (`'presente'|'absente'|'non_detectee'`, seul `'presente'` = OK) → **C3** `detectFautifsAttestationNonAgricole` (itération brute) + alerte gatée `isAgricole` (NAF inconnu = INFO non bloquant, message désambiguïsé surface+LED, jamais « attestation manquante ») → **C4** doc. Détail complet : `docs/ROADMAP_EVOLUTIONS.md` §1.3.
+
+**Sources** : [Sessions 2-3 juin 2026 — diagnostics 1.3 + implémentation C1]
+
+---
+
+### TODO #27 : Bugs préexistants repérés en console (session 1.3 — À INVESTIGUER, non traités)
+
+Repérés en testant LES MOUETTES, **hors périmètre 1.3**, à traiter séparément :
+- **`check_39` « cohérence nombre de chantiers » — faux positif** en multi-chantiers même adresse : 1 audit + 1 synthèse importés (zones dédupliquées par adresse) vs N attestations attendues → `nbAudits ≠ nbAttestations` signalé MAJEUR sur un dossier valide.
+- **Appariement par adresse cassé** : un « 4 » initial manquant entre l'adresse Audit (« CHASSIFERT… ») et l'adresse CEE (« 4 CHASSIFERT… ») fait échouer `compareAddress` → check d'adresse en échec + log « Aucune attestation CEE trouvée pour l'adresse… ». Rattaché au sujet « adresses dupliquées » / modèle Chantier-Cellule (TODO #22).
+- **Référence produit (`compareProductRef`)** : « NES LIGHT - HB250W » vs attendu « DAEWOO NES-HBL250W » → possible faux positif réf LED.
 
 ---
 
@@ -717,15 +742,16 @@ CREATE TABLE analyses (
 
 ## 📊 STATISTIQUES
 
-**TODOs actifs** : 5
-- 🔴 Critiques : 1 (TODO #22 — modèle Chantier/Cellule, à cadrer ; englobe l'observation `state.chantiers` notée le 2 juin)
+**TODOs actifs** : 6
+- 🔴 Critiques : 2 (TODO #22 — modèle Chantier/Cellule, à cadrer ; TODO #26 — évolution 1.3 EN COURS, C2 bloqué par la stabilisation de la maille)
 - 🟡 Importantes : 1 (TODO #3 reportée)
 - 🟢 Nice to have : 3
+- 🔍 Bugs à investiguer (non comptés) : TODO #27 — `check_39` faux positif multi-chantiers même adresse ; appariement adresse « 4 » manquant ; réf produit `compareProductRef`
 
 > ✅ Bug « état dossier » volet 2/2 (champs ref* conditionnels) **résolu le 2 juin 2026** (commit `1ec2c49`, mergé `6a38915`) — bug entièrement clos avec le volet 1/2 (commits `86a5906` + `7f15377`). Voir `SOURCE_DE_VERITE_CHECKS.md` §7.
 > ✅ Bug prod (non numéroté) **résolu 29/05/2026** : crash `norm.cee` null dans `generateChecks` (commit `27e7918`). Anomalie A2 (check_41 majeur) résolue le même jour (commit `f976521`). Voir `SOURCE_DE_VERITE_CHECKS.md` §7/§6.
 
-**TODOs complétés récemment** : 23 (7 mai - 2 juin 2026)
+**TODOs complétés récemment** : 24 (7 mai - 3 juin 2026)
 - 7 mai : Multi-chantiers (ADR 003)
 - 8 mai : Sélecteur LED (ADR 006), Normalisation adresses (ADR 007), Extraction CLIENT (ADR 008)
 - 9 mai : UX hiérarchique (ADR 009), Secteur par chantier (ADR 010), Matching INDEX (ADR 011)
@@ -741,6 +767,7 @@ CREATE TABLE analyses (
 - 1er juin : Évolution 1.5 alerte confirmable étude de dimensionnement = Prime Evolution (commits a4130d6 extraction + ba1fcce alerte)
 - 1er juin : Évolution 1.4 alerte confirmable professionnel = Energie Responsable (commits 91bf93d + 5392776)
 - 2 juin : Bug état dossier volet 2/2, champs ref* conditionnels (commit 1ec2c49, mergé 6a38915)
+- 3 juin : C1 — gate NAF fiable avant la fenêtre d'alertes (helper `ensureCodeNafFromSiret`, prérequis 1.3, merge `d499737`)
 
 **TODOs reportés** : 1
 - 27 mai : Modularisation index.html (TODO #3) - À refaire après cadrage modèle Chantier/Cellule (TODO #22)
@@ -789,5 +816,5 @@ Ce document doit être mis à jour :
 
 ---
 
-**Dernière révision** : 2 juin 2026 (bug « état dossier » volet 2/2 clos + observation state.chantiers tracée ; doc §7/roadmap à jour)
+**Dernière révision** : 3 juin 2026 (C1 gate NAF mergé en prod ; évolution 1.3 EN COURS, C2 bloqué par la stabilisation de la maille des attestations ; bugs console TODO #27 tracés)
 **Prochaine révision** : Prochaine session de développement

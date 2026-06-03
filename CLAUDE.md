@@ -398,5 +398,11 @@ git push origin main
 
 ---
 
-**Dernière mise à jour** : 2 juin 2026
+**Dernière mise à jour** : 3 juin 2026
 **Version** : Phase 1 complète + B1/B2 résolus + évolution 1.1 (alerte reste à payer) + crash `cee` null & anomalie A2 résolus (29/05) + évolutions 1.5 (étude de dimensionnement) & 1.4 (Energie Responsable) (01/06) + bug « état dossier » (volets 1/2 + 2/2) résolu et en prod (02/06, merge `6a38915`) — modèle Chantier/Cellule à cadrer (TODO #22)
+
+### Évolution 1.3 (attestation agricole BAT-EQ-127) — EN COURS
+
+- ✅ **C1 mergé en prod (03/06, merge `d499737`)** : helper `ensureCodeNafFromSiret(extractedData)` appelé AVANT la fenêtre d'alertes (après `generateChecks`) + conservé en filet tardif → `window.selectedCodeNaf` / `isAgricole` fiables au moment des alertes (prérequis « gate NAF » posé). Testé LES MOUETTES (NAF 01.11Z récupéré avant « ANALYSE SECTEURS »), anti-régression 1.4/1.5 OK, pas de double fetch.
+- ⛔ **Prochaine étape BLOQUÉE** : ne PAS attaquer le champ `attestationNonAgricole` (C2) avant d'avoir **stabilisé la maille d'extraction des attestations** (1 élément = 1 chantier). Constat sur LES MOUETTES : l'IA renvoie tantôt 3 éléments (surfaces séparées), tantôt 1 élément empilé (surfaces cumulées) → un statut par élément perdrait la granularité par chantier (risque de faux conforme silencieux). Diagnostic + commit de stabilisation requis AVANT C2.
+- Détail complet : `docs/ROADMAP_EVOLUTIONS.md` §1.3 et `docs/pending-todos.md` (TODO #26).

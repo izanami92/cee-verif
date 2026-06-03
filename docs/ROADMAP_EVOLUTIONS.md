@@ -70,11 +70,26 @@ Implémenté le 28/05/2026 (commit 0aaf465) — voir SOURCE_DE_VERITE_CHECKS.md 
 - **Niveau** : alerte confirmable au stade extraction.
 - **Prérequis** : ces deux dates ne sont pas extraites aujourd'hui → ajouter leur extraction dans le prompt `api/analyze.js`.
 
-### 1.3 — Attestation agricole BAT-EQ-127  *(amorce présente dans le code — à compléter)*
+### 1.3 — Attestation agricole BAT-EQ-127  *(EN COURS — gate NAF posé, maille à stabiliser avant le champ)*
 - **Source** : Dossier CEE, page(s) « ATTESTATION SUR L'HONNEUR — Existence d'un entrepôt de stockage non agricole — BAT-EQ-127 ».
-- **Règle** : si code NAF agricole (**01.xxx ou 02.xxx**), cette attestation est **obligatoire pour CHAQUE chantier** (elle contient aussi les superficies par chantier). Si elle manque pour au moins un chantier → alerte confirmable au stade extraction.
+- **Règle** : si code NAF agricole (**01.xxx ou 02.xxx**), cette attestation est **obligatoire pour CHAQUE chantier** (elle contient aussi les superficies par chantier). Si elle manque pour au moins un chantier → alerte confirmable au stade analyse.
 - **Cohérence** : une entreprise agricole déclare un usage NON-agricole de l'entrepôt → les Règles A (secteur entrepôts) et B (pas de mention agricole sur Audit/Synthèse) restent **inchangées**.
-- **Note code** : la logique `isAgricole` (NAF 01./02.) et la détection des attestations + extraction surfaces existent déjà partiellement. NE PAS dupliquer — compléter l'existant.
+
+**Décisions de conception (actées après diagnostic)** : détection par **champ d'extraction dédié** (pas de proxy « surfaces vides »). Champ `attestationNonAgricole` string à 3 états `'presente' | 'absente' | 'non_detectee'` ; **seul `'presente'` = OK**, tout le reste (y compris omission/doute) = fautif (défaut sûr, façon type `'absent'` de 1.5). **Itération brute par index** de `cee.attestations` (PAS de regroupement par adresse). Gate global `isAgricole`. **Jamais bloquant** (§1). NAF inconnu → **INFO non bloquant** (jamais skip muet). Message **jamais « attestation manquante »** → « présence non confirmée → vérifier l'attestation BAT-EQ-127 », désambiguïsé par surface + LED quand l'adresse se répète. Test du cas fautif via interrupteur temporaire **retiré avant commit**.
+
+**Prérequis — branche 1 (`fix/naf-fiable-avant-alertes`)** :
+- ✅ **C1 fait, mergé en prod (03/06, merge `d499737`)** : helper `ensureCodeNafFromSiret` appelé avant la fenêtre d'alertes → `isAgricole` fiable au bon moment. Testé LES MOUETTES (NAF 01.11Z avant « ANALYSE SECTEURS »), anti-régression 1.4/1.5 OK.
+
+**⛔ Sous-chantier BLOQUANT — STABILISER LA MAILLE DES ATTESTATIONS (prérequis de C2)** :
+Constat sur LES MOUETTES (3 chantiers même adresse, NAF agricole) : **extraction IA non déterministe sur la maille**. Un run renvoie **3 éléments** `cee.attestations` (surfaces séparées `['274']`, `['363']`, `['441']`), un autre run **1 seul élément** empilé (surfaces `['274','363','441']`, `ledTotal` cumulé `'30'`) — même dossier. → un statut `attestationNonAgricole` **par élément** ne suffit pas : si l'IA empile, un statut unique couvrirait plusieurs chantiers → **perte de granularité par chantier → faux conforme silencieux (danger n°1)**. **Avant C2**, forcer un format constant (1 élément = 1 chantier/bâtiment), probablement précédé d'un **diagnostic ciblé du prompt d'extraction** `api/analyze.js`.
+
+**Plan de réalisation — branche 2 (`feat/1.3-attestation-non-agricole`)** :
+0. ⛔ **PRÉREQUIS NOUVEAU — stabiliser la maille des attestations** (ci-dessus). À faire AVANT C2.
+1. **C2** — champ `attestationNonAgricole` dans le prompt `api/analyze.js` (additif). Point de contrôle console : les N attestations portent chacune un statut cohérent.
+2. **C3** — `detectFautifsAttestationNonAgricole(attestations)` (itération brute) + alerte gatée `isAgricole` dans la fenêtre d'alertes.
+3. **C4** — doc (déplacement vers `SOURCE_DE_VERITE_CHECKS.md` §1/§7bis).
+
+- **Note code** : `isAgricole` (NAF 01./02.), détection attestations + extraction surfaces existent déjà ; gate NAF (C1) posé. NE PAS dupliquer — compléter l'existant.
 
 ### 1.4 — Professionnel ayant mis en œuvre = Energie Responsable  ✅ IMPLÉMENTÉ
 Implémenté le 01/06/2026 — voir SOURCE_DE_VERITE_CHECKS.md §1 (alerte de confirmation) et §7bis. Extraction du champ global `cee.entrepriseMiseEnOeuvre` (section C « Professionnel ayant mis en œuvre l'opération… » de l'attestation sur l'honneur Total Énergies — raison sociale, commit `91bf93d`) + alerte confirmable globale à 3 états (non détecté / « Energie Responsable » → exception confirmable / autre → aucune alerte), valeur globale du dossier (patron « reste à payer »), jamais bloquant (commit `5392776`). Cible recentrée en cours de réalisation : raison sociale « Energie Responsable » plutôt que ville « Clichy » (ambiguë : Clichy-sous-Bois…).
@@ -184,4 +199,4 @@ La Phase 1 repose sur le mécanisme d'alerte confirmable par chantier. Ce mécan
 ---
 
 *Établi le 27/05/2026 — cadrage métier détaillé.*
-*Ordre de réalisation suggéré : B2 ✓ → 1.1 ✓ → crash norm.cee null (prod) ✓ → 1.5 ✓ → 1.4 ✓ → reste Phase 1 (1.2, 1.3) → Phase 2 → Phase 3 → Phase 4.*
+*Ordre de réalisation suggéré : B2 ✓ → 1.1 ✓ → crash norm.cee null (prod) ✓ → 1.5 ✓ → 1.4 ✓ → 1.3 [C1 gate NAF ✓ (03/06) → ⛔ stabiliser la maille des attestations → C2 champ → C3 alerte → C4 doc] → 1.2 → Phase 2 → Phase 3 → Phase 4.*
