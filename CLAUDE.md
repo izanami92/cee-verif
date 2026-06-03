@@ -399,10 +399,12 @@ git push origin main
 ---
 
 **Dernière mise à jour** : 3 juin 2026
-**Version** : Phase 1 complète + B1/B2 résolus + évolution 1.1 (alerte reste à payer) + crash `cee` null & anomalie A2 résolus (29/05) + évolutions 1.5 (étude de dimensionnement) & 1.4 (Energie Responsable) (01/06) + bug « état dossier » (volets 1/2 + 2/2) résolu et en prod (02/06, merge `6a38915`) — modèle Chantier/Cellule à cadrer (TODO #22) + évolution 1.3 : gate NAF (`d499737`) & maille des attestations stabilisée (`af21eb8`) en prod — prérequis C2 levé
+**Version** : Phase 1 complète + B1/B2 résolus + évolution 1.1 (alerte reste à payer) + crash `cee` null & anomalie A2 résolus (29/05) + évolutions 1.5 (étude de dimensionnement) & 1.4 (Energie Responsable) (01/06) + bug « état dossier » (volets 1/2 + 2/2) résolu et en prod (02/06, merge `6a38915`) — modèle Chantier/Cellule à cadrer (TODO #22) + **évolution 1.3 COMPLÈTE en prod** (C1 `d499737`, maille `af21eb8`, C2 `0bef3d7`, C3 `5f1da89`)
 
-### Évolution 1.3 (attestation agricole BAT-EQ-127) — EN COURS
+### Évolution 1.3 (attestation agricole BAT-EQ-127) — ✅ COMPLÈTE / EN PROD
 
 - ✅ **C1 mergé en prod (03/06, merge `d499737`)** : helper `ensureCodeNafFromSiret(extractedData)` appelé AVANT la fenêtre d'alertes (après `generateChecks`) + conservé en filet tardif → `window.selectedCodeNaf` / `isAgricole` fiables au moment des alertes (prérequis « gate NAF » posé). Testé LES MOUETTES (NAF 01.11Z récupéré avant « ANALYSE SECTEURS »), anti-régression 1.4/1.5 OK, pas de double fetch.
-- ✅ **Maille d'extraction des attestations stabilisée (03/06, merge `af21eb8`, en prod)** : désambiguïsation du prompt `api/analyze.js` — 1 occurrence de la phrase « La surface réelle de cet entrepôt… » = 1 élément, surfaces mono-valeur, pas d'empilement/regroupement par adresse. Verrou de cardinalité numérique abandonné (pas d'ancrage fiable + aurait saboté C2) ; `ledTotal`/`parcelles` inchangés. Validé LES MOUETTES (3 runs concordants, anti-régression OK). **Prérequis de C2 levé → C2 peut démarrer.**
+- ✅ **Maille d'extraction des attestations stabilisée (03/06, merge `af21eb8`, en prod)** : désambiguïsation du prompt `api/analyze.js` — 1 occurrence de la phrase « La surface réelle de cet entrepôt… » = 1 élément, surfaces mono-valeur, pas d'empilement/regroupement par adresse. Verrou de cardinalité numérique abandonné (pas d'ancrage fiable + aurait saboté C2) ; `ledTotal`/`parcelles` inchangés. Validé LES MOUETTES (3 runs concordants, anti-régression OK).
+- ✅ **C2 — champ `attestationNonAgricole` (`0bef3d7`)** : extraction par attestation, **2 états** `'presente'|'non_detectee'` (état `'absente'` abandonné — titre d'attestation fixe), seul `'presente'` = OK, ancré sur « entrepôt de stockage non agricole ».
+- ✅ **C3 — détection + alerte (`5f1da89`)** : `detectFautifsAttestationNonAgricole` (pure, index, attestations originales) + alerte confirmable gatée `isAgricole`, NAF inconnu → INFO non bloquant, message « présence non confirmée → vérifier BAT-EQ-127 » désambiguïsé surface+LED, jamais bloquant.
 - Détail complet : `docs/ROADMAP_EVOLUTIONS.md` §1.3 et `docs/pending-todos.md` (TODO #26).

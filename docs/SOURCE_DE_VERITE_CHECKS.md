@@ -50,7 +50,9 @@ Déclencheur actif — Étude de dimensionnement ≠ « PRIME EVOLUTION » (ment
 
 Déclencheur actif — Professionnel ayant mis en œuvre = « Energie Responsable » (section C « Professionnel ayant mis en œuvre l'opération … » de l'attestation sur l'honneur Total Énergies ; champ global `cee.entrepriseMiseEnOeuvre` = raison sociale). Implémenté le 01/06/2026 (commits `91bf93d` extraction + `5392776` alerte) sous forme d'alerte confirmable globale (pas par chantier — patron « reste à payer ») à 3 états : absent / illisible → alerte « non détecté — à vérifier » ; présent et contenant « Energie Responsable » (sous-traitant) → alerte « exception confirmable (rare installation par équipe interne) » ; présent et autre → aucune alerte. Test `.includes('energie responsable')` normalisé (couvre casse / accents / ponctuation / suffixe juridique ; ne couvre pas le pluriel « energies responsables » ni les fautes de frappe — lacune assumée). Jamais bloquant.
 
-> Les autres déclencheurs de ce mécanisme (délais de travaux, attestation agricole BAT-EQ-127) sont des **évolutions à venir** — voir `ROADMAP_EVOLUTIONS.md`, Phase 1.
+Déclencheur actif — Attestation « entrepôt de stockage non agricole » (BAT-EQ-127) **non confirmée** pour une entreprise agricole. Implémenté le 03/06/2026 (commits `0bef3d7` extraction du champ `attestations[].attestationNonAgricole` + `5f1da89` détection/alerte). Champ à **2 états** (`'presente'` = seul OK / `'non_detectee'` = défaut sûr), ancré sur la phrase « entrepôt de stockage non agricole » (discrimine de l'attestation « installation de matériel », pas du code BAT-EQ-127 présent sur les deux). Alerte **confirmable, gatée `isAgricole`** (NAF 01./02.) : `detectFautifsAttestationNonAgricole` (itération brute par index sur les attestations originales) signale chaque chantier non confirmé, message « présence non confirmée → vérifier l'attestation BAT-EQ-127 » (jamais « manquante ») désambiguïsé surface+LED. NAF non agricole → aucune alerte ; NAF inconnu → INFO non bloquant (`check_attestation_non_agricole_naf_inconnu`). Jamais bloquant. Prérequis : maille des attestations stabilisée (`af21eb8`, voir §5) + gate NAF C1 (`d499737`).
+
+> Les autres déclencheurs de ce mécanisme (délais de travaux) sont des **évolutions à venir** — voir `ROADMAP_EVOLUTIONS.md`, Phase 1.
 
 ---
 
@@ -190,8 +192,11 @@ Déclencheur actif — Professionnel ayant mis en œuvre = « Energie Responsabl
 | `check_45_N` (audit) | Somme surfaces Audit = Somme attestation | 🟠 | SI ATTEST. |
 | `check_45_N` (synthèse) | Surface Synthèse = Somme attestation | 🟠 | SI ATTEST. |
 | `check_45b_N` | Surfaces par bâtiment (1 à 1) | 🟠 | SI SURFACES DÉTAILLÉES |
+| `attestationNonAgricole` (alerte conf.) | Entrepôt déclaré « non agricole » (BAT-EQ-127) — gatée NAF agricole | ⚠️ conf. | × CHANTIER |
 
 > ℹ️ **Maille d'extraction des attestations** : le prompt `api/analyze.js` force « **1 occurrence de la phrase "La surface réelle de cet entrepôt…" = 1 élément `cee.attestations`, surface mono-valeur** » (commit `af21eb8`, 03/06/2026). Plusieurs surfaces → plusieurs éléments distincts, jamais empilés, même à adresse partagée. `ledTotal` et `parcelles` restent par chantier (facture). Pas de verrou numérique `length == N` (abandonné : pas d'ancrage fiable + casserait la détection d'attestation absente).
+
+> ℹ️ **Champ `attestationNonAgricole` (évolution 1.3, en prod)** : 2 états — `'presente'` (seul OK) / `'non_detectee'` (défaut sûr) — ancré sur la phrase « entrepôt de stockage non agricole » (commit `0bef3d7`). Alimente l'**alerte confirmable gatée `isAgricole`** (voir §1 ; NAF inconnu → INFO non bloquant ; jamais bloquant ; commit `5f1da89`). Lu sur les attestations **originales** uniquement (le regroupement par adresse ne recopie pas la clé).
 
 ---
 

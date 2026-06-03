@@ -31,19 +31,21 @@ Dossier → Chantiers → Cellules. Détail complet dans `docs/ROADMAP_EVOLUTION
 
 ---
 
-### TODO #26 : Évolution 1.3 (attestation BAT-EQ-127) — gate NAF fait ✅, maille stabilisée ✅, C2 à démarrer
+### ✅ TODO #26 : Évolution 1.3 (attestation BAT-EQ-127) — COMPLÈTE et en prod
 
-**Statut** : 🟡 **EN COURS** (3 juin 2026) — C1 + maille mergés en prod ; **C2 débloqué, à démarrer**
+**Statut** : ✅ **TERMINÉE** (3 juin 2026) — C1 + maille + C2 + C3 en prod. Évolution 1.3 complète.
 
 **Fait** :
 - ✅ **C1** (branche `fix/naf-fiable-avant-alertes`, mergé `d499737` le 3 juin) : extraction du helper `ensureCodeNafFromSiret(extractedData)`, appelé AVANT la fenêtre d'alertes (après `generateChecks`) + conservé en filet tardif. → `window.selectedCodeNaf` / `isAgricole` fiables au moment des alertes (prérequis du gate NAF). Testé LES MOUETTES (NAF 01.11Z récupéré avant « ANALYSE SECTEURS »), anti-régression 1.4/1.5 OK, pas de double fetch.
 
-**✅ Prérequis de C2 LEVÉ — maille des attestations stabilisée (commit `af21eb8`, en prod)** :
-La non-détermination constatée sur LES MOUETTES (tantôt 3 éléments à 1 surface, tantôt 1 élément empilé à N surfaces → risque de faux conforme silencieux, danger n°1) est corrigée par **désambiguïsation du prompt** `api/analyze.js` : 1 occurrence de la phrase « La surface réelle de cet entrepôt… » = 1 élément, **surfaces mono-valeur**, pas d'empilement/regroupement par adresse. **Verrou de cardinalité numérique abandonné** (pas d'ancrage fiable + aurait saboté C2). **`ledTotal`/`parcelles` non touchés** (par chantier, facture). Validé LES MOUETTES (3 runs concordants, maille constante, anti-régression `check_09d`/`check_45` OK).
+**✅ 1.3 complète — 4 briques en prod** :
+1. **C1** gate NAF (`d499737`) — `ensureCodeNafFromSiret` avant la fenêtre d'alertes.
+2. **Maille stabilisée** (`af21eb8`) — désambiguïsation du prompt, 1 phrase de surface = 1 élément, surfaces mono-valeur (verrou numérique abandonné ; `ledTotal`/`parcelles` non touchés).
+3. **C2** champ `attestationNonAgricole` (`0bef3d7`) — **2 états** `'presente'|'non_detectee'` (état `'absente'` abandonné : titre d'attestation fixe), seul `'presente'` = OK, ancré sur « entrepôt de stockage non agricole ».
+4. **C3** (`5f1da89`) — `detectFautifsAttestationNonAgricole` (pure, index, attestations **originales**) + alerte confirmable gatée `isAgricole`, NAF inconnu → INFO non bloquant (categorie `cee`), message « présence non confirmée → vérifier BAT-EQ-127 » désambiguïsé surface+LED, jamais bloquant.
++ **C4** doc (ce commit).
 
-**Prochaine étape — C2** : champ `attestationNonAgricole` dans le prompt `api/analyze.js`, désormais débloqué.
-
-**Plan branche 2 (`feat/1.3-attestation-non-agricole`)** : (maille stable) → **C2** champ `attestationNonAgricole` (`'presente'|'absente'|'non_detectee'`, seul `'presente'` = OK) → **C3** `detectFautifsAttestationNonAgricole` (itération brute) + alerte gatée `isAgricole` (NAF inconnu = INFO non bloquant, message désambiguïsé surface+LED, jamais « attestation manquante ») → **C4** doc. Détail complet : `docs/ROADMAP_EVOLUTIONS.md` §1.3.
+**Limites actées (périmètre, PAS bugs)** : (a) couvre seulement les chantiers ayant un élément/attestation — attestation entièrement absente → `check_43` / TODO #27-#22 ; (b) champ lu sur les attestations **ORIGINALES** uniquement (`regrouperAttestationsParAdresse` ne recopie pas la clé).
 
 **Sources** : [Sessions 2-3 juin 2026 — diagnostics 1.3 + implémentation C1]
 
@@ -744,8 +746,8 @@ CREATE TABLE analyses (
 
 ## 📊 STATISTIQUES
 
-**TODOs actifs** : 6
-- 🔴 Critiques : 2 (TODO #22 — modèle Chantier/Cellule, à cadrer ; TODO #26 — évolution 1.3 EN COURS, maille stabilisée → C2 débloqué, à démarrer)
+**TODOs actifs** : 5
+- 🔴 Critiques : 1 (TODO #22 — modèle Chantier/Cellule, à cadrer) — *(TODO #26 / évolution 1.3 : ✅ TERMINÉE en prod)*
 - 🟡 Importantes : 1 (TODO #3 reportée)
 - 🟢 Nice to have : 3
 - 🔍 Bugs à investiguer (non comptés) : TODO #27 — `check_39` faux positif multi-chantiers même adresse ; appariement adresse « 4 » manquant ; réf produit `compareProductRef`
@@ -818,5 +820,5 @@ Ce document doit être mis à jour :
 
 ---
 
-**Dernière révision** : 3 juin 2026 (C1 gate NAF mergé en prod ; maille des attestations stabilisée `af21eb8` en prod → C2 débloqué ; évolution 1.3 EN COURS ; bugs console TODO #27 tracés)
+**Dernière révision** : 3 juin 2026 (évolution 1.3 COMPLÈTE en prod : C1 `d499737`, maille `af21eb8`, C2 `0bef3d7`, C3 `5f1da89`, C4 doc ; bugs console TODO #27 tracés)
 **Prochaine révision** : Prochaine session de développement
