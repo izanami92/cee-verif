@@ -290,7 +290,26 @@ Si tu vois :
 → adresseSiege: "2 Rue de Prepson, 86110 AMBERRE"
 
 CEE - PROFESSIONNEL AYANT MIS EN ŒUVRE (section C de l'attestation sur l'honneur Total Énergies) :
-- entrepriseMiseEnOeuvre : raison sociale de l'entreprise citée dans la section C "Professionnel ayant mis en œuvre l'opération ..." de l'attestation sur l'honneur. Extraire UNIQUEMENT la raison sociale (pas le SIRET, pas l'adresse, pas le nom du signataire). null si la section est absente ou illisible.
+- entrepriseMiseEnOeuvre : raison sociale du professionnel déclaré DANS la section C de l'attestation sur l'honneur Total Énergies.
+
+  OÙ LIRE (ancrage de la SOURCE) :
+  1. Repérer la section dont le titre EXACT est : "C/ Professionnel ayant mis en œuvre l'opération d'économies d'énergie ou assuré sa maîtrise d'œuvre".
+  2. À L'INTÉRIEUR de cette section UNIQUEMENT, prendre la valeur inscrite EN FACE de l'intitulé "Raison sociale".
+  3. Cette section aligne plusieurs champs (Nom du signataire, Fonction du signataire, Raison sociale, Numéro SIRET, Adresse, Code postal, Ville). On veut EXACTEMENT la valeur du champ "Raison sociale" — qui est un champ DISTINCT du "Nom du signataire".
+
+  EXEMPLE (section C) :
+    *Nom du signataire :      Brocas Yann
+    *Fonction du signataire : GERANT
+    *Raison sociale :         LES MOUETTES
+    Numéro SIRET :            34463528900012
+  → entrepriseMiseEnOeuvre: "LES MOUETTES" (la Raison sociale ; PAS le nom du signataire, PAS le SIRET, PAS l'adresse).
+
+  ⚠️ PIÈGE — MAUVAISE SOURCE À NE PAS CONFONDRE AVEC LA SECTION C :
+  - L'émetteur de la FACTURE n'est PAS la section C de l'attestation. Il apparaît en en-tête (avec le logo) et en pied de CHAQUE page de facture, sous la forme d'un bloc de coordonnées de société : nom + adresse + e-mail + "SAS au capital de ..." + "SIRET ..." + "... R.C.S. ..." (souvent domicilié à CLICHY).
+  - Ce bloc "émetteur de facture" ne doit JAMAIS servir à remplir entrepriseMiseEnOeuvre : ce n'est pas la section C.
+  - À l'inverse, si une raison sociale est bien inscrite EN FACE de "Raison sociale" À L'INTÉRIEUR de la section C, c'est ELLE qu'il faut extraire — même si la même société apparaît aussi ailleurs dans le dossier.
+
+  null si la section C est absente ou illisible.
 
 ⚠️ RÈGLE CRITIQUE - EXTRACTION DES SURFACES DEPUIS LES ATTESTATIONS :
 
@@ -514,7 +533,7 @@ FORMAT DE RÉPONSE (JSON uniquement) :
     "dateFinTravaux": "30/10/2025",
     "dateFacture": "05/11/2025",
     "resteAPayer": "Reste à payer / reste à charge",
-    "entrepriseMiseEnOeuvre": "Energie Responsable",
+    "entrepriseMiseEnOeuvre": "Raison sociale du professionnel (section C de l'attestation)",
     "parcelles": "Parcelles cadastrales",
     "referenceLed": "DAEWOO ou TECH (détecté depuis facture)",
     "attestations": [
