@@ -260,6 +260,10 @@ RÈGLE D'EXTRACTION :
     * Si plusieurs chantiers : CHAQUE attestation a ses propres parcelles
     * Si un seul chantier : toutes les parcelles vont dans cette attestation
   - etudeDimensionnement : entreprise citée dans la mention "Etude de dimensionnement réalisée par l'entreprise ..." de la FACTURE, pour CE chantier (ex: "PRIME EVOLUTION"). null si la mention est absente. Extraire UNIQUEMENT l'entreprise (pas SIRET/adresse/représentant).
+  - attestationNonAgricole : statut de l'« ATTESTATION SUR L'HONNEUR — Existence d'un entrepôt de stockage non agricole » pour CE chantier. 2 valeurs EXACTES :
+    * "presente" → la phrase « entrepôt de stockage non agricole » est bien détectée dans l'attestation sur l'honneur de ce chantier. SEUL cas conforme.
+    * "non_detectee" → cette phrase n'est PAS détectée (attestation entrepôt absente, illisible, ou doute). VALEUR PAR DÉFAUT. Ne JAMAIS mettre "presente" par défaut.
+    * ⚠️ La phrase « entrepôt de stockage non agricole » est ce qui DISTINGUE cette attestation de l'« Attestation d'installation de matériel … par le service technique interne ». NE PAS déduire "presente" du seul code « BAT-EQ-127 » (présent sur les DEUX attestations).
 - COMBINER facture + attestations pour obtenir : {adresse: "...", surfaces: ["850"], ledTotal: "35", secteurActivite: "Entrepôts", parcelles: "000/0B/0551 - 000/0B/0547"}
 
 CEE - ADRESSE DU SIÈGE SOCIAL (CRITIQUE) :
@@ -507,7 +511,8 @@ FORMAT DE RÉPONSE (JSON uniquement) :
         "ledTotal": "35",
         "secteurActivite": "Entrepôts",
         "parcelles": "000/0B/0551 - 000/0B/0547 - 000/0B/0549",
-        "etudeDimensionnement": "PRIME EVOLUTION"
+        "etudeDimensionnement": "PRIME EVOLUTION",
+        "attestationNonAgricole": "presente"
       },
       {
         "adresse": "25 avenue Test 60130 VILLE2",
@@ -515,7 +520,8 @@ FORMAT DE RÉPONSE (JSON uniquement) :
         "ledTotal": "31",
         "secteurActivite": "Entrepôts",
         "parcelles": "000/0E/0277",
-        "etudeDimensionnement": "PRIME EVOLUTION"
+        "etudeDimensionnement": "PRIME EVOLUTION",
+        "attestationNonAgricole": "presente"
       }
     ],
     "mentionsAgricoles": {
