@@ -28,3 +28,11 @@ npm-debug.log*
 /playwright-report/
 /blob-report/
 /playwright/.cache/
+
+# Scratch d'analyse de transcripts (générés localement, non versionnés)
+analyze_transcripts.py
+detailed_analysis.json
+TRANSCRIPT_ANALYSIS.md
+README_ANALYSE.md
+LISEZMOI_ANALYSE.md
+INDEX_SOURCES.md
