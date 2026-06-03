@@ -243,9 +243,15 @@ RÈGLE D'EXTRACTION :
 - Si cette attestation n'existe PAS dans le document → surfaces: []
 - Ne JAMAIS extraire les surfaces depuis l'attestation d'installation de matériel
 
+⚠️ MAILLE DES ATTESTATIONS (RÈGLE IMPÉRATIVE) :
+- 1 occurrence de la phrase "La surface réelle de cet entrepôt ... est de XXX m²" = 1 élément dans attestations[].
+- CHAQUE élément porte EXACTEMENT UNE surface. NE JAMAIS empiler plusieurs surfaces dans un même élément.
+- S'il y a 3 phrases de surface → 3 éléments distincts : surfaces ["274"], puis ["363"], puis ["441"] — JAMAIS 1 seul élément avec surfaces ["274","363","441"].
+- NE PAS regrouper les attestations par adresse : même si plusieurs partagent la même adresse postale, 1 phrase de surface = 1 élément (ledTotal et parcelles restent ceux de CE chantier, lus depuis la facture).
+
 - Pour CHAQUE "ATTESTATION SUR L'HONNEUR" (celle concernant l'entrepôt), extraire :
   - adresse : adresse du chantier
-  - surfaces : tableau des surfaces ["850", "456"]
+  - surfaces : tableau contenant UNE seule surface, ex. ["850"] (voir RÈGLE DE MAILLE ci-dessus)
   - ledTotal : nombre de LED (depuis facture)
   - secteurActivite : secteur d'activité SPÉCIFIQUE à ce chantier (voir section suivante)
   - parcelles : parcelles cadastrales SPÉCIFIQUES à ce chantier (format "000/0B/0551 - 000/0B/0547")
@@ -294,7 +300,7 @@ Les attestations sur l'honneur ont un FORMAT STANDARD. Chercher la phrase EXACTE
 2. Dans cette section, chercher la phrase qui commence par "La surface réelle de cet entrepôt"
 3. La valeur de surface est à la FIN de cette phrase, en gras
 4. Extraire UNIQUEMENT le nombre (ex: "879", "876", "703")
-5. Si plusieurs attestations → CHAQUE attestation a cette phrase avec SA surface
+5. MAILLE IMPÉRATIVE : 1 occurrence de la phrase "La surface réelle de cet entrepôt..." = 1 élément d'attestation portant EXACTEMENT 1 surface. Plusieurs phrases → plusieurs éléments distincts. NE JAMAIS empiler plusieurs surfaces (ex. ["274","363","441"]) dans un seul élément ; produire un élément par phrase (["274"], puis ["363"], puis ["441"]).
 
 **Exemples d'extraction :**
 - Si tu vois "La surface réelle de cet entrepôt, prise en compte pour l'opération CEE, est de 879 m²"
@@ -497,7 +503,7 @@ FORMAT DE RÉPONSE (JSON uniquement) :
     "attestations": [
       {
         "adresse": "1 rue Example 60000 VILLE1",
-        "surfaces": ["850", "456"],
+        "surfaces": ["850"],
         "ledTotal": "35",
         "secteurActivite": "Entrepôts",
         "parcelles": "000/0B/0551 - 000/0B/0547 - 000/0B/0549",
