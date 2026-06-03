@@ -2897,6 +2897,53 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
             // CAS NAF présent & non agricole → aucune alerte (règle non applicable)
           }
 
+          // ========== VÉRIFICATION DÉLAIS DE TRAVAUX (ALERTE CONFIRMABLE) ==========
+          // Évolution 1.2 : R1 début ≥ prévisite + 14 j calendaires ; R2 fin > début (strict) ; R3 facture > fin (strict).
+          // Valeur GLOBALE du dossier (patron « reste à payer »). Date manquante → 'non_verifiable' (jamais silencieux).
+          // Jamais bloquant (§1) : confirmable, n'altère pas page_garde_ok.
+          {
+            const cee = extractedData.cee || {};
+            const delais = verifierDelaisTravaux(cee);
+            const lignesDelais = [];
+
+            // R1 — prévisite → début (+14 j calendaires)
+            if (delais.r1.statut === 'fautif') {
+              lignesDelais.push(`• Délai prévisite → début insuffisant : début ${cee.dateDebutTravaux} à ${delais.r1.ecart} j de la prévisite ${cee.datePrevisite} (minimum 14 jours calendaires)`);
+            } else if (delais.r1.statut === 'non_verifiable') {
+              const quoi = (!cee.datePrevisite && !cee.dateDebutTravaux) ? 'prévisite et début' : (!cee.datePrevisite ? 'prévisite' : 'début');
+              lignesDelais.push(`• Délai prévisite → début non vérifiable : date ${quoi} absente`);
+            }
+
+            // R2 — début → fin (strict)
+            if (delais.r2.statut === 'fautif') {
+              lignesDelais.push(`• Date de fin des travaux invalide : fin ${cee.dateFinTravaux} n'est pas postérieure au début ${cee.dateDebutTravaux}`);
+            } else if (delais.r2.statut === 'non_verifiable') {
+              const quoi = (!cee.dateDebutTravaux && !cee.dateFinTravaux) ? 'début et fin' : (!cee.dateDebutTravaux ? 'début' : 'fin');
+              lignesDelais.push(`• Délai début → fin non vérifiable : date ${quoi} absente`);
+            }
+
+            // R3 — fin → facture (strict)
+            if (delais.r3.statut === 'fautif') {
+              lignesDelais.push(`• Date de facture invalide : facture ${cee.dateFacture} n'est pas postérieure à la fin des travaux ${cee.dateFinTravaux}`);
+            } else if (delais.r3.statut === 'non_verifiable') {
+              const quoi = (!cee.dateFinTravaux && !cee.dateFacture) ? 'fin et facture' : (!cee.dateFinTravaux ? 'fin' : 'facture');
+              lignesDelais.push(`• Délai fin → facture non vérifiable : date ${quoi} absente`);
+            }
+
+            if (lignesDelais.length > 0) {
+              const msgDelais = `⚠️ Vérification des délais de travaux — anomalie(s) détectée(s) :\n\n` +
+                lignesDelais.join('\n') +
+                `\n\nOK = je confirme avoir vérifié les délais sur le CEE\n` +
+                `Annuler = corriger le CEE`;
+              if (!confirm(msgDelais)) {
+                updateProgress(0, 'Analyse annulée par l\'utilisateur');
+                return; // Arrêter l'analyse (identique au pattern secteur / reste à payer / dimensionnement)
+              } else {
+                console.log('✅ Utilisateur a acquitté l\'alerte délais de travaux');
+              }
+            }
+          }
+
           // Vérifier page de garde (checks 1-3)
           const pageGardeChecks = checks.slice(0, 3);
           const pageGardeOk = pageGardeChecks.every(c => c.niveau === 'ok');
@@ -3802,6 +3849,43 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
         }
       });
       return fautifs;
+    }
+
+    // Parse une date française "JJ/MM/AAAA" (espaces tolérés) → objet Date à MINUIT (mois 0-indexé). null si vide/illisible.
+    function parseDateFr(str) {
+      if (!str) return null;
+      const m = String(str).replace(/\s+/g, '').match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+      if (!m) return null;
+      const jj = parseInt(m[1], 10), mm = parseInt(m[2], 10), aaaa = parseInt(m[3], 10);
+      const d = new Date(aaaa, mm - 1, jj); // minuit local
+      // Rejeter les dates impossibles (ex. 31/02 que Date "corrigerait" silencieusement)
+      if (d.getFullYear() !== aaaa || d.getMonth() !== mm - 1 || d.getDate() !== jj) return null;
+      return d;
+    }
+
+    // Vérifie les 3 règles de délais de travaux (évolution 1.2). Pur. Statut ∈ {'ok','fautif','non_verifiable'}.
+    // R1 début ≥ prévisite + 14 j calendaires ; R2 fin > début (strict) ; R3 facture > fin (strict).
+    // Date manquante/illisible sur une règle → 'non_verifiable' (jamais 'ok', jamais silencieux).
+    function verifierDelaisTravaux(cee) {
+      const previsite = parseDateFr(cee && cee.datePrevisite);
+      const debut     = parseDateFr(cee && cee.dateDebutTravaux);
+      const fin       = parseDateFr(cee && cee.dateFinTravaux);
+      const facture   = parseDateFr(cee && cee.dateFacture);
+      const JOUR = 86400000;
+
+      let r1;
+      if (!previsite || !debut) r1 = { statut: 'non_verifiable' };
+      else { const ecart = Math.round((debut - previsite) / JOUR); r1 = { statut: ecart >= 14 ? 'ok' : 'fautif', ecart }; }
+
+      let r2;
+      if (!debut || !fin) r2 = { statut: 'non_verifiable' };
+      else r2 = { statut: fin.getTime() > debut.getTime() ? 'ok' : 'fautif' };
+
+      let r3;
+      if (!fin || !facture) r3 = { statut: 'non_verifiable' };
+      else r3 = { statut: facture.getTime() > fin.getTime() ? 'ok' : 'fautif' };
+
+      return { r1, r2, r3 };
     }
 
     function generateChecks(extracted, references) {

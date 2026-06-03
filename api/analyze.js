@@ -354,6 +354,15 @@ MENTIONS AGRICOLES :
 - SAUF dans le nom de la société (le nom peut contenir "agricole")
 - Retourner true si trouvé, false sinon
 
+CEE - DATES DE DÉLAIS (PRÉVISITE, TRAVAUX, FACTURE) :
+- Sur la PAGE 1 du dossier CEE, dans l'encadré EN HAUT À GAUCHE (sous le n° client et le n° de devis), ces 4 dates sont groupées au même endroit. Extraire UNIQUEMENT depuis cet encadré, d'après le LIBELLÉ EXACT :
+  - datePrevisite : libellé "Date de prévisite"
+  - dateDebutTravaux : libellé "Date de début des travaux"
+  - dateFinTravaux : libellé "Date de fin des travaux"
+  - dateFacture : libellé "Date de facture"
+- Format JJ/MM/AAAA. null si le libellé est absent ou la date illisible.
+- ⚠️ NE PAS confondre "Date de prévisite" avec "Date de l'étude de dimensionnement préalable" (autre date du document, parfois identique en valeur) : s'ancrer sur le libellé EXACT "Date de prévisite".
+
 6. AUDIT - RÈGLE CRITIQUE EXTRACTION :
    Pour CHAQUE audit, extraire UNIQUEMENT depuis la PAGE 1 (page de garde) :
 
@@ -500,6 +509,10 @@ FORMAT DE RÉPONSE (JSON uniquement) :
     "totalLed": "Nombre total LED",
     "dateDevis": "Date envoi devis",
     "dateSignature": "Date signature/engagement",
+    "datePrevisite": "08/10/2025",
+    "dateDebutTravaux": "23/10/2025",
+    "dateFinTravaux": "30/10/2025",
+    "dateFacture": "05/11/2025",
     "resteAPayer": "Reste à payer / reste à charge",
     "entrepriseMiseEnOeuvre": "Energie Responsable",
     "parcelles": "Parcelles cadastrales",
