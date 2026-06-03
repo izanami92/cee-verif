@@ -2846,6 +2846,57 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
             }
           }
 
+          // ========== VÉRIFICATION ATTESTATION NON AGRICOLE (ALERTE CONFIRMABLE, GATÉE NAF) ==========
+          // Évolution 1.3 / C3 : pour une entreprise agricole (NAF 01./02.), l'attestation sur l'honneur
+          // « entrepôt de stockage non agricole » (BAT-EQ-127) est attendue pour CHAQUE chantier.
+          // Gate isAgricole (window.selectedCodeNaf fiable car ensureCodeNafFromSiret appelé plus haut, ~l.2652).
+          // Patron multi-chantiers calqué sur 1.5. Jamais bloquant (§1) : confirmable, n'altère pas page_garde_ok.
+          {
+            const codeNaf = window.selectedCodeNaf || localStorage.getItem('ceeVerifCodeNaf') || '';
+            const isAgricole = codeNaf.startsWith('01.') || codeNaf.startsWith('02.');
+            const attsNonAgri = extractedData.cee?.attestations || [];
+
+            if (isAgricole) {
+              // CAS NAF agricole : alerte confirmable si au moins un chantier dont la présence n'est pas confirmée
+              const fautifsNonAgri = detectFautifsAttestationNonAgricole(attsNonAgri);
+              if (fautifsNonAgri.length > 0) {
+                const lignesChantiers = fautifsNonAgri.map(f => {
+                  const adr = (f.adresse || '').substring(0, 50);
+                  const suite = (f.adresse || '').length > 50 ? '...' : '';
+                  // surface + LED INDIVIDUELS = indispensables pour distinguer des chantiers à même adresse (LES MOUETTES)
+                  return `• Chantier ${f.index} : ${adr}${suite} — ${f.surface} m² / ${f.ledTotal} LED\n` +
+                         `  présence non confirmée → vérifier l'attestation BAT-EQ-127 (entrepôt de stockage non agricole)`;
+                }).join('\n\n');
+
+                const msg = `⚠️ ATTENTION : entreprise agricole (NAF ${codeNaf}) — attestation « entrepôt de stockage non agricole » à vérifier\n\n` +
+                  `Pour une entreprise agricole, cette attestation sur l'honneur (BAT-EQ-127) est attendue pour CHAQUE chantier. Présence non confirmée automatiquement pour :\n\n` +
+                  lignesChantiers +
+                  `\n\nOK = je confirme avoir vérifié l'attestation BAT-EQ-127 sur le CEE\n` +
+                  `Annuler = compléter / corriger le dossier`;
+
+                if (!confirm(msg)) {
+                  updateProgress(0, 'Analyse annulée par l\'utilisateur');
+                  return; // Arrêter l'analyse (identique au pattern secteur / reste à payer / dimensionnement)
+                } else {
+                  console.log('✅ Utilisateur a acquitté l\'alerte attestation non agricole');
+                }
+              }
+            } else if (!codeNaf && attsNonAgri.length > 0) {
+              // CAS NAF inconnu : filet dormant non bloquant (jamais de skip muet), sans confirm()
+              checks.push({
+                id: 'check_attestation_non_agricole_naf_inconnu',
+                categorie: 'cee',
+                niveau: 'info',
+                champ: 'Attestation entrepôt non agricole (BAT-EQ-127)',
+                localisation: 'Dossier CEE, attestation entrepôt non agricole BAT-EQ-127',
+                detail: 'Code NAF non récupéré → vérifier manuellement si l\'attestation BAT-EQ-127 (entrepôt non agricole) est requise pour ce dossier.',
+                valeur_attendue: 'Vérification manuelle',
+                valeur_trouvee: 'Code NAF non disponible'
+              });
+            }
+            // CAS NAF présent & non agricole → aucune alerte (règle non applicable)
+          }
+
           // Vérifier page de garde (checks 1-3)
           const pageGardeChecks = checks.slice(0, 3);
           const pageGardeOk = pageGardeChecks.every(c => c.niveau === 'ok');
@@ -3728,6 +3779,27 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
           fautifs.push({ index: i + 1, adresse: (att && att.adresse) || '', type: 'autre', valeur: brut });
         }
         // sinon → contient "prime evolution" normalisé → OK, pas de fautif
+      });
+      return fautifs;
+    }
+
+    // Détection des chantiers fautifs pour l'évolution 1.3 / C3 (attestation « entrepôt de stockage non agricole »).
+    // Pure (aucun effet de bord). Itération brute par index sur les attestations ORIGINALES (PAS de regroupement).
+    // Fautif = attestationNonAgricole !== 'presente' ('non_detectee', null, undefined, autre → fautif ; défaut sûr).
+    // surface/ledTotal INDIVIDUELS (pour distinguer des chantiers à même adresse, ex. LES MOUETTES).
+    function detectFautifsAttestationNonAgricole(attestations) {
+      if (!Array.isArray(attestations)) return [];
+      const fautifs = [];
+      attestations.forEach((att, i) => {
+        const statut = att && att.attestationNonAgricole;
+        if (statut !== 'presente') {
+          fautifs.push({
+            index: i + 1,
+            adresse: (att && att.adresse) || '',
+            surface: sumSurfaces(att && att.surfaces),
+            ledTotal: parseFloat(String((att && att.ledTotal) || '0').replace(/[^\d.]/g, ''))
+          });
+        }
       });
       return fautifs;
     }
