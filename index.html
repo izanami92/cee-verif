@@ -1396,7 +1396,8 @@
 
         <!-- Onglets -->
         <div class="tabs">
-          <button class="tab active" data-tab="tous">Tous les points</button>
+          <button class="tab active" data-tab="familles">Par famille</button>
+          <button class="tab" data-tab="tous">Tous les points</button>
           <button class="tab" data-tab="garde">Page de garde</button>
           <button class="tab" data-tab="synthese">Synthèse</button>
           <button class="tab" data-tab="audit">Audit</button>
@@ -1404,7 +1405,11 @@
         </div>
 
         <!-- Panneaux -->
-        <div id="tabTous" class="tab-panel active">
+        <div id="tabFamilles" class="tab-panel active">
+          <div id="checksListFamilles" class="checks-list"></div>
+        </div>
+
+        <div id="tabTous" class="tab-panel">
           <div id="checksListTous" class="checks-list"></div>
         </div>
 
@@ -1438,6 +1443,9 @@
     </main>
 
   </div>
+
+  <!-- Table check→famille (Chantier B) : pose window.CEE_FAMILLES + window.resolveFamille -->
+  <script src="familles-config.js"></script>
 
   <script>
     // ========== CONFIGURATION PDF.JS ==========
@@ -1543,6 +1551,7 @@
       tabs: document.querySelectorAll('.tab'),
       tabPanels: document.querySelectorAll('.tab-panel'),
 
+      checksListFamilles: document.getElementById('checksListFamilles'),
       checksListTous: document.getElementById('checksListTous'),
       checksListGarde: document.getElementById('checksListGarde'),
       checksListSynthese: document.getElementById('checksListSynthese'),
@@ -5989,6 +5998,160 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
       return { bloquants, groupes, checksOrphelins };
     }
 
+    // ========== VUE PAR FAMILLE DE DONNÉE MÉTIER (Chantier B) ==========
+    // Range les checks issus de generateChecks dans les 10 familles de window.CEE_FAMILLES
+    // via window.resolveFamille (par id). Les checks Google Sheet (sheet_*) et les ids non
+    // reconnus (resolveFamille → null) vont dans des seaux séparés, visibles seulement s'ils
+    // sont présents (jamais masqués en silence). Ne touche pas getGroupeForCheck (legacy).
+    function renderChecksByFamille(checks, container) {
+      if (!container) return;
+
+      // Garde-fou : si la table famille n'est pas chargée, ne PAS masquer les checks.
+      if (typeof window.resolveFamille !== 'function' || !window.CEE_FAMILLES) {
+        container.innerHTML = '<div class="check-card info"><div class="check-detail">⚠ Table des familles non chargée (familles-config.js)</div></div>';
+        return;
+      }
+
+      const ORDRE = window.CEE_FAMILLES.ORDRE;
+      const LIBELLES = window.CEE_FAMILLES.LIBELLES;
+
+      // 1. Répartition en seaux (ordre de checks[] préservé — pas de tri en v1)
+      const parFamille = {};   // clé famille → [checks]
+      const sheetChecks = [];  // id commence par "sheet_" (hors périmètre familles métier)
+      const nonClasses = [];   // resolveFamille → null (id non reconnu)
+
+      (checks || []).forEach(check => {
+        if ((check.id || '').startsWith('sheet_')) {
+          sheetChecks.push(check);
+          return;
+        }
+        const fam = window.resolveFamille(check);
+        if (fam === null || fam === undefined) {
+          nonClasses.push(check);
+          return;
+        }
+        (parFamille[fam] || (parFamille[fam] = [])).push(check);
+      });
+
+      // 2. État d'une famille (4 niveaux) + ouverture par défaut.
+      //    bloquant → rouge/ouvert ; majeur → orange/ouvert ; ok (ok seul OU ok+info) → vert/replié ;
+      //    info-only → slate/replié (NON conforme). Pire état : bloquant > majeur > ok > info.
+      function familleEtat(famChecks) {
+        const niveaux = famChecks.map(c => c.niveau);
+        if (niveaux.includes('bloquant')) return { niveau: 'bloquant', couleur: 'var(--color-bloquant)', label: 'BLOQUANT', ouvert: true };
+        if (niveaux.includes('majeur'))   return { niveau: 'majeur',   couleur: 'var(--color-majeur)',   label: 'MAJEUR',   ouvert: true };
+        if (niveaux.includes('ok'))       return { niveau: 'ok',       couleur: 'var(--color-conforme)', label: 'OK',       ouvert: false };
+        return { niveau: 'info', couleur: 'var(--color-info)', label: 'INFO', ouvert: false };
+      }
+
+      let html = '';
+
+      // 3. Familles métier, dans l'ordre CEE_FAMILLES.ORDRE, familles vides omises
+      ORDRE.forEach(fam => {
+        const famChecks = parFamille[fam];
+        if (!famChecks || famChecks.length === 0) return;
+
+        const etat = familleEtat(famChecks);
+        const nbOk = famChecks.filter(c => c.niveau === 'ok').length; // instances, pas patterns
+        const nbTotal = famChecks.length;
+
+        // Famille 7 : mention état partiel si check_47_global présent (bug moteur SIGNALÉ, non corrigé)
+        const mention7 = (fam === '7' && famChecks.some(c => c.id === 'check_47_global'))
+          ? `<div style="font-size: 0.75rem; color: var(--color-majeur); margin-top: 0.25rem;">⚠ réconciliation surfaces partielle (volet audits indisponible)</div>`
+          : '';
+
+        html += `
+          <div class="groupe-checks" style="margin-bottom: var(--spacing-md); border: 1px solid rgba(255,255,255,0.1); border-radius: var(--radius-md); overflow: hidden;">
+            <div class="groupe-header" style="background: rgba(255,255,255,0.05); padding: var(--spacing-md); cursor: pointer; display: flex; justify-content: space-between; align-items: center;"
+                 onclick="this.parentElement.querySelector('.groupe-content').classList.toggle('collapsed')">
+              <div style="display: flex; align-items: center; gap: var(--spacing-md);">
+                <span class="niveau-badge ${etat.niveau}" style="background: ${etat.couleur}; color: white; padding: 0.25rem 0.5rem; border-radius: var(--radius-sm); font-size: 0.75rem; font-weight: 600;">${etat.label}</span>
+                <div>
+                  <h4 style="margin: 0; font-size: 1rem;">${fam} — ${LIBELLES[fam]}</h4>
+                  ${mention7}
+                </div>
+              </div>
+              <div style="display: flex; align-items: center; gap: var(--spacing-sm);">
+                <span style="font-size: 0.875rem; color: var(--color-text-light);">${nbOk}/${nbTotal} conformes</span>
+                <span class="toggle-icon">▼</span>
+              </div>
+            </div>
+            <div class="groupe-content${etat.ouvert ? '' : ' collapsed'}" style="padding: var(--spacing-sm);">
+              ${famChecks.map(c => createCheckCard(c)).join('')}
+            </div>
+          </div>
+        `;
+      });
+
+      // 4. Seau Google Sheet (hors familles métier) — rendu seulement si non vide
+      if (sheetChecks.length > 0) {
+        html += `
+          <div class="groupe-checks" style="margin-bottom: var(--spacing-md); border: 1px dashed rgba(255,255,255,0.2); border-radius: var(--radius-md); overflow: hidden;">
+            <div class="groupe-header" style="background: rgba(255,255,255,0.03); padding: var(--spacing-md); cursor: pointer; display: flex; justify-content: space-between; align-items: center;"
+                 onclick="this.parentElement.querySelector('.groupe-content').classList.toggle('collapsed')">
+              <div style="display: flex; align-items: center; gap: var(--spacing-md);">
+                <span class="niveau-badge info" style="background: var(--color-info); color: white; padding: 0.25rem 0.5rem; border-radius: var(--radius-sm); font-size: 0.75rem; font-weight: 600;">SHEET</span>
+                <div>
+                  <h4 style="margin: 0; font-size: 1rem;">Comparaison Google Sheet (${sheetChecks.length})</h4>
+                  <div style="font-size: 0.75rem; color: var(--color-text-light);">hors familles métier — configuration à finaliser</div>
+                </div>
+              </div>
+              <span class="toggle-icon">▼</span>
+            </div>
+            <div class="groupe-content" style="padding: var(--spacing-sm);">
+              ${sheetChecks.map(c => createCheckCard(c)).join('')}
+            </div>
+          </div>
+        `;
+      }
+
+      // 5. Seau Non classés — rendu seulement si non vide (signal visible, jamais silencieux)
+      if (nonClasses.length > 0) {
+        html += `
+          <div class="groupe-checks" style="margin-bottom: var(--spacing-md); border: 1px solid var(--color-majeur); border-radius: var(--radius-md); overflow: hidden;">
+            <div class="groupe-header" style="background: rgba(245,158,11,0.08); padding: var(--spacing-md); cursor: pointer; display: flex; justify-content: space-between; align-items: center;"
+                 onclick="this.parentElement.querySelector('.groupe-content').classList.toggle('collapsed')">
+              <div style="display: flex; align-items: center; gap: var(--spacing-md);">
+                <span class="niveau-badge majeur" style="background: var(--color-majeur); color: white; padding: 0.25rem 0.5rem; border-radius: var(--radius-sm); font-size: 0.75rem; font-weight: 600;">⚠️ NON CLASSÉS</span>
+                <h4 style="margin: 0; font-size: 1rem;">Checks non reconnus par la table familles (${nonClasses.length})</h4>
+              </div>
+              <span class="toggle-icon">▼</span>
+            </div>
+            <div class="groupe-content" style="padding: var(--spacing-sm);">
+              ${nonClasses.map(c => createCheckCard(c)).join('')}
+            </div>
+          </div>
+        `;
+      }
+
+      container.innerHTML = html;
+
+      // Style .collapsed partagé (déjà injecté par renderChecksWithGroups le cas échéant)
+      if (!document.getElementById('groupe-collapsed-style')) {
+        const style = document.createElement('style');
+        style.id = 'groupe-collapsed-style';
+        style.textContent = `
+          .groupe-content.collapsed { display: none; }
+          .groupe-content.collapsed + .groupe-header .toggle-icon { transform: rotate(-90deg); }
+        `;
+        document.head.appendChild(style);
+      }
+
+      // 6. Récap console — outil de validation sur dossier réel (garde/retrait décidé plus tard)
+      console.groupCollapsed('🔎 Vue famille — récap');
+      ORDRE.forEach(fam => {
+        const n = (parFamille[fam] || []).length;
+        console.log(`${fam} — ${LIBELLES[fam]} : ${n} check(s)`);
+      });
+      if (nonClasses.length > 0) {
+        console.warn('Non classés (resolveFamille → null) :', nonClasses.map(c => c.id));
+      }
+      if (sheetChecks.length > 0) {
+        console.log('Google Sheet mis de côté (sheet_*) :', sheetChecks.map(c => c.id));
+      }
+      console.groupEnd();
+    }
+
     function renderChecksWithGroups(checks, container) {
       const { bloquants, groupes, checksOrphelins } = groupChecksByCategory(checks);
 
@@ -6689,6 +6852,9 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
       const checksToDisplay = activeFilter
         ? currentChecks.filter(c => c.niveau === activeFilter)
         : currentChecks;
+
+      // Vue principale : regroupement par famille de donnée métier (Chantier B)
+      renderChecksByFamille(checksToDisplay, elements.checksListFamilles);
 
       // Afficher avec la nouvelle structure hiérarchique dans l'onglet "Tous"
       renderChecksHierarchical(checksToDisplay, elements.checksListTous);
