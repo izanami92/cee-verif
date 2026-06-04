@@ -1034,6 +1034,77 @@
         max-height: none;
       }
     }
+
+    /* ========== MODAL DE CONFIRMATION (remplace confirm() natif) ========== */
+    .confirm-modal-overlay {
+      position: fixed;
+      inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 1000;
+      padding: var(--spacing-md);
+    }
+
+    .confirm-modal-overlay.show {
+      display: flex;
+    }
+
+    .confirm-modal-card {
+      background: var(--color-white);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-lg);
+      font-family: var(--font-sans);
+      padding: var(--spacing-xl);
+      max-width: 560px;
+      width: 100%;
+      max-height: 85vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .confirm-modal-message {
+      white-space: pre-wrap;
+      color: var(--color-text);
+      font-size: 0.9375rem;
+      line-height: 1.5;
+      overflow-y: auto;
+      max-height: 60vh;
+    }
+
+    .confirm-modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: var(--spacing-sm);
+      margin-top: var(--spacing-lg);
+    }
+
+    .confirm-modal-btn {
+      padding: 0.625rem var(--spacing-lg);
+      border-radius: var(--radius-md);
+      font-weight: 600;
+      font-size: 0.9375rem;
+      transition: background 0.2s, opacity 0.2s;
+    }
+
+    .confirm-modal-btn-cancel {
+      background: var(--color-info);
+      color: var(--color-white);
+    }
+
+    .confirm-modal-btn-cancel:hover {
+      opacity: 0.9;
+    }
+
+    .confirm-modal-btn-ok {
+      background: var(--color-sidebar);
+      color: var(--color-white);
+    }
+
+    .confirm-modal-btn-ok:hover {
+      background: var(--color-sidebar-light);
+    }
   </style>
 </head>
 <body>
@@ -2456,6 +2527,49 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
     }
 
     // ========== ANALYSE ==========
+    // Modal de confirmation custom : remplace confirm() natif (supprimé par certains
+    // navigateurs → renvoyait false sans rien afficher → « Analyse annulée » fantôme).
+    // Renvoie Promise<boolean> : OK → true ; Annuler / Échap / clic backdrop → false.
+    function confirmModal(message) {
+      return new Promise((resolve) => {
+        const overlay = document.getElementById('confirmModalOverlay');
+        const messageEl = document.getElementById('confirmModalMessage');
+        const okBtn = document.getElementById('confirmModalOk');
+        const cancelBtn = document.getElementById('confirmModalCancel');
+
+        // textContent (jamais innerHTML) : pas d'injection HTML, et les \n sont
+        // préservés grâce à white-space: pre-wrap sur .confirm-modal-message.
+        messageEl.textContent = message;
+        overlay.classList.add('show');
+        okBtn.focus(); // focus OK → Entrée = OK, comme confirm() natif
+
+        let settled = false; // garde « resolve une seule fois »
+
+        const cleanup = (result) => {
+          if (settled) return;
+          settled = true;
+          overlay.classList.remove('show');
+          okBtn.removeEventListener('click', onOk);
+          cancelBtn.removeEventListener('click', onCancel);
+          overlay.removeEventListener('mousedown', onBackdrop);
+          document.removeEventListener('keydown', onKeydown);
+          resolve(result);
+        };
+
+        const onOk = () => cleanup(true);
+        const onCancel = () => cleanup(false);
+        // mousedown + target === overlay : ne ferme que si le clic démarre sur le fond
+        // (un drag de sélection de texte relâché hors carte ne ferme pas par erreur).
+        const onBackdrop = (e) => { if (e.target === overlay) cleanup(false); };
+        const onKeydown = (e) => { if (e.key === 'Escape') cleanup(false); };
+
+        okBtn.addEventListener('click', onOk);
+        cancelBtn.addEventListener('click', onCancel);
+        overlay.addEventListener('mousedown', onBackdrop);
+        document.addEventListener('keydown', onKeydown);
+      });
+    }
+
     elements.btnAnalyze.addEventListener('click', async () => {
       try {
         // Reset du code NAF à chaque analyse : évite d'hériter du NAF d'un dossier
@@ -2714,7 +2828,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
                 `Si OUI → Cliquez OK pour continuer l'analyse\n` +
                 `Si NON → Cliquez Annuler pour arrêter`;
 
-              if (!confirm(msg)) {
+              if (!(await confirmModal(msg))) {
                 updateProgress(0, 'Analyse annulée par l\'utilisateur');
                 return; // Arrêter l'analyse
               } else {
@@ -2756,7 +2870,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
             // État 3 : resteNum === 0 → msgReste reste null → aucune alerte, l'analyse continue
 
             if (msgReste) {
-              if (!confirm(msgReste)) {
+              if (!(await confirmModal(msgReste))) {
                 updateProgress(0, 'Analyse annulée par l\'utilisateur');
                 return; // Arrêter l'analyse (identique au pattern secteur)
               } else {
@@ -2794,7 +2908,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
                 okLines.join('\n') +
                 `\nAnnuler = corriger le CEE`;
 
-              if (!confirm(msg)) {
+              if (!(await confirmModal(msg))) {
                 updateProgress(0, 'Analyse annulée par l\'utilisateur');
                 return; // Arrêter l'analyse (identique au pattern secteur / reste à payer)
               } else {
@@ -2837,7 +2951,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
             // État 3 : présente et ≠ "energie responsable" → msgEntreprise reste null → aucune alerte, l'analyse continue
 
             if (msgEntreprise) {
-              if (!confirm(msgEntreprise)) {
+              if (!(await confirmModal(msgEntreprise))) {
                 updateProgress(0, 'Analyse annulée par l\'utilisateur');
                 return; // Arrêter l'analyse (identique au pattern secteur / reste à payer / dimensionnement)
               } else {
@@ -2874,7 +2988,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
                   `\n\nOK = je confirme avoir vérifié l'attestation BAT-EQ-127 sur le CEE\n` +
                   `Annuler = compléter / corriger le dossier`;
 
-                if (!confirm(msg)) {
+                if (!(await confirmModal(msg))) {
                   updateProgress(0, 'Analyse annulée par l\'utilisateur');
                   return; // Arrêter l'analyse (identique au pattern secteur / reste à payer / dimensionnement)
                 } else {
@@ -2935,7 +3049,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
                 lignesDelais.join('\n') +
                 `\n\nOK = je confirme avoir vérifié les délais sur le CEE\n` +
                 `Annuler = corriger le CEE`;
-              if (!confirm(msgDelais)) {
+              if (!(await confirmModal(msgDelais))) {
                 updateProgress(0, 'Analyse annulée par l\'utilisateur');
                 return; // Arrêter l'analyse (identique au pattern secteur / reste à payer / dimensionnement)
               } else {
@@ -6761,6 +6875,17 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
     updateChecklistProgress();
 
   </script>
+
+  <!-- Modal de confirmation custom : remplace confirm() natif (supprimé par certains navigateurs) -->
+  <div id="confirmModalOverlay" class="confirm-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="confirmModalMessage">
+    <div class="confirm-modal-card">
+      <div id="confirmModalMessage" class="confirm-modal-message"></div>
+      <div class="confirm-modal-actions">
+        <button type="button" id="confirmModalCancel" class="confirm-modal-btn confirm-modal-btn-cancel">Annuler</button>
+        <button type="button" id="confirmModalOk" class="confirm-modal-btn confirm-modal-btn-ok">OK</button>
+      </div>
+    </div>
+  </div>
 
 </body>
 </html>
