@@ -322,6 +322,27 @@ Application des règles lors de l'analyse
 
 - §9 SOURCE_DE_VERITE — retirer la mention "Prime Evolution" (1.5 livrée le 01/06, oubli de nettoyage)
 
+### 📌 Limite connue : Harmonisation alert() → modale/toast custom
+
+**Statut** : 📌 **LIMITE CONNUE** (4 juin 2026) — non prioritaire, cosmétique, aucun impact métier
+
+**Contexte** :
+Le correctif `confirm()` → `confirmModal()` (commit `8ce56bf`, cf. `docs/SOURCE_DE_VERITE_CHECKS.md` §7) ne traite QUE les **6 `confirm()`** (alertes confirmables). Les **9 `alert()`** restants sont eux aussi supprimables par le navigateur (mêmes conditions : option « empêcher d'autres dialogues », politiques d'entreprise). Chez un utilisateur qui bloque les dialogues natifs, ces notifications ne s'afficheront pas.
+
+⚠️ **Pas de « Analyse annulée » silencieuse** : ce ne sont **pas** des portes de décision (contrairement à `confirm()`) → aucun faux « conforme » ni arrêt fantôme. En revanche, une **erreur ou notification peut passer inaperçue** (extraction, validation, copie…).
+
+**Emplacements des 9 `alert()` dans `index.html`** (indicatifs — susceptibles de décalage à chaque modification du fichier) :
+- extraction : `2132`, `2141`
+- détection chantiers : `2204`
+- validation nb chantiers : `2279`, `2332`
+- erreur analyse : `3173`
+- surfaces manuelles : `5403`, `5420`
+- erreur copie : `6736`
+
+**Action future** : passe dédiée remplaçant les `alert()` par une modale/toast custom (réutiliser le helper/markup de `confirmModal`). Non prioritaire ; cosmétique, aucun impact métier.
+
+**Sources** : [Session 4 juin 2026 — correctif `confirm()` → modal, commit `8ce56bf`]
+
 ### TODO #6 : Export des résultats en PDF
 
 **Statut** : 💭 **EN DISCUSSION**
