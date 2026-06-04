@@ -50,7 +50,7 @@ Le cadrage a fait émerger une structure naturelle, fidèle au principe « le CE
 Évolutions UX de la pré-vérification (todos futurs, non prioritaires) :
 
 - Groupage des alertes : à mesure que les alertes Phase 1 s'accumulent (1.1 à 1.5), empiler des confirm() natifs successifs devient pénible. Cible : une alerte unique agrégeant toutes les anomalies détectées, avec une seule validation. Constaté dès 2 alertes (secteur + reste à payer) le 28/05.
-- Modale custom : remplacer les confirm() natifs (UX brute) par une modale soignée — se fera naturellement avec le groupage.
+- ✅ **Modale custom — RÉALISÉE le 04/06/2026 (commit `8ce56bf`)** : les `confirm()` natifs des 6 alertes confirmables sont remplacés par un helper async `confirmModal()` → `Promise<boolean>` (modale DOM custom). Motivée par un bug bloquant (certains navigateurs suppriment les dialogues natifs → `confirm()` renvoie `false` sans rien afficher → « Analyse annulée » fantôme) — détail dans `SOURCE_DE_VERITE_CHECKS.md` §7. Comportement métier inchangé. *(Réalisée de façon autonome, et non « naturellement avec le groupage » comme initialement prévu : le **groupage des alertes** ci-dessus reste un todo futur.)*
 - Déplacement au stade extraction : faire déclencher ces vérifications au moment de l'import du CEE (« Extraire depuis le CEE »), avant l'analyse complète, conformément au principe « le CEE est le dossier référent ». Aujourd'hui le mécanisme vit dans l'analyse (après generateChecks). Ces trois todos convergent vers un écran unique de pré-vérification CEE.
 
 ---
