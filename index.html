@@ -4776,6 +4776,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
       for (let i = 31; i <= 34; i++) {
         checks.push({
           id: `check_${i}`,
+          portee: 'global-cee',
           categorie: i === 32 ? 'audit' : 'synthese',
           niveau: mentionsAgri.found ? 'majeur' : 'ok',
           champ: `Mention agricole ${i - 30}`,
@@ -4838,6 +4839,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
                            (!ficheTechOk && refProduitOkGlobal) ? 'info' : 'majeur';
         checks.push({
           id: 'check_36',
+          portee: 'global-synthese',
           categorie: 'synthese',
           niveau: niveauFiche,
           champ: 'Fiche technique LED',
@@ -4853,6 +4855,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
         const niveauFiche = ficheTechOk ? 'ok' : (refProduitOkGlobal ? 'info' : 'majeur');
         checks.push({
           id: 'check_36',
+          portee: 'global-synthese',
           categorie: 'synthese',
           niveau: niveauFiche,
           champ: 'Fiche technique LED',
@@ -4916,6 +4919,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
 
       checks.push({
         id: 'check_39',
+        portee: 'global-cee',
         categorie: 'global',
         niveau: nbChantiersCoherent ? 'ok' : 'majeur',
         champ: 'Cohérence nombre de chantiers',
@@ -6234,6 +6238,13 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
         return { type: 'google_sheet', chantierIndex: null };
       }
 
+      // ⭐ MÉTHODE 0bis : Checks GLOBAUX (dossier entier) — la portée porte la colonne.
+      // portee = 'global-cee' | 'global-synthese' | 'global-audit' → ligne Global (chantierIndex null).
+      if (typeof check.portee === 'string' && check.portee.startsWith('global-')) {
+        const type = check.portee.slice('global-'.length); // 'cee' | 'synthese' | 'audit'
+        return { type, chantierIndex: null };
+      }
+
       // ⭐ MÉTHODE 0 : Propriété chantierIndex directe (ajoutée lors de la génération)
       // C'est LA méthode la plus fiable car elle vient de la case d'import
       if (check.chantierIndex !== undefined && check.chantierIndex !== null) {
@@ -6340,7 +6351,8 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
         }
 
         // Grouper par document source (TOUS les checks, y compris bloquants/majeurs)
-        if (provenance.type === 'cee') {
+        // chantierIndex null = check global (dossier entier) → bloc Dossier, jamais "Chantier null".
+        if (provenance.type === 'cee' || provenance.chantierIndex === null) {
           ceeChecks.push(check);
         } else if (provenance.type === 'audit') {
           const idx = provenance.chantierIndex;
