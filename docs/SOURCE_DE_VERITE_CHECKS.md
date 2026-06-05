@@ -245,6 +245,11 @@ Règle R05 = tolérance ZÉRO (1 LED d'écart = erreur). Code = `Math.abs(...) <
 | 1.1 | Alerte confirmable « Reste à payer » (3 états : absent / ≠0 / =0) remplaçant l'ancien check_40 | 28/05/2026 | 0aaf465 |
 | 1.5 | Alerte confirmable « Étude de dimensionnement = PRIME EVOLUTION » par chantier (3 états : conforme / autre / non détectée), agrégée multi-chantiers, fin de message dynamique, jamais bloquant | 01/06/2026 | a4130d6 (extraction) + ba1fcce (alerte) |
 | 1.4 | Alerte confirmable « Professionnel ayant mis en œuvre = Energie Responsable » (3 états : non détecté / Energie Responsable → exception / autre → silence), valeur globale du dossier (patron reste à payer), jamais bloquant | 01/06/2026 | 91bf93d (extraction) + 5392776 (alerte) |
+| Chantier B | Vue « Par famille » — rapport de résultats groupé par famille de donnée métier. Fichier `familles-config.js` (`window.CEE_FAMILLES` = 10 familles + `ORDRE`/`LIBELLES` ; `window.resolveFamille(check)` → clé famille ou `null`) + harnais `test-familles.mjs` (71/71). Onglet « Par famille » (1er/actif) via `renderChecksByFamille` dans `index.html`. Accordéon livré ; grille 2D à venir (roadmap). | 05/06/2026 | 94aa7a1 (table + harnais) + ebb496d (vue) |
+
+**Chantier B — 10 familles** (ordre `CEE_FAMILLES.ORDRE`) : 1a Identité société · 1b Coordonnées client · 2 Dates · 3 Type de local + mention agricole · 4 Adresses chantier · 5 Nb LED total + répartition · 6 Parcelles · 7 Surface + superficies · 8 Fiche technique · 9 Complétude.
+
+**Routage** (`resolveFamille`) : résolution par **id ancré** (`^check_NN(_c\d+)?$`) ; **fragment de texte** pour 2 collisions seulement (`check_42_N`, `check_45_N`, désambiguïsées par le `champ`) ; **filet `null` strict des deux côtés** (id non reconnu OU libellé de collision inattendu → `null` = seau « Non classés » visible, jamais masqué) ; checks Google Sheet `sheet_*` **hors périmètre** via `startsWith('sheet_')` (seau séparé). Bug moteur `check_47_global` signalé (mention famille 7), non corrigé.
 
 ---
 

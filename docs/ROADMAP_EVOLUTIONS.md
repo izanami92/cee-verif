@@ -163,6 +163,17 @@ Le code a les valeurs dans `FICHES_TECHNIQUES` mais ne compare activement que TH
 
 ---
 
+## VUE PAR FAMILLE (Chantier B) — accordéon livré, évolutions UI futures
+
+Le rapport de résultats est désormais groupé par **famille de donnée métier** (onglet « Par famille » 1er/actif, `renderChecksByFamille` + `familles-config.js`, en prod le 05/06/2026). Forme actuelle = **accordéon** (1 bloc par famille). Évolutions futures, **non bloquantes**, dérivées du chantier B :
+
+- **Grille 2D** : passer de l'accordéon à une grille — bandeau de pastilles par famille + matrice **chantier × document** (colonnes fixes CEE / Audit / Synthèse, lignes = chantiers, ligne **« Global »** en tête ; un chantier tout-conforme condensé en une ligne dépliable). **PRÉREQUIS = corriger un bug moteur PRÉEXISTANT** : `getCheckProvenance` rattache déjà aujourd'hui les checks `categorie:'global'` (ex. `check_39`) à « chantier 1 » au lieu de « Global » → sans correction, ils tomberaient dans la mauvaise cellule. La grille **révèle** ce bug, elle ne le crée pas. → auditer TOUS les checks `global` (pending-todos #30).
+- **Pastilles du bandeau cliquables** (filtrer / scroller vers la famille). Commit séparé **APRÈS** la grille.
+- **Passe d'habillage visuel** : cadres marqués, ombres légères, rendu compact. Commit séparé.
+- **Comparaison CEE ↔ Google Sheet dédiée** + finalisation de la config des checks `sheet_*` (actuellement incomplets, dormants par défaut / toggle off ; aujourd'hui hors périmètre des familles via `startsWith('sheet_')`).
+
+---
+
 ## BUGS À INVESTIGUER
 
 ### Fiche technique LED — détection non déterministe (faux « conforme » possible)  ⚠️
