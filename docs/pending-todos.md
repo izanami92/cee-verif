@@ -63,19 +63,19 @@ Il n'existe PAS de 3e cas légitime.
 
 ---
 
-### TODO #30 : [Moteur — bug préexistant] checks `categorie:'global'` (ex. check_39) mal rattachés à « chantier 1 » par getCheckProvenance
+### ✅ TODO #30 : [Moteur] checks globaux mal rattachés par getCheckProvenance — RÉSOLU
 
-**Bug moteur PRÉEXISTANT** (déjà présent en prod aujourd'hui, indépendant de la vue famille) : `getCheckProvenance` (`index.html`) rattache `check_39` (« Cohérence nombre de chantiers », `categorie:'global'`) à **« chantier 1 »** au lieu d'une provenance « Global ». Le check est donc **déjà mal rangé aujourd'hui**.
+**Statut** : ✅ **RÉSOLU le 05/06/2026** (commit `3d4d75f`, mergé dans `main`). Branche `fix/provenance-global`.
 
-**Conséquence** : **BLOQUANT pour la future grille** chantier × document (le check atterrirait dans la mauvaise cellule au lieu de la ligne « Global »). ⚠️ **NON bloquant pour la prod** — l'outil fonctionne, la vue accordéon actuelle n'expose simplement pas le mauvais rattachement. La grille **révèle** ce bug, elle ne le crée pas.
+**Bug (préexistant)** : `getCheckProvenance` (`index.html`) rattachait les checks « dossier » sans `chantierIndex` à **« chantier 1 »** au lieu de la provenance « Global » : `check_39` → `{audit,1}`, `check_36` → `{synthese,1}`, `check_31→34` instables — happés par le fallback texte (méthodes 2/4).
 
-- Vérifié sur 2 dossiers de test : **DES LAURIERS** (2 chantiers), **DETRIVIERE** (1 chantier).
-- **Auditer TOUS les checks `categorie:'global'`**, pas seulement `check_39` : le rattachement par défaut de `getCheckProvenance` est suspect pour toute la catégorie.
-- À traiter **en priorité dans le diagnostic de la grille** (cf. roadmap « Vue Par famille — grille 2D »).
+**Solution** : propriété **`portee`** posée à la création des checks dossier — `portee:'global-cee'` sur `check_39` + `check_31→34`, `portee:'global-synthese'` sur `check_36` — lue par une **branche prioritaire** de `getCheckProvenance` (« méthode 0bis ») → `chantierIndex:null` + **colonne portée par la valeur** (`global-cee` → CEE, `global-synthese` → Synthèse). **Pas de liste blanche d'ids** (patron en dur écarté). + ajustement de `groupChecksByHierarchy` (`chantierIndex===null` → bloc Dossier) anti « chantier null ».
 
-**NB** : `check_39` porte aussi un **bug distinct** (faux positif multi-chantiers même adresse) tracé en **TODO #27** — toute intervention sur `check_39` doit considérer les deux ensemble.
+**Garanties** : `getCheckProvenance` n'a **qu'un appelant** (vue hiérarchique legacy) → impact limité à cet onglet ; vue « Par famille » **non impactée** (`resolveFamille` ne lit pas `portee`, harnais **71/71**). Seau B mono (`14/19/20/21/23/28/29/30`) inchangé. Validé en preview sur **DES LAURIERS** (multi) + **DETRIVIERE** (mono), totaux inchangés.
 
-**Sources** : [Session 5 juin 2026 — chantier B, préparation grille]
+**NB** : `check_39` porte aussi un **bug distinct** (faux positif multi-chantiers même adresse) tracé en **TODO #27**, non concerné par ce fix.
+
+**Sources** : [Session 5 juin 2026 — chantier B, fix routage global]
 
 ---
 
@@ -343,6 +343,18 @@ Application des règles lors de l'analyse
 **Sources** : [Session 5 juin 2026 — chantier B]
 
 - §9 SOURCE_DE_VERITE — retirer la mention "Prime Evolution" (1.5 livrée le 01/06, oubli de nettoyage)
+
+### TODO #32 : [Simplification] checks 31-34 redondants — 4 checks pour une seule détection globale
+
+`checkMentionsAgricoles` est appelé **1× sur tout le dossier**, mais son résultat est recopié dans **4 checks identiques** (`check_31→34`), avec une `categorie` alternée arbitraire (`i === 32 ? 'audit' : 'synthese'`). Un **seul check global** suffirait. Candidat à simplification — **non urgent**. (La maille document × chantier des mentions n'est pas implémentée ; cf. modèle Chantier/Cellule **TODO #22**.)
+
+**Sources** : [Session 5 juin 2026 — chantier B, fix routage global]
+
+### TODO #33 : [Mémo] fiche technique (check_36) en maille globale — rien à corriger
+
+`check_36` (fiche technique) est **1 fiche unique pour tout le dossier** (celle du CEE) — légitimement **global**. La vérification **par chantier** de la RÉFÉRENCE produit existe déjà via `check_37` (par chantier) + `check_38` (durée de vie, par chantier). **Rien à corriger** ; noté pour mémoire.
+
+**Sources** : [Session 5 juin 2026 — chantier B, fix routage global]
 
 ### 📌 Limite connue : Harmonisation alert() → modale/toast custom
 
@@ -847,9 +859,9 @@ CREATE TABLE analyses (
 ## 📊 STATISTIQUES
 
 **TODOs actifs** : 8
-- 🔴 Critiques : 3 (TODO #22 — modèle Chantier/Cellule, à cadrer ; TODO #29 — alerte 1.4 logique à 3 issues, faux « conforme » silencieux, à cadrer ; TODO #30 — bug moteur préexistant `getCheckProvenance` : checks `categorie:'global'` (ex. check_39) mal rattachés à « chantier 1 », prérequis grille) — *(TODO #26 / évolution 1.3 : ✅ TERMINÉE en prod)*
+- 🔴 Critiques : 2 (TODO #22 — modèle Chantier/Cellule, à cadrer ; TODO #29 — alerte 1.4 logique à 3 issues, faux « conforme » silencieux, à cadrer) — *(TODO #30 routage global : ✅ RÉSOLU 05/06 `3d4d75f` ; TODO #26 / évolution 1.3 : ✅ TERMINÉE en prod)*
 - 🟡 Importantes : 1 (TODO #3 reportée)
-- 🟢 Nice to have : 4 (dont TODO #31 — confiner renderChecksByFamille + nettoyer console.log)
+- 🟢 Nice to have : 5 (dont TODO #31 — confiner renderChecksByFamille + nettoyer console.log ; TODO #32 — checks 31-34 redondants) — *(TODO #33 fiche technique globale = mémo, rien à corriger)*
 - 🔍 Bugs à investiguer (non comptés) : TODO #27 — `check_39` faux positif multi-chantiers même adresse ; appariement adresse « 4 » manquant ; réf produit `compareProductRef`
 - ✅ TODO #28 (extraction section C) — **volet extraction corrigé en prod** (`e456b70`) ; volet logique aval → TODO #29
 

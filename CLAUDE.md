@@ -125,14 +125,14 @@ Définies dans **Vercel Dashboard** → Project → Settings → Environment Var
 - **MAJEUR** 🟠 : À corriger avant envoi CEE complet (tout le reste)
 - **INFO** 🔵 : À vérifier manuellement
 
-### Règles BLOQUANTES (3)
+### Règles BLOQUANTES (1)
 
-1. **Mentions agricoles interdites** - Mots : "agri", "agricole", "agriculteur", "EARL", "SCEA"
-2. **Page de garde Audit** - Nom, adresse, date = références exactes
-3. **Profil utilisation** - "Entrepôt" ou "Logistique" uniquement (jamais agricole)
+1. **Page de garde Audit** - Nom, adresse, date = références exactes
 
-### Règles MAJEURES (10)
+### Règles MAJEURES (12)
 
+2. **Profil utilisation** - "Entrepôt" ou "Logistique" uniquement (jamais agricole) *(corrigé le 2026-06-05 : seule la page de garde Audit bloque ; code = `majeur` via les checks secteur)*
+3. **Mentions agricoles interdites** - Mots : "agri", "agricole", "agriculteur", "EARL", "SCEA" *(corrigé le 2026-06-05 : seule la page de garde Audit bloque — principe directeur, aligné sur SOURCE_DE_VERITE §1)*
 4. SIRET : 14 chiffres, cohérent, du CLIENT (pas Prime Evolution)
 5. LED : Cohérence totale par chantier + total global (tolérance = 0)
 6. THD : Exactement 3,7% (tolérance = 0)
@@ -401,7 +401,7 @@ git push origin main
 ---
 
 **Dernière mise à jour** : 5 juin 2026
-**Version** : Phase 1 complète + B1/B2 résolus + évolution 1.1 (alerte reste à payer) + crash `cee` null & anomalie A2 résolus (29/05) + évolutions 1.5 (étude de dimensionnement) & 1.4 (Energie Responsable) (01/06) + bug « état dossier » (volets 1/2 + 2/2) résolu et en prod (02/06, merge `6a38915`) — modèle Chantier/Cellule à cadrer (TODO #22) + **évolution 1.3 COMPLÈTE en prod** (C1 `d499737`, maille `af21eb8`, C2 `0bef3d7`, C3 `5f1da89`) + **évolution 1.2 délais de travaux en prod** (`ab9242d`) — **pré-vérification CEE (évolutions 1.1–1.5) COMPLÈTE** ; nouveau bug à investiguer : section C / alerte 1.4 (TODO #28) + **extraction section C / alerte 1.4 fiabilisée** (`e456b70`, 03/06 — ancrage déterministe, fin du non-déterminisme émetteur facture ↔ section C) ; **volet logique à 3 issues à venir (TODO #29)** + **Chantier B — vue « Par famille » en prod (05/06)** : rapport groupé par famille de donnée métier (`familles-config.js` + harnais `test-familles.mjs` 71/71, onglet « Par famille » via `renderChecksByFamille`, commits `94aa7a1` + `ebb496d`) ; accordéon livré, **grille 2D à venir** (roadmap) ; **bug moteur préexistant** `getCheckProvenance` (checks `global` mal rattachés) à corriger avant la grille → TODO #30
+**Version** : Phase 1 complète + B1/B2 résolus + évolution 1.1 (alerte reste à payer) + crash `cee` null & anomalie A2 résolus (29/05) + évolutions 1.5 (étude de dimensionnement) & 1.4 (Energie Responsable) (01/06) + bug « état dossier » (volets 1/2 + 2/2) résolu et en prod (02/06, merge `6a38915`) — modèle Chantier/Cellule à cadrer (TODO #22) + **évolution 1.3 COMPLÈTE en prod** (C1 `d499737`, maille `af21eb8`, C2 `0bef3d7`, C3 `5f1da89`) + **évolution 1.2 délais de travaux en prod** (`ab9242d`) — **pré-vérification CEE (évolutions 1.1–1.5) COMPLÈTE** ; nouveau bug à investiguer : section C / alerte 1.4 (TODO #28) + **extraction section C / alerte 1.4 fiabilisée** (`e456b70`, 03/06 — ancrage déterministe, fin du non-déterminisme émetteur facture ↔ section C) ; **volet logique à 3 issues à venir (TODO #29)** + **Chantier B — vue « Par famille » en prod (05/06)** : rapport groupé par famille de donnée métier (`familles-config.js` + harnais `test-familles.mjs` 71/71, onglet « Par famille » via `renderChecksByFamille`, commits `94aa7a1` + `ebb496d`) ; accordéon livré, **grille 2D à venir** (roadmap) ; **bug moteur** `getCheckProvenance` (checks `global` mal rattachés) **corrigé** via `portee:'global-*'` (TODO #30 **résolu** `3d4d75f`, prérequis grille posé)
 
 ### Évolution 1.3 (attestation agricole BAT-EQ-127) — ✅ COMPLÈTE / EN PROD
 
