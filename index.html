@@ -3008,6 +3008,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
               // CAS NAF inconnu : filet dormant non bloquant (jamais de skip muet), sans confirm()
               checks.push({
                 id: 'check_attestation_non_agricole_naf_inconnu',
+                portee: 'global-cee',
                 categorie: 'cee',
                 niveau: 'info',
                 champ: 'Attestation entrepôt non agricole (BAT-EQ-127)',
@@ -4182,6 +4183,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
       const sommeAuditsOk = Math.abs(sommeAudits - totalCEE) < 0.1;
       checks.push({
         id: 'check_09a',
+        portee: 'global-cee',
         categorie: 'synthese',
         niveau: sommeAuditsOk ? 'ok' : 'majeur',
         champ: 'TOTAL LED Audits = Total CEE',
@@ -4197,6 +4199,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
       const sommeSynthesesOk = Math.abs(sommeSyntheses - totalCEE) < 0.1;
       checks.push({
         id: 'check_09b',
+        portee: 'global-cee',
         categorie: 'synthese',
         niveau: sommeSynthesesOk ? 'ok' : 'majeur',
         champ: 'TOTAL LED Synthèses = Total CEE',
@@ -4940,6 +4943,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
       if (!norm.cee) {
         checks.push({
           id: 'check_cee_incomplet',
+          portee: 'global-cee',
           categorie: 'cee',
           niveau: 'majeur',
           champ: 'Extraction du Dossier CEE',
@@ -4953,6 +4957,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
         const adresseSiegeOk = compareAddress(norm.cee?.adresseSiege, references.adresseSiege);
         checks.push({
           id: 'check_41',
+          portee: 'global-cee',
           categorie: 'audit',
           niveau: adresseSiegeOk ? 'ok' : 'majeur',
           champ: 'Adresse siège social Dossier CEE',
@@ -4966,6 +4971,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
         const dateSignatureOk = compareDate(norm.cee?.dateSignature, references.dateSignature);
         checks.push({
           id: 'check_42',
+          portee: 'global-cee',
           categorie: 'synthese',
           niveau: dateSignatureOk ? 'ok' : 'majeur',
           champ: 'Date de signature / Date d\'engagement Dossier CEE',
@@ -4985,6 +4991,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
       const attestationsPresentes = attestations.length > 0;
       checks.push({
         id: 'check_43',
+        portee: 'global-cee',
         categorie: 'audit',
         niveau: attestationsPresentes ? 'ok' : 'info',
         champ: 'Attestation(s) sur l\'honneur',
