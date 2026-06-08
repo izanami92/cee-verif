@@ -2779,44 +2779,11 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
           if (extractedData.cee?.attestations) {
             console.log('\n=== ANALYSE SECTEURS PAR CHANTIER ===');
 
-            // Fonction helper pour mapper secteur
-            const mapSecteurActivite = (secteur) => {
-              if (!secteur) return null;
-              const secteurNormalized = secteur.toLowerCase().trim();
-              const entrepotKeywords = [
-                'entrepôt', 'entrepot', 'entrepôts', 'entrepots',
-                'logistique', 'logistiques',
-                'commerce', 'commerces', 'commercial',
-                'vente', 'ventes', 'locaux de vente'
-              ];
-              return entrepotKeywords.some(keyword => secteurNormalized.includes(keyword))
-                ? 'Entrepôt'
-                : 'Autres secteurs';
-            };
+            // Détection pure (helper partagé avec le futur bloc CEE) : mapping secteur + chantiers « Autres ».
+            const { secteursByChantier, autresSecteurs } = detectAutresSecteurs(extractedData.cee.attestations);
 
-            const secteursByChantier = [];
-            const autresSecteurs = [];
-
-            extractedData.cee.attestations.forEach((attestation, index) => {
-              const secteurBrut = attestation.secteurActivite || null;
-              const secteurMapped = mapSecteurActivite(secteurBrut);
-
-              secteursByChantier.push({
-                index: index + 1,
-                adresse: attestation.adresse,
-                secteurBrut,
-                secteurMapped
-              });
-
-              console.log(`Chantier ${index + 1}: "${secteurBrut}" → ${secteurMapped}`);
-
-              if (secteurMapped === 'Autres secteurs') {
-                autresSecteurs.push({
-                  index: index + 1,
-                  adresse: attestation.adresse,
-                  secteur: secteurBrut
-                });
-              }
+            secteursByChantier.forEach(s => {
+              console.log(`Chantier ${s.index}: "${s.secteurBrut}" → ${s.secteurMapped}`);
             });
 
             // Stocker les secteurs par chantier dans state pour utilisation ultérieure
@@ -2853,22 +2820,20 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
           // Valeur GLOBALE du dossier CEE (pas par chantier).
           // Détection locale des 3 états — NE PAS utiliser compareMoney (fonction partagée).
           {
-            const rawReste = extractedData.cee?.resteAPayer;
-            // Même nettoyage que compareMoney, reproduit localement (espaces/NBSP, €, virgule décimale)
-            const resteStr = (rawReste == null) ? '' : String(rawReste).trim();
-            const resteNum = parseFloat(resteStr.replace(/\s+/g, '').replace(/€/g, '').replace(',', '.'));
+            const reste = detectResteAPayer(extractedData.cee);
+            const rawReste = reste.rawReste; // conservé pour les messages (valeur brute affichée)
 
             let msgReste = null;
-            if (isNaN(resteNum)) {
+            if (reste.statut === 'absent') {
               // État 1 : absent / vide / non interprétable (undefined, null, '', 'Néant', '-'…)
               msgReste = `⚠️ ATTENTION : Reste à payer NON DÉTECTÉ\n\n` +
                 `La valeur « Reste à payer / Reste à charge » n'a PAS pu être lue dans le dossier CEE` +
-                (resteStr ? ` (valeur brute illisible : "${rawReste}").` : `.`) + `\n\n` +
+                (reste.resteStr ? ` (valeur brute illisible : "${rawReste}").` : `.`) + `\n\n` +
                 `⚠️ Impossible de vérifier automatiquement que le reste à payer = 0€.\n\n` +
                 `Cliquer OK ne signifie PAS « tout va bien » :\n` +
                 `OK = je m'engage à VÉRIFIER MANUELLEMENT le reste à payer sur le CEE\n` +
                 `Annuler = arrêter l'analyse`;
-            } else if (resteNum !== 0) {
+            } else if (reste.statut === 'non_nul') {
               // État 2 : valeur ≠ 0 (anormal) — question fermée, spécifique au montant
               msgReste = `⚠️ Reste à payer détecté : ${rawReste}\n\n` +
                 `Ce montant est NON NUL.\n` +
@@ -2877,7 +2842,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
                 `OK = je confirme que ${rawReste} est normal\n` +
                 `Annuler = corriger le CEE`;
             }
-            // État 3 : resteNum === 0 → msgReste reste null → aucune alerte, l'analyse continue
+            // État 3 : reste.statut === 'ok' (= 0) → msgReste reste null → aucune alerte, l'analyse continue
 
             if (msgReste) {
               if (!(await confirmModal(msgReste))) {
@@ -2933,15 +2898,11 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
           // Valeur GLOBALE du dossier CEE (pas par chantier) → patron "reste à payer". Jamais bloquant (§1).
           // Logique MIROIR de 1.5 : ici le déclencheur est la PRÉSENCE de "energie responsable" (1.5 = absence de "prime evolution").
           {
-            const rawEntreprise = extractedData.cee?.entrepriseMiseEnOeuvre;
-            const entrepriseStr = (rawEntreprise == null) ? '' : String(rawEntreprise).trim();
-            // Normalisation identique au test "prime evolution" de 1.5 (index.html:3651) : normalize() (casse + accents) puis ponctuation→espaces.
-            // .includes('energie responsable') couvre casse / accents / ponctuation / suffixe juridique (SAS, SARL),
-            // mais PAS le pluriel "energies responsables" ni les fautes de frappe (lacune assumée ; parade possible : regex /energ\w* responsabl\w*/).
-            const entrepriseNorm = normalize(entrepriseStr).replace(/[^a-z0-9]+/g, ' ').replace(/\s+/g, ' ').trim();
+            const pro = detectProfessionnelMiseEnOeuvre(extractedData.cee);
+            const rawEntreprise = pro.rawEntreprise; // conservé pour les messages (valeur brute affichée)
 
             let msgEntreprise = null;
-            if (!entrepriseStr) {
+            if (pro.statut === 'absent') {
               // État 1 : absente / illisible / null
               msgEntreprise = `⚠️ ATTENTION : Professionnel ayant mis en œuvre NON DÉTECTÉ\n\n` +
                 `La section C « Professionnel ayant mis en œuvre l'opération… » de l'attestation sur l'honneur n'a PAS pu être lue dans le dossier CEE.\n\n` +
@@ -2949,7 +2910,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
                 `Cliquer OK ne signifie PAS « tout va bien » :\n` +
                 `OK = je m'engage à VÉRIFIER MANUELLEMENT le professionnel sur le CEE\n` +
                 `Annuler = arrêter l'analyse`;
-            } else if (entrepriseNorm.includes('energie responsable')) {
+            } else if (pro.statut === 'energie_responsable') {
               // État 2 : Energie Responsable (sous-traitant) — exception possible (rare installation par équipe interne)
               msgEntreprise = `⚠️ Professionnel ayant mis en œuvre détecté : ${rawEntreprise}\n\n` +
                 `Il s'agit d'Energie Responsable (sous-traitant).\n` +
@@ -4011,6 +3972,67 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
       else r3 = { statut: facture.getTime() > fin.getTime() ? 'ok' : 'fautif' };
 
       return { r1, r2, r3 };
+    }
+
+    // ===== Helpers de DÉTECTION PURS pour les alertes confirmables du CEE (Règle A / 1.1 / 1.4) =====
+    // Extraits du handler btnAnalyze pour être PARTAGÉS avec le futur bloc CEE de la vue « Par chantier ».
+    // Style calqué sur detectFautifsDimensionnement / detectFautifsAttestationNonAgricole / verifierDelaisTravaux :
+    // PURS (aucun effet de bord, aucun confirmModal, aucun accès à un global muté) — ils DÉTECTENT, le handler DÉCLENCHE.
+
+    // Règle A — secteur d'activité par chantier (entrepôt attendu). Retourne le mapping par chantier + les chantiers « Autres ».
+    function detectAutresSecteurs(attestations) {
+      const mapSecteurActivite = (secteur) => {
+        if (!secteur) return null;
+        const secteurNormalized = secteur.toLowerCase().trim();
+        const entrepotKeywords = [
+          'entrepôt', 'entrepot', 'entrepôts', 'entrepots',
+          'logistique', 'logistiques',
+          'commerce', 'commerces', 'commercial',
+          'vente', 'ventes', 'locaux de vente'
+        ];
+        return entrepotKeywords.some(keyword => secteurNormalized.includes(keyword))
+          ? 'Entrepôt'
+          : 'Autres secteurs';
+      };
+      const secteursByChantier = [];
+      const autresSecteurs = [];
+      (attestations || []).forEach((attestation, index) => {
+        const secteurBrut = attestation.secteurActivite || null;
+        const secteurMapped = mapSecteurActivite(secteurBrut);
+        secteursByChantier.push({ index: index + 1, adresse: attestation.adresse, secteurBrut, secteurMapped });
+        if (secteurMapped === 'Autres secteurs') {
+          autresSecteurs.push({ index: index + 1, adresse: attestation.adresse, secteur: secteurBrut });
+        }
+      });
+      return { secteursByChantier, autresSecteurs };
+    }
+
+    // Évolution 1.1 — reste à payer (valeur globale du dossier). 3 états : 'absent' | 'non_nul' | 'ok' (=0).
+    // Nettoyage local identique à compareMoney (espaces/NBSP, €, virgule décimale) — NE PAS changer la normalisation.
+    function detectResteAPayer(cee) {
+      const rawReste = cee && cee.resteAPayer;
+      const resteStr = (rawReste == null) ? '' : String(rawReste).trim();
+      const resteNum = parseFloat(resteStr.replace(/\s+/g, '').replace(/€/g, '').replace(',', '.'));
+      let statut;
+      if (isNaN(resteNum)) statut = 'absent';        // État 1 : absent / vide / non interprétable
+      else if (resteNum !== 0) statut = 'non_nul';   // État 2 : valeur ≠ 0 (anormal)
+      else statut = 'ok';                            // État 3 : = 0 → aucune alerte
+      return { statut, rawReste, resteStr, resteNum };
+    }
+
+    // Évolution 1.4 — professionnel ayant mis en œuvre (section C, valeur globale). 3 états : 'absent' | 'energie_responsable' | 'ok'.
+    // Normalisation identique au test "prime evolution" de 1.5 : normalize() (casse + accents) puis ponctuation→espaces.
+    // .includes('energie responsable') couvre casse / accents / ponctuation / suffixe juridique (SAS, SARL),
+    // mais PAS le pluriel "energies responsables" ni les fautes de frappe (lacune assumée).
+    function detectProfessionnelMiseEnOeuvre(cee) {
+      const rawEntreprise = cee && cee.entrepriseMiseEnOeuvre;
+      const entrepriseStr = (rawEntreprise == null) ? '' : String(rawEntreprise).trim();
+      const entrepriseNorm = normalize(entrepriseStr).replace(/[^a-z0-9]+/g, ' ').replace(/\s+/g, ' ').trim();
+      let statut;
+      if (!entrepriseStr) statut = 'absent';                                        // État 1 : absente / illisible / null
+      else if (entrepriseNorm.includes('energie responsable')) statut = 'energie_responsable'; // État 2
+      else statut = 'ok';                                                           // État 3 : présente et ≠ ER
+      return { statut, rawEntreprise, entrepriseStr, entrepriseNorm };
     }
 
     function generateChecks(extracted, references) {
