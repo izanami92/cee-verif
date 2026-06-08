@@ -5664,6 +5664,8 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
     // ========== AFFICHAGE DES RÉSULTATS ==========
     function displayResults(result) {
       state.analysisResult = result;
+      // Source d'adresses de la grille « Par famille » — réassignée à CHAQUE analyse (jamais de résidu).
+      currentExtractedData = result.extractedData || null;
 
       // Masquer la progression, afficher les résultats
       elements.progressContainer.classList.remove('show');
@@ -5784,6 +5786,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
 
     // Variable globale pour stocker les checks et permettre le filtrage
     let currentChecks = [];
+    let currentExtractedData = null; // extractedData de l'analyse courante (adresses de la grille « Par famille »)
     let activeFilter = null; // null, 'bloquant', 'majeur', 'conforme'
 
     // Regroupe les erreurs et conformes similaires par document
@@ -6161,6 +6164,329 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
         console.log('Google Sheet mis de côté (sheet_*) :', sheetChecks.map(c => c.id));
       }
       console.groupEnd();
+    }
+
+    // ============================================================================
+    // GRILLE 2D « PAR FAMILLE » (Chantier B — commit 1)
+    // Matrice : famille → ligne (chantier | Global) → colonne (CEE | Audit | Synthèse).
+    // Source du couple (ligne, colonne) = getCheckProvenance (fonction PURE, non modifiée).
+    // Source de la famille = resolveFamille (familles-config.js, non modifiée).
+    // Code couleur d'état conservé (sémantique). Pastilles NON cliquables (commit 1).
+    // renderChecksByFamille (accordéon) reste au-dessus, intact mais non appelé = filet de revert.
+    // ============================================================================
+
+    // Rendu paresseux + confiné (TODO #31) : la grille ne se rend QUE quand son onglet est actif.
+    // Appelée depuis refreshDisplay (affichage initial + filtres) ET le handler d'onglets (activation).
+    function renderFamillesActiveTab() {
+      const panel = document.getElementById('tabFamilles');
+      if (!panel || !panel.classList.contains('active')) return;
+      const checksToDisplay = activeFilter
+        ? currentChecks.filter(c => c.niveau === activeFilter)
+        : currentChecks;
+      renderFamillesGrid(checksToDisplay, elements.checksListFamilles);
+    }
+
+    // Ordre de gravité IDENTIQUE à familleEtat (bloquant > majeur > ok > info). Réutilisé tel quel,
+    // aucune 2e échelle inventée. Sert à la pastille de famille et au pire niveau d'une cellule en erreur.
+    function pireEtatFamille(checksList) {
+      const niveaux = (checksList || []).map(c => c.niveau);
+      if (niveaux.includes('bloquant')) return { niveau: 'bloquant', couleur: 'var(--color-bloquant)', label: 'BLOQUANT' };
+      if (niveaux.includes('majeur'))   return { niveau: 'majeur',   couleur: 'var(--color-majeur)',   label: 'MAJEUR' };
+      if (niveaux.includes('ok'))       return { niveau: 'ok',       couleur: 'var(--color-conforme)', label: 'OK' };
+      return { niveau: 'info', couleur: 'var(--color-info)', label: 'INFO' };
+    }
+
+    // État d'UNE cellule en comptes (anti-faux-conforme, principe n°1).
+    // Garde « vide » AVANT toute logique : une cellule sans check n'est JAMAIS peinte (ni verte, ni bleue).
+    function etatCellule(cellChecks) {
+      if (!cellChecks || cellChecks.length === 0) {
+        return { etat: 'vide', couleur: 'transparent', label: '—', nbOk: 0, nbErr: 0, nbInfo: 0 };
+      }
+      const nbOk = cellChecks.filter(c => c.niveau === 'ok').length;
+      const nbErr = cellChecks.filter(c => c.niveau === 'bloquant' || c.niveau === 'majeur').length;
+      const nbInfo = cellChecks.filter(c => c.niveau === 'info').length;
+      if (nbErr > 0) {
+        const pire = cellChecks.some(c => c.niveau === 'bloquant') ? 'bloquant' : 'majeur';
+        return {
+          etat: pire,
+          couleur: pire === 'bloquant' ? 'var(--color-bloquant)' : 'var(--color-majeur)',
+          label: pire === 'bloquant' ? 'BLOQUANT' : 'MAJEUR',
+          nbOk, nbErr, nbInfo
+        };
+      }
+      if (nbOk > 0 && nbInfo === 0) return { etat: 'conforme', couleur: 'var(--color-conforme)', label: 'CONFORME', nbOk, nbErr, nbInfo };
+      if (nbOk > 0 && nbInfo > 0)  return { etat: 'conforme_partiel', couleur: 'var(--color-conforme)', label: 'CONFORME ⓘ', nbOk, nbErr, nbInfo };
+      // nbOk === 0 && nbErr === 0 && nbInfo > 0 → À VÉRIFIER (distinct, JAMAIS conforme)
+      return { etat: 'a_verifier', couleur: 'var(--color-info)', label: 'À VÉRIFIER', nbOk, nbErr, nbInfo };
+    }
+
+    // Aplatit tous les checks d'une famille (toutes lignes, toutes colonnes).
+    function collectChecksFamille(fNode) {
+      const out = [];
+      Object.keys(fNode).forEach(ligneKey => {
+        Object.keys(fNode[ligneKey]).forEach(type => { out.push(...fNode[ligneKey][type]); });
+      });
+      return out;
+    }
+
+    // Étiquette de ligne. ligneKey = 'global' ou String(chantierIndex 1-based).
+    // Adresse lue dans currentExtractedData (remplacé à chaque analyse — pas de résidu). Jamais masquer la ligne.
+    function etiquetteLigne(ligneKey) {
+      if (ligneKey === 'global') return 'Dossier CEE (global)';
+      const idx = parseInt(ligneKey, 10);
+      const ed = currentExtractedData || {};
+      const adresse = (ed.audits && ed.audits[idx - 1] && ed.audits[idx - 1].adresse)
+        || (ed.syntheses && ed.syntheses[idx - 1] && ed.syntheses[idx - 1].adresse)
+        || '';
+      return adresse ? `Chantier ${idx} — ${adresse}` : `Chantier ${idx} — (adresse non résolue)`;
+    }
+
+    // Rendu d'une cellule : badge d'état + cartes. Erreurs/infos visibles d'emblée ; conformes repliés.
+    function renderCelluleGrid(cellChecks) {
+      const e = etatCellule(cellChecks);
+      if (e.etat === 'vide') {
+        return `<div class="grille-cellule vide" style="padding: var(--spacing-sm); text-align: center; color: var(--color-text-light); opacity: 0.5;">—</div>`;
+      }
+      const visibles = cellChecks.filter(c => c.niveau !== 'ok'); // bloquant/majeur/info → visibles
+      const conformes = cellChecks.filter(c => c.niveau === 'ok'); // ok → repliés/dépliables
+      const badge = `<span class="niveau-badge ${e.etat}" style="background: ${e.couleur}; color: white; padding: 0.15rem 0.4rem; border-radius: var(--radius-sm); font-size: 0.7rem; font-weight: 600;">${e.label}</span>`;
+      let inner = visibles.map(c => createCheckCard(c)).join('');
+      if (conformes.length > 0) {
+        inner += `
+          <div class="grille-conformes" style="margin-top: var(--spacing-sm);">
+            <div style="cursor: pointer; font-size: 0.8rem; color: var(--color-text-light);"
+                 onclick="this.parentElement.querySelector('.grille-conformes-content').classList.toggle('collapsed')">
+              ▸ ${conformes.length} conforme(s)
+            </div>
+            <div class="grille-conformes-content collapsed">${conformes.map(c => createCheckCard(c)).join('')}</div>
+          </div>`;
+      }
+      return `
+        <div class="grille-cellule ${e.etat}" style="padding: var(--spacing-sm); border-left: 3px solid ${e.couleur};">
+          <div style="margin-bottom: 0.25rem;">${badge}</div>
+          ${inner}
+        </div>`;
+    }
+
+    // Rendu d'une ligne (chantier ou Global). Applique la CONDENSATION D1 pour les chantiers conformes.
+    function renderLigneGrid(ligneKey, lNode, COLONNES) {
+      const etiquette = etiquetteLigne(ligneKey);
+      const etats = COLONNES.map(col => etatCellule(lNode[col] || []));
+      const nonVides = etats.filter(e => e.etat !== 'vide');
+
+      // CONDENSATION (D1, condition stricte) : ligne CHANTIER repliée en « … — conforme ✓ »
+      // SSI toutes ses cellules non vides sont CONFORME pur ET ≥1 cellule non vide.
+      // Une seule cellule « à vérifier » / « conforme partiel » ⇒ PAS de repli. Global jamais condensé.
+      const condensable = ligneKey !== 'global'
+        && nonVides.length >= 1
+        && nonVides.every(e => e.etat === 'conforme');
+
+      if (condensable) {
+        const toutesCartes = COLONNES.map(col => (lNode[col] || []).map(c => createCheckCard(c)).join('')).join('');
+        return `
+          <div class="grille-ligne" style="margin-bottom: 4px; border: 1px solid var(--color-conforme); border-radius: var(--radius-sm); overflow: hidden;">
+            <div style="padding: var(--spacing-sm); cursor: pointer; display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.03);"
+                 onclick="this.parentElement.querySelector('.grille-ligne-content').classList.toggle('collapsed')">
+              <span style="font-weight: 600; color: var(--color-conforme);">${etiquette} — conforme ✓</span>
+              <span class="toggle-icon">▼</span>
+            </div>
+            <div class="grille-ligne-content collapsed" style="padding: var(--spacing-sm);">${toutesCartes}</div>
+          </div>`;
+      }
+
+      const cellulesHTML = COLONNES.map(col => renderCelluleGrid(lNode[col] || [])).join('');
+      return `
+        <div class="grille-ligne" style="display: grid; grid-template-columns: minmax(150px, 1.4fr) repeat(3, 1fr); gap: 4px; margin-bottom: 4px; align-items: start;">
+          <div style="padding: var(--spacing-sm); font-size: 0.85rem; font-weight: 600;">${etiquette}</div>
+          ${cellulesHTML}
+        </div>`;
+    }
+
+    // Bloc d'une famille : en-tête (pastille pire état + N erreurs) + sous-grille lignes × colonnes.
+    function renderFamilleBloc(fam, libelle, fNode, chantiersTries, COLONNES, COL_LABELS) {
+      const famChecks = collectChecksFamille(fNode);
+      const e = pireEtatFamille(famChecks);
+      const nbErr = famChecks.filter(c => c.niveau === 'bloquant' || c.niveau === 'majeur').length;
+      const ouvert = (e.niveau === 'bloquant' || e.niveau === 'majeur'); // erreurs ouvertes, conformes repliées
+
+      // Lignes présentes : Global (si checks globaux) puis chantiers présents dans cette famille.
+      const lignes = [];
+      if (fNode['global']) lignes.push('global');
+      chantiersTries.forEach(ci => { if (fNode[String(ci)]) lignes.push(String(ci)); });
+
+      const enTete = `
+        <div style="display: grid; grid-template-columns: minmax(150px, 1.4fr) repeat(3, 1fr); gap: 4px; font-size: 0.75rem; color: var(--color-text-light); padding: 0 var(--spacing-sm) 0.25rem;">
+          <div></div>
+          ${COLONNES.map(col => `<div style="font-weight: 600;">${COL_LABELS[col]}</div>`).join('')}
+        </div>`;
+      const corps = lignes.map(ligneKey => renderLigneGrid(ligneKey, fNode[ligneKey], COLONNES)).join('');
+
+      return `
+        <div class="groupe-checks" style="margin-bottom: var(--spacing-md); border: 1px solid rgba(255,255,255,0.1); border-radius: var(--radius-md); overflow: hidden;">
+          <div class="groupe-header" style="background: rgba(255,255,255,0.05); padding: var(--spacing-md); cursor: pointer; display: flex; justify-content: space-between; align-items: center;"
+               onclick="this.parentElement.querySelector('.groupe-content').classList.toggle('collapsed')">
+            <div style="display: flex; align-items: center; gap: var(--spacing-md);">
+              <span class="niveau-badge ${e.niveau}" style="background: ${e.couleur}; color: white; padding: 0.25rem 0.5rem; border-radius: var(--radius-sm); font-size: 0.75rem; font-weight: 600;">${e.label}</span>
+              <h4 style="margin: 0; font-size: 1rem;">${fam} — ${libelle}</h4>
+            </div>
+            <div style="display: flex; align-items: center; gap: var(--spacing-sm);">
+              <span style="font-size: 0.875rem; color: var(--color-text-light);">${nbErr} erreur(s)</span>
+              <span class="toggle-icon">▼</span>
+            </div>
+          </div>
+          <div class="groupe-content${ouvert ? '' : ' collapsed'}" style="padding: var(--spacing-sm);">
+            ${enTete}
+            ${corps}
+          </div>
+        </div>`;
+    }
+
+    // Une pastille de famille — NON cliquable au commit 1 (aucun onclick / handler / scroll / filtre).
+    function pastilleFamilleHTML(libelle, couleur, nbErr) {
+      return `
+        <div class="famille-pastille" style="border: 1px solid ${couleur}; border-radius: var(--radius-md); padding: var(--spacing-sm) var(--spacing-md); min-width: 90px;">
+          <div style="display: flex; align-items: center; gap: 0.4rem;">
+            <span style="width: 0.7rem; height: 0.7rem; border-radius: 50%; background: ${couleur}; display: inline-block;"></span>
+            <span style="font-size: 0.8rem; font-weight: 600;">${libelle}</span>
+          </div>
+          <div style="font-size: 0.75rem; color: var(--color-text-light); margin-top: 0.2rem;">${nbErr} erreur(s)</div>
+        </div>`;
+    }
+
+    // Bandeau du haut : compteur global (RÉUTILISÉ des counters, aucun recalcul) + rangée de pastilles.
+    function renderBandeauFamilles(matrice, nonClasses, ORDRE, LIBELLES) {
+      const totB = elements.counterBloquant ? elements.counterBloquant.textContent : '0';
+      const totM = elements.counterMajeur ? elements.counterMajeur.textContent : '0';
+      const totC = elements.counterConforme ? elements.counterConforme.textContent : '0';
+      const totI = elements.counterInfo ? elements.counterInfo.textContent : '0';
+
+      let pastilles = '';
+      ORDRE.forEach(fam => {
+        const fNode = matrice[fam];
+        if (!fNode) return;
+        const famChecks = collectChecksFamille(fNode);
+        const e = pireEtatFamille(famChecks);
+        const nbErr = famChecks.filter(c => c.niveau === 'bloquant' || c.niveau === 'majeur').length;
+        pastilles += pastilleFamilleHTML(`${fam} — ${LIBELLES[fam]}`, e.couleur, nbErr);
+      });
+      // Pastille « Non classés » colorée AU PIRE ÉTAT de son contenu (un majeur égaré → orange, jamais grise).
+      if (nonClasses.length > 0) {
+        const e = pireEtatFamille(nonClasses);
+        const nbErr = nonClasses.filter(c => c.niveau === 'bloquant' || c.niveau === 'majeur').length;
+        pastilles += pastilleFamilleHTML('Non classés', e.couleur, nbErr);
+      }
+
+      return `
+        <div class="familles-bandeau" style="margin-bottom: var(--spacing-lg);">
+          <div style="display: flex; gap: var(--spacing-md); margin-bottom: var(--spacing-md); flex-wrap: wrap;">
+            <span style="color: var(--color-bloquant); font-weight: 600;">${totB} bloquant(s)</span>
+            <span style="color: var(--color-majeur); font-weight: 600;">${totM} majeur(s)</span>
+            <span style="color: var(--color-conforme); font-weight: 600;">${totC} conforme(s)</span>
+            <span style="color: var(--color-info); font-weight: 600;">${totI} info</span>
+          </div>
+          <div style="display: flex; gap: var(--spacing-sm); flex-wrap: wrap;">${pastilles}</div>
+        </div>`;
+    }
+
+    // Fonction principale de rendu de la grille 2D « Par famille ».
+    function renderFamillesGrid(checks, container) {
+      if (!container) return;
+
+      // Garde-fou : table familles non chargée → ne PAS masquer les checks.
+      if (typeof window.resolveFamille !== 'function' || !window.CEE_FAMILLES) {
+        container.innerHTML = '<div class="check-card info"><div class="check-detail">⚠ Table des familles non chargée (familles-config.js)</div></div>';
+        return;
+      }
+
+      const ORDRE = window.CEE_FAMILLES.ORDRE;
+      const LIBELLES = window.CEE_FAMILLES.LIBELLES;
+      const COLONNES = ['cee', 'audit', 'synthese'];
+      const COL_LABELS = { cee: 'CEE', audit: 'Audit', synthese: 'Synthèse' };
+
+      // 1. MATRICE : matrice[fam][ligneKey][type] = [checks]. Une seule passe. Aucune écriture dans le check.
+      const matrice = {};
+      const lignesChantier = new Set();
+      const sheetChecks = [];
+      const nonClasses = [];
+
+      (checks || []).forEach(check => {
+        if ((check.id || '').startsWith('sheet_')) { sheetChecks.push(check); return; }
+        const fam = window.resolveFamille(check);
+        if (fam === null || fam === undefined) { nonClasses.push(check); return; }
+        const prov = getCheckProvenance(check);
+        // Type hors colonnes métier (ex. google_sheet sans préfixe sheet_) → seau séparé VISIBLE, jamais masqué.
+        if (COLONNES.indexOf(prov.type) === -1) { sheetChecks.push(check); return; }
+        const ligneKey = (prov.chantierIndex === null || prov.chantierIndex === undefined)
+          ? 'global' : String(prov.chantierIndex);
+        if (ligneKey !== 'global') lignesChantier.add(prov.chantierIndex);
+        const fNode = matrice[fam] || (matrice[fam] = {});
+        const lNode = fNode[ligneKey] || (fNode[ligneKey] = {});
+        (lNode[prov.type] || (lNode[prov.type] = [])).push(check);
+      });
+
+      const chantiersTries = Array.from(lignesChantier).sort((a, b) => a - b);
+
+      // 2. BANDEAU SYNTHÈSE.
+      let html = renderBandeauFamilles(matrice, nonClasses, ORDRE, LIBELLES);
+
+      // 3. GRILLE : familles dans l'ordre CEE_FAMILLES.ORDRE BRUT (aucun tri par gravité — commit 1).
+      ORDRE.forEach(fam => {
+        const fNode = matrice[fam];
+        if (!fNode) return; // famille vide → omise (comme l'accordéon)
+        html += renderFamilleBloc(fam, LIBELLES[fam], fNode, chantiersTries, COLONNES, COL_LABELS);
+      });
+
+      // 4. Seau « Non classés » VISIBLE (jamais masqué) si non vide.
+      if (nonClasses.length > 0) {
+        const e = pireEtatFamille(nonClasses);
+        html += `
+          <div class="groupe-checks" style="margin-bottom: var(--spacing-md); border: 1px solid var(--color-majeur); border-radius: var(--radius-md); overflow: hidden;">
+            <div class="groupe-header" style="background: rgba(245,158,11,0.08); padding: var(--spacing-md); cursor: pointer; display: flex; justify-content: space-between; align-items: center;"
+                 onclick="this.parentElement.querySelector('.groupe-content').classList.toggle('collapsed')">
+              <div style="display: flex; align-items: center; gap: var(--spacing-md);">
+                <span class="niveau-badge ${e.niveau}" style="background: ${e.couleur}; color: white; padding: 0.25rem 0.5rem; border-radius: var(--radius-sm); font-size: 0.75rem; font-weight: 600;">⚠️ NON CLASSÉS</span>
+                <h4 style="margin: 0; font-size: 1rem;">Checks non reconnus par la table familles (${nonClasses.length})</h4>
+              </div>
+              <span class="toggle-icon">▼</span>
+            </div>
+            <div class="groupe-content" style="padding: var(--spacing-sm);">
+              ${nonClasses.map(c => createCheckCard(c)).join('')}
+            </div>
+          </div>`;
+      }
+
+      // 5. Seau Google Sheet (hors familles métier) si non vide.
+      if (sheetChecks.length > 0) {
+        html += `
+          <div class="groupe-checks" style="margin-bottom: var(--spacing-md); border: 1px dashed rgba(255,255,255,0.2); border-radius: var(--radius-md); overflow: hidden;">
+            <div class="groupe-header" style="background: rgba(255,255,255,0.03); padding: var(--spacing-md); cursor: pointer; display: flex; justify-content: space-between; align-items: center;"
+                 onclick="this.parentElement.querySelector('.groupe-content').classList.toggle('collapsed')">
+              <div style="display: flex; align-items: center; gap: var(--spacing-md);">
+                <span class="niveau-badge info" style="background: var(--color-info); color: white; padding: 0.25rem 0.5rem; border-radius: var(--radius-sm); font-size: 0.75rem; font-weight: 600;">SHEET</span>
+                <h4 style="margin: 0; font-size: 1rem;">Comparaison Google Sheet (${sheetChecks.length})</h4>
+              </div>
+              <span class="toggle-icon">▼</span>
+            </div>
+            <div class="groupe-content" style="padding: var(--spacing-sm);">
+              ${sheetChecks.map(c => createCheckCard(c)).join('')}
+            </div>
+          </div>`;
+      }
+
+      container.innerHTML = html;
+
+      // Styles .collapsed propres à la grille (id dédié → pas de collision avec groupe-collapsed-style).
+      if (!document.getElementById('familles-grille-style')) {
+        const style = document.createElement('style');
+        style.id = 'familles-grille-style';
+        style.textContent = `
+          .groupe-content.collapsed { display: none; }
+          .grille-conformes-content.collapsed { display: none; }
+          .grille-ligne-content.collapsed { display: none; }
+          .groupe-content.collapsed + .groupe-header .toggle-icon { transform: rotate(-90deg); }
+        `;
+        document.head.appendChild(style);
+      }
     }
 
     function renderChecksWithGroups(checks, container) {
@@ -6872,8 +7198,10 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
         ? currentChecks.filter(c => c.niveau === activeFilter)
         : currentChecks;
 
-      // Vue principale : regroupement par famille de donnée métier (Chantier B)
-      renderChecksByFamille(checksToDisplay, elements.checksListFamilles);
+      // Vue principale : grille 2D par famille — rendue UNIQUEMENT si l'onglet « Par famille » est
+      // actif (confinement TODO #31). renderChecksByFamille (accordéon) est conservé plus haut comme
+      // filet de revert mais n'est plus appelé.
+      renderFamillesActiveTab();
 
       // Afficher avec la nouvelle structure hiérarchique dans l'onglet "Tous"
       renderChecksHierarchical(checksToDisplay, elements.checksListTous);
@@ -6901,6 +7229,9 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
         // Activer l'onglet et le panneau cliqués
         tab.classList.add('active');
         document.getElementById('tab' + targetTab.charAt(0).toUpperCase() + targetTab.slice(1)).classList.add('active');
+
+        // Rendu paresseux de la grille « Par famille » : seulement quand son onglet devient actif (TODO #31).
+        renderFamillesActiveTab();
       });
     });
 
@@ -6961,6 +7292,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
       state.chantiersDetectes = [];
       state.analysisResult = null;
       state.googleSheetData = null;
+      currentExtractedData = null; // pas de résidu d'adresses dans la grille « Par famille »
 
       // Vider les zones d'upload
       document.querySelectorAll('.upload-zone').forEach(zone => {

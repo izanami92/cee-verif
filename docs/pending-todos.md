@@ -358,11 +358,23 @@ Application des règles lors de l'analyse
 
 ### TODO #31 : [UI/debug] confiner renderChecksByFamille à son onglet + nettoyer les console.log
 
+**Statut** : ✅ **CONFINEMENT LIVRÉ le 08/06** (grille 2D, branche `feat/familles-grille-2d`) — `renderChecksByFamille` n'est **plus appelée** → son récap `🔎` ne s'exécute plus ; la nouvelle `renderFamillesGrid` ne se rend que quand l'onglet « Par famille » est actif. Les 5 `console.*` subsistent dans le **corps mort** (filet de revert, cf. **TODO #35**), inertes (jamais exécutés).
+
 `renderChecksByFamille` et son récap console (`🔎 Vue famille — récap`) se déclenchent à **chaque onglet** et à chaque re-rendu (plusieurs logs par analyse). À **confiner à l'onglet « Par famille »** lors de la passe grille, et **nettoyer les `console.log` de debug avant prod**.
 
 **Sources** : [Session 5 juin 2026 — chantier B]
 
 - §9 SOURCE_DE_VERITE — retirer la mention "Prime Evolution" (1.5 livrée le 01/06, oubli de nettoyage)
+
+### TODO #35 : [UI] supprimer le corps mort renderChecksByFamille après validation prod de la grille 2D
+
+**Statut** : 🟢 **À FAIRE après validation prod** (8 juin 2026) — filet de revert (décision ii du diagnostic grille 2D).
+
+**Contexte** : la grille 2D « Par famille » (`renderFamillesGrid`, branche `feat/familles-grille-2d`, commit 1) remplace l'accordéon `renderChecksByFamille` au point d'appel (`refreshDisplay`). Le corps de `renderChecksByFamille` est **conservé intact mais non référencé** comme filet de revert (revert = remettre la ligne d'appel `renderChecksByFamille(checksToDisplay, elements.checksListFamilles)`).
+
+**Action** : une fois la grille **confirmée en prod**, supprimer le corps mort de `renderChecksByFamille` (≈ lignes 6017-6164) et ses 5 `console.*`. Tant que la grille n'est pas validée en prod, **NE PAS supprimer** (sécurité revert).
+
+**Sources** : [Session 8 juin 2026 — chantier B, grille 2D commit 1]
 
 ### TODO #32 : [Simplification] checks 31-34 redondants — 4 checks pour une seule détection globale
 
