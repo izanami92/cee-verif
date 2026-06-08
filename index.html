@@ -6241,31 +6241,17 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
       return adresse ? `Chantier ${idx} — ${adresse}` : `Chantier ${idx} — (adresse non résolue)`;
     }
 
-    // Rendu d'une cellule : badge d'état + cartes. Erreurs/infos visibles d'emblée ; conformes repliés.
+    // Rendu d'une cellule = BADGE COMPACT uniquement (les cartes vont dans le détail pleine largeur, cf. renderDetailLigne).
+    // Le badge consomme etatCellule (label/couleur/nbErr) — AUCUN recalcul. « À vérifier » est MARQUÉ (⚠ + contour) : anti-faux-conforme.
     function renderCelluleGrid(cellChecks) {
       const e = etatCellule(cellChecks);
       if (e.etat === 'vide') {
-        return `<div class="grille-cellule vide" style="padding: var(--spacing-sm); text-align: center; color: var(--color-text-light); opacity: 0.5;">—</div>`;
+        return `<div class="grille-cellule vide">—</div>`;
       }
-      const visibles = cellChecks.filter(c => c.niveau !== 'ok'); // bloquant/majeur/info → visibles
-      const conformes = cellChecks.filter(c => c.niveau === 'ok'); // ok → repliés/dépliables
-      const badge = `<span class="niveau-badge ${e.etat}" style="background: ${e.couleur}; color: white; padding: 0.15rem 0.4rem; border-radius: var(--radius-sm); font-size: 0.7rem; font-weight: 600;">${e.label}</span>`;
-      let inner = visibles.map(c => createCheckCard(c)).join('');
-      if (conformes.length > 0) {
-        inner += `
-          <div class="grille-conformes" style="margin-top: var(--spacing-sm);">
-            <div style="cursor: pointer; font-size: 0.8rem; color: var(--color-text-light);"
-                 onclick="this.parentElement.querySelector('.grille-conformes-content').classList.toggle('collapsed')">
-              ▸ ${conformes.length} conforme(s)
-            </div>
-            <div class="grille-conformes-content collapsed">${conformes.map(c => createCheckCard(c)).join('')}</div>
-          </div>`;
-      }
-      return `
-        <div class="grille-cellule ${e.etat}" style="padding: var(--spacing-sm); border-left: 3px solid ${e.couleur};">
-          <div style="margin-bottom: 0.25rem;">${badge}</div>
-          ${inner}
-        </div>`;
+      const icone = e.etat === 'a_verifier' ? '⚠ ' : '';     // « à vérifier » accroche l'œil au scan
+      const marque = e.etat === 'a_verifier' ? ' marque' : ''; // + contour (classe .grille-badge.marque)
+      const compteur = (e.nbErr > 0) ? ` ${e.nbErr}` : '';    // compteur d'erreurs pour bloquant/majeur uniquement
+      return `<div class="grille-cellule"><span class="grille-badge ${e.etat}${marque}" style="background: ${e.couleur};">${icone}${e.label}${compteur}</span></div>`;
     }
 
     // Rendu d'une ligne (chantier ou Global). Applique la CONDENSATION D1 pour les chantiers conformes.
@@ -6294,12 +6280,50 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
           </div>`;
       }
 
+      // Ligne normale : rangée de badges (.grille-row, même gabarit de colonnes que l'en-tête) +
+      // zone de détail EN PLEINE LARGEUR dessous. Toute ligne NON VIDE a un détail dépliable :
+      // déplié d'emblée si ≥1 non-conforme, PLIÉ par défaut si tout-conforme (cartes conformes accessibles au clic).
       const cellulesHTML = COLONNES.map(col => renderCelluleGrid(lNode[col] || [])).join('');
+      const aDetail = COLONNES.some(col => (lNode[col] || []).length > 0);                        // ligne non vide → détail
+      const aNonConforme = COLONNES.some(col => (lNode[col] || []).some(c => c.niveau !== 'ok')); // → détail déplié d'emblée
+      const detailHTML = aDetail ? renderDetailLigne(lNode, COLONNES, !aNonConforme) : '';         // tout-conforme → détail plié
+      const clic = aDetail ? ` onclick="this.parentElement.querySelector('.grille-detail').classList.toggle('collapsed')"` : '';
       return `
-        <div class="grille-ligne" style="display: grid; grid-template-columns: minmax(150px, 1.4fr) repeat(3, 1fr); gap: 4px; margin-bottom: 4px; align-items: start;">
-          <div style="padding: var(--spacing-sm); font-size: 0.85rem; font-weight: 600;">${etiquette}</div>
-          ${cellulesHTML}
+        <div class="grille-ligne-wrap">
+          <div class="grille-row${aDetail ? ' grille-row-clickable' : ''}"${clic}>
+            <div class="grille-etiquette" title="${etiquette}">${aDetail ? '▾ ' : ''}${etiquette}</div>
+            ${cellulesHTML}
+          </div>
+          ${detailHTML}
         </div>`;
+    }
+
+    // Détail d'une ligne, EN PLEINE LARGEUR, regroupé par colonne (CEE / Audit / Synthèse).
+    // Ligne de partage = CONFORME / NON-CONFORME : bloquant/majeur/info → cartes dépliées d'emblée ;
+    // conformes (ok) → sous-dépli MASQUÉ par défaut (discrets). Anti-faux-conforme : l'info reste visible.
+    // `replie` = vrai pour une ligne tout-conforme → le détail global s'ouvre plié (cartes conformes accessibles au clic).
+    function renderDetailLigne(lNode, COLONNES, replie) {
+      const COL_LABELS = { cee: 'CEE', audit: 'Audit', synthese: 'Synthèse' };
+      let blocs = '';
+      COLONNES.forEach(col => {
+        const checks = lNode[col] || [];
+        if (checks.length === 0) return; // colonne vide → omise du détail
+        const aTraiter = checks.filter(c => c.niveau !== 'ok');  // bloquant/majeur/info → dépliés
+        const conformes = checks.filter(c => c.niveau === 'ok'); // ok → sous-dépli masqué
+        let inner = aTraiter.map(c => createCheckCard(c)).join('');
+        if (conformes.length > 0) {
+          inner += `
+            <div class="grille-conformes">
+              <div class="grille-conformes-toggle"
+                   onclick="event.stopPropagation(); this.parentElement.querySelector('.grille-conformes-content').classList.toggle('collapsed')">
+                ▸ ${conformes.length} conforme(s)
+              </div>
+              <div class="grille-conformes-content collapsed">${conformes.map(c => createCheckCard(c)).join('')}</div>
+            </div>`;
+        }
+        blocs += `<div class="grille-detail-col"><div class="grille-detail-col-titre">${COL_LABELS[col]}</div>${inner}</div>`;
+      });
+      return `<div class="grille-detail${replie ? ' collapsed' : ''}">${blocs}</div>`;
     }
 
     // Bloc d'une famille : en-tête (pastille pire état + N erreurs) + sous-grille lignes × colonnes.
@@ -6314,10 +6338,11 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
       if (fNode['global']) lignes.push('global');
       chantiersTries.forEach(ci => { if (fNode[String(ci)]) lignes.push(String(ci)); });
 
+      // En-tête de colonnes : MÊME classe .grille-row que les rangées de badges → gabarit de colonnes UNIQUE (aligné).
       const enTete = `
-        <div style="display: grid; grid-template-columns: minmax(150px, 1.4fr) repeat(3, 1fr); gap: 4px; font-size: 0.75rem; color: var(--color-text-light); padding: 0 var(--spacing-sm) 0.25rem;">
+        <div class="grille-row grille-entete">
           <div></div>
-          ${COLONNES.map(col => `<div style="font-weight: 600;">${COL_LABELS[col]}</div>`).join('')}
+          ${COLONNES.map(col => `<div>${COL_LABELS[col]}</div>`).join('')}
         </div>`;
       const corps = lignes.map(ligneKey => renderLigneGrid(ligneKey, fNode[ligneKey], COLONNES)).join('');
 
@@ -6335,22 +6360,19 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
             </div>
           </div>
           <div class="groupe-content${ouvert ? '' : ' collapsed'}" style="padding: var(--spacing-sm);">
-            ${enTete}
-            ${corps}
+            <div class="grille-scroll">
+              ${enTete}
+              ${corps}
+            </div>
           </div>
         </div>`;
     }
 
-    // Une pastille de famille — NON cliquable au commit 1 (aucun onclick / handler / scroll / filtre).
-    function pastilleFamilleHTML(libelle, couleur, nbErr) {
-      return `
-        <div class="famille-pastille" style="border: 1px solid ${couleur}; border-radius: var(--radius-md); padding: var(--spacing-sm) var(--spacing-md); min-width: 90px;">
-          <div style="display: flex; align-items: center; gap: 0.4rem;">
-            <span style="width: 0.7rem; height: 0.7rem; border-radius: 50%; background: ${couleur}; display: inline-block;"></span>
-            <span style="font-size: 0.8rem; font-weight: 600;">${libelle}</span>
-          </div>
-          <div style="font-size: 0.75rem; color: var(--color-text-light); margin-top: 0.2rem;">${nbErr} erreur(s)</div>
-        </div>`;
+    // Une pastille de famille COMPACTE — NON cliquable (le clic = commit 3, hors périmètre).
+    // Couleur portée par le point ; clé courte affichée, nom complet en title (survol).
+    function pastilleFamilleHTML(cle, nomComplet, couleur, nbErr) {
+      const n = nbErr > 0 ? `<span class="famille-pastille-n">${nbErr}</span>` : '';
+      return `<div class="famille-pastille" title="${nomComplet}"><span class="famille-pastille-dot" style="background: ${couleur};"></span><span class="famille-pastille-cle">${cle}</span>${n}</div>`;
     }
 
     // Bandeau du haut : compteur global (RÉUTILISÉ des counters, aucun recalcul) + rangée de pastilles.
@@ -6367,13 +6389,13 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
         const famChecks = collectChecksFamille(fNode);
         const e = pireEtatFamille(famChecks);
         const nbErr = famChecks.filter(c => c.niveau === 'bloquant' || c.niveau === 'majeur').length;
-        pastilles += pastilleFamilleHTML(`${fam} — ${LIBELLES[fam]}`, e.couleur, nbErr);
+        pastilles += pastilleFamilleHTML(fam, `${fam} — ${LIBELLES[fam]}`, e.couleur, nbErr);
       });
       // Pastille « Non classés » colorée AU PIRE ÉTAT de son contenu (un majeur égaré → orange, jamais grise).
       if (nonClasses.length > 0) {
         const e = pireEtatFamille(nonClasses);
         const nbErr = nonClasses.filter(c => c.niveau === 'bloquant' || c.niveau === 'majeur').length;
-        pastilles += pastilleFamilleHTML('Non classés', e.couleur, nbErr);
+        pastilles += pastilleFamilleHTML('Non classés', 'Checks non classés', e.couleur, nbErr);
       }
 
       return `
@@ -6384,7 +6406,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
             <span style="color: var(--color-conforme); font-weight: 600;">${totC} conforme(s)</span>
             <span style="color: var(--color-info); font-weight: 600;">${totI} info</span>
           </div>
-          <div style="display: flex; gap: var(--spacing-sm); flex-wrap: wrap;">${pastilles}</div>
+          <div class="familles-pastilles-row">${pastilles}</div>
         </div>`;
     }
 
@@ -6483,7 +6505,36 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
           .groupe-content.collapsed { display: none; }
           .grille-conformes-content.collapsed { display: none; }
           .grille-ligne-content.collapsed { display: none; }
+          .grille-detail.collapsed { display: none; }
           .groupe-content.collapsed + .groupe-header .toggle-icon { transform: rotate(-90deg); }
+
+          /* Gabarit de colonnes UNIQUE (en-tête + rangées de badges) — une seule source, alignement garanti */
+          .grille-scroll { overflow-x: auto; }
+          .grille-row { display: grid; grid-template-columns: minmax(130px, 200px) repeat(3, minmax(120px, 1fr)); gap: 4px; align-items: center; }
+          .grille-entete { font-size: 0.75rem; color: var(--color-text-light); font-weight: 600; padding: 0 var(--spacing-sm) 0.25rem; align-items: end; }
+          .grille-row-clickable { cursor: pointer; }
+          .grille-ligne-wrap { margin-bottom: 4px; }
+          .grille-etiquette { padding: var(--spacing-sm); font-size: 0.85rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+          /* Cellule = badge compact (couleur d'état depuis etatCellule, inline) */
+          .grille-cellule { padding: var(--spacing-sm); }
+          .grille-cellule.vide { text-align: center; color: var(--color-text-light); opacity: 0.5; }
+          .grille-badge { display: inline-block; color: white; padding: 0.15rem 0.45rem; border-radius: var(--radius-sm); font-size: 0.72rem; font-weight: 600; white-space: nowrap; }
+          .grille-badge.marque { border: 2px solid rgba(255,255,255,0.85); } /* « à vérifier » : contour marqué */
+
+          /* Détail d'erreur EN PLEINE LARGEUR, regroupé par colonne */
+          .grille-detail { padding: var(--spacing-sm); margin: 0 0 4px; display: flex; flex-wrap: wrap; gap: var(--spacing-md); border-left: 3px solid rgba(255,255,255,0.15); }
+          .grille-detail-col { flex: 1 1 280px; min-width: 0; }
+          .grille-detail-col-titre { font-size: 0.75rem; font-weight: 600; color: var(--color-text-light); margin-bottom: 0.25rem; }
+          .grille-conformes { margin-top: var(--spacing-sm); }
+          .grille-conformes-toggle { cursor: pointer; font-size: 0.8rem; color: var(--color-text-light); }
+
+          /* Bandeau de pastilles compact, sur UNE ligne (scroll horizontal = filet écran étroit) */
+          .familles-pastilles-row { display: flex; gap: var(--spacing-sm); overflow-x: auto; padding-bottom: 4px; }
+          .famille-pastille { display: inline-flex; align-items: center; gap: 0.3rem; border: 1px solid var(--color-border); border-radius: var(--radius-sm); padding: 0.2rem 0.5rem; font-size: 0.75rem; white-space: nowrap; flex: 0 0 auto; }
+          .famille-pastille-dot { width: 0.6rem; height: 0.6rem; border-radius: 50%; flex: 0 0 auto; }
+          .famille-pastille-cle { font-weight: 600; }
+          .famille-pastille-n { color: var(--color-text-light); font-weight: 600; }
         `;
         document.head.appendChild(style);
       }
