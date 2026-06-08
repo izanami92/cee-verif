@@ -28,6 +28,7 @@
       --color-majeur: #f59e0b;
       --color-conforme: #16a34a;
       --color-info: #64748b;
+      --color-a-verifier: #eab308; /* jaune « à vérifier » — distinct du orange majeur (#f59e0b) et de l'ardoise info (#64748b) */
 
       --color-warning: #d97706;
       --color-success: #15803d;
@@ -6196,6 +6197,17 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
       return { niveau: 'info', couleur: 'var(--color-info)', label: 'INFO' };
     }
 
+    // Couleur « signal » d'une famille (anti-faux-conforme) : erreur > « à vérifier » (JAUNE) > conforme (vert) > neutre.
+    // Distincte de pireEtatFamille (gravité, INCHANGÉ) : ici l'info SANS erreur vaut JAUNE, pas bleu/vert.
+    function couleurSignalFamille(checksList) {
+      const l = checksList || [];
+      if (l.some(c => c.niveau === 'bloquant')) return 'var(--color-bloquant)';
+      if (l.some(c => c.niveau === 'majeur'))   return 'var(--color-majeur)';
+      if (l.some(c => c.niveau === 'info'))     return 'var(--color-a-verifier)'; // à vérifier → jaune, jamais vert
+      if (l.some(c => c.niveau === 'ok'))       return 'var(--color-conforme)';
+      return 'var(--color-text-light)';
+    }
+
     // État d'UNE cellule en comptes (anti-faux-conforme, principe n°1).
     // Garde « vide » AVANT toute logique : une cellule sans check n'est JAMAIS peinte (ni verte, ni bleue).
     function etatCellule(cellChecks) {
@@ -6214,10 +6226,12 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
           nbOk, nbErr, nbInfo
         };
       }
-      if (nbOk > 0 && nbInfo === 0) return { etat: 'conforme', couleur: 'var(--color-conforme)', label: 'CONFORME', nbOk, nbErr, nbInfo };
-      if (nbOk > 0 && nbInfo > 0)  return { etat: 'conforme_partiel', couleur: 'var(--color-conforme)', label: 'CONFORME ⓘ', nbOk, nbErr, nbInfo };
-      // nbOk === 0 && nbErr === 0 && nbInfo > 0 → À VÉRIFIER (distinct, JAMAIS conforme)
-      return { etat: 'a_verifier', couleur: 'var(--color-info)', label: 'À VÉRIFIER', nbOk, nbErr, nbInfo };
+      // ANTI-FAUX-CONFORME (principe n°1) : le VERT n'est QUE pour du conforme PUR (nbInfo === 0).
+      // Toute info SANS erreur → « à vérifier » JAUNE. Fusionne l'ancien a_verifier (info-pur) ET l'ancien
+      // conforme_partiel (ok+info) : un « CONFORME ⓘ » vert murmurait, le jaune crie. nbInfo porte le ·N.
+      if (nbInfo > 0) return { etat: 'a_verifier', couleur: 'var(--color-a-verifier)', label: 'à vérifier', nbOk, nbErr, nbInfo };
+      // nbOk > 0 && nbInfo === 0 && nbErr === 0 → conforme PUR (vert)
+      return { etat: 'conforme', couleur: 'var(--color-conforme)', label: 'CONFORME', nbOk, nbErr, nbInfo };
     }
 
     // Aplatit tous les checks d'une famille (toutes lignes, toutes colonnes).
@@ -6250,8 +6264,13 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
       }
       const icone = e.etat === 'a_verifier' ? '⚠ ' : '';     // « à vérifier » accroche l'œil au scan
       const marque = e.etat === 'a_verifier' ? ' marque' : ''; // + contour (classe .grille-badge.marque)
-      const compteur = (e.nbErr > 0) ? ` ${e.nbErr}` : '';    // compteur d'erreurs pour bloquant/majeur uniquement
-      return `<div class="grille-cellule"><span class="grille-badge ${e.etat}${marque}" style="background: ${e.couleur};">${icone}${e.label}${compteur}</span></div>`;
+      // compteur d'erreurs collé au label (bloquant/majeur) ; ·N (nb info) pour « à vérifier » pur
+      const compteur = e.nbErr > 0 ? ` ${e.nbErr}` : (e.etat === 'a_verifier' ? ` ·${e.nbInfo}` : '');
+      // cellule MIXTE (erreur + info) : l'info DOIT rester visible, sinon le « ·N » d'en-tête compte un info
+      // introuvable en bas (orphelin). ⚠{nbInfo} EN PLUS du compteur d'erreur, dans un span clair (lisible sur
+      // fond orange/rouge). Couleur du badge = erreur, INCHANGÉE (jamais jaune sur une cellule en erreur).
+      const suffixeInfo = (e.nbErr > 0 && e.nbInfo > 0) ? ` <span class="badge-info-mixte">⚠${e.nbInfo}</span>` : '';
+      return `<div class="grille-cellule"><span class="grille-badge ${e.etat}${marque}" style="background: ${e.couleur};">${icone}${e.label}${compteur}${suffixeInfo}</span></div>`;
     }
 
     // Rendu d'une ligne (chantier ou Global). Applique la CONDENSATION D1 pour les chantiers conformes.
@@ -6331,7 +6350,11 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
       const famChecks = collectChecksFamille(fNode);
       const e = pireEtatFamille(famChecks);
       const nbErr = famChecks.filter(c => c.niveau === 'bloquant' || c.niveau === 'majeur').length;
-      const ouvert = (e.niveau === 'bloquant' || e.niveau === 'majeur'); // erreurs ouvertes, conformes repliées
+      const nbInfoFam = famChecks.filter(c => c.niveau === 'info').length; // total info de la famille (= Σ nbInfo des cellules)
+      const marqueurAVerif = nbInfoFam > 0
+        ? `<span class="famille-a-verifier">⚠ à vérifier ·${nbInfoFam}</span>` // signal jaune EN PLUS du badge de gravité
+        : '';
+      const ouvert = (e.niveau === 'bloquant' || e.niveau === 'majeur'); // erreurs ouvertes, conformes repliées (INCHANGÉ)
 
       // Lignes présentes : Global (si checks globaux) puis chantiers présents dans cette famille.
       const lignes = [];
@@ -6353,6 +6376,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
             <div style="display: flex; align-items: center; gap: var(--spacing-md);">
               <span class="niveau-badge ${e.niveau}" style="background: ${e.couleur}; color: white; padding: 0.25rem 0.5rem; border-radius: var(--radius-sm); font-size: 0.75rem; font-weight: 600;">${e.label}</span>
               <h4 style="margin: 0; font-size: 1rem;">${fam} — ${libelle}</h4>
+              ${marqueurAVerif}
             </div>
             <div style="display: flex; align-items: center; gap: var(--spacing-sm);">
               <span style="font-size: 0.875rem; color: var(--color-text-light);">${nbErr} erreur(s)</span>
@@ -6387,15 +6411,14 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
         const fNode = matrice[fam];
         if (!fNode) return;
         const famChecks = collectChecksFamille(fNode);
-        const e = pireEtatFamille(famChecks);
         const nbErr = famChecks.filter(c => c.niveau === 'bloquant' || c.niveau === 'majeur').length;
-        pastilles += pastilleFamilleHTML(fam, `${fam} — ${LIBELLES[fam]}`, e.couleur, nbErr);
+        // Point coloré = signal anti-faux-conforme : erreur > « à vérifier » (jaune) > conforme (vert).
+        pastilles += pastilleFamilleHTML(fam, `${fam} — ${LIBELLES[fam]}`, couleurSignalFamille(famChecks), nbErr);
       });
-      // Pastille « Non classés » colorée AU PIRE ÉTAT de son contenu (un majeur égaré → orange, jamais grise).
+      // Pastille « Non classés » colorée au SIGNAL de son contenu (majeur → orange ; info → jaune ; jamais grise/verte à tort).
       if (nonClasses.length > 0) {
-        const e = pireEtatFamille(nonClasses);
         const nbErr = nonClasses.filter(c => c.niveau === 'bloquant' || c.niveau === 'majeur').length;
-        pastilles += pastilleFamilleHTML('Non classés', 'Checks non classés', e.couleur, nbErr);
+        pastilles += pastilleFamilleHTML('Non classés', 'Checks non classés', couleurSignalFamille(nonClasses), nbErr);
       }
 
       return `
@@ -6520,7 +6543,10 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
           .grille-cellule { padding: var(--spacing-sm); }
           .grille-cellule.vide { text-align: center; color: var(--color-text-light); opacity: 0.5; }
           .grille-badge { display: inline-block; color: white; padding: 0.15rem 0.45rem; border-radius: var(--radius-sm); font-size: 0.72rem; font-weight: 600; white-space: nowrap; }
-          .grille-badge.marque { border: 2px solid rgba(255,255,255,0.85); } /* « à vérifier » : contour marqué */
+          .grille-badge.a_verifier { color: #1a1a1a; } /* texte sombre lisible sur le jaune */
+          .grille-badge.marque { border: 2px solid rgba(0,0,0,0.45); } /* « à vérifier » : contour sombre sur jaune */
+          .badge-info-mixte { background: var(--color-a-verifier); color: #1a1a1a; border-radius: var(--radius-sm); padding: 0 0.25rem; margin-left: 0.1rem; font-weight: 700; } /* ⚠{nbInfo} sur badge erreur : pastille jaune détachée, lisible sur fond orange/rouge */
+          .famille-a-verifier { background: var(--color-a-verifier); color: #1a1a1a; padding: 0.15rem 0.45rem; border-radius: var(--radius-sm); font-size: 0.72rem; font-weight: 600; white-space: nowrap; } /* marqueur jaune sur l'en-tête de famille */
 
           /* Détail d'erreur EN PLEINE LARGEUR, regroupé par colonne */
           .grille-detail { padding: var(--spacing-sm); margin: 0 0 4px; display: flex; flex-wrap: wrap; gap: var(--spacing-md); border-left: 3px solid rgba(255,255,255,0.15); }
@@ -6534,7 +6560,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
           .famille-pastille { display: inline-flex; align-items: center; gap: 0.3rem; border: 1px solid var(--color-border); border-radius: var(--radius-sm); padding: 0.2rem 0.5rem; font-size: 0.75rem; white-space: nowrap; flex: 0 0 auto; }
           .famille-pastille-dot { width: 0.6rem; height: 0.6rem; border-radius: 50%; flex: 0 0 auto; }
           .famille-pastille-cle { font-weight: 600; }
-          .famille-pastille-n { color: var(--color-text-light); font-weight: 600; }
+          .famille-pastille-n { font-weight: 700; } /* lisibilité : hérite la couleur lisible de la pastille (plus de gris clair) */
         `;
         document.head.appendChild(style);
       }
