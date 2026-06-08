@@ -2,7 +2,7 @@
 
 **Document de suivi** des fonctionnalités discutées, en cours, ou à implémenter.
 
-**Dernière mise à jour** : 3 juin 2026
+**Dernière mise à jour** : 5 juin 2026
 
 ---
 
@@ -76,6 +76,26 @@ Il n'existe PAS de 3e cas légitime.
 **NB** : `check_39` porte aussi un **bug distinct** (faux positif multi-chantiers même adresse) tracé en **TODO #27**, non concerné par ce fix.
 
 **Sources** : [Session 5 juin 2026 — chantier B, fix routage global]
+
+**Suite** : patron `portee` **étendu aux 7 checks dossier restants** le 05/06 (`be607dc`) → voir **TODO #34**. Le prérequis d'assainissement avant la grille 2D est désormais **fait**, sauf `check_47_global` (dette, **TODO #27**).
+
+---
+
+### ✅ TODO #34 : [Moteur] routage Global des checks dossier restants via portee — RÉSOLU
+
+**Statut** : ✅ **RÉSOLU le 05/06/2026** (commit `be607dc`, mergé dans `main` en fast-forward). Branche `fix/portee-global-restants`. Suite directe de **TODO #30**.
+
+**Problème (préexistant, latent)** : 7 checks « dossier » atterrissaient en ligne Global **par accident** — non par `portee` mais par l'**heuristique de chaîne de la Méthode 3** de `getCheckProvenance` (le message contient `'somme'` / `'dossier cee'` / `'adresse siège'` / `'09a'` / `'09b'`). Fragile : réécrire un libellé les aurait fait basculer en **Méthode 4** → `{audit, chantier 1}` → mauvaise cellule (future grille 2D) + risque de **faux conforme silencieux** (donnée Dossier CEE affichée sous un chantier).
+
+**Solution** : extension du patron #30 — `portee:'global-cee'` posée à la création des **7 checks** : `check_09a`, `check_09b`, `check_cee_incomplet`, `check_41`, `check_42`, `check_43` (dans `generateChecks`) + `check_attestation_non_agricole_naf_inconnu` (handler `btnAnalyze`, hors `generateChecks`). Lue par la **méthode 0bis** (branche prioritaire, avant la Méthode 3) → `{type:'cee', chantierIndex:null}`. **Aucune autre propriété touchée** (7 ajouts, 0 suppression). Après le fix, **plus aucun check dossier ne dépend de la Méthode 3** (sauf `check_47_global`, cf. NB).
+
+**Piège `categorie` trompeuse** : `check_41`/`check_43` sont `categorie:'audit'` et `check_42`/`09a`/`09b` `categorie:'synthese'`, alors qu'ils portent une **donnée du Dossier CEE** (adresse siège, date d'engagement, attestation, totaux LED vs CEE) → **colonne CEE**. `portee:'global-cee'` rend ce routage **explicite et structurel**, au lieu de dépendre de la prose.
+
+**Garanties** : harnais `test-familles.mjs` **71/71 inchangé** (`resolveFamille` ne lit pas `portee`) ; vue hiérarchique **byte-identique** (0bis renvoie le même `{type:'cee', chantierIndex:null}` que produisait la Méthode 3) → même bloc Dossier ; **aucun `niveau` ni règle métier modifié** ; **page de garde intacte** (`checks.slice(0,3)`, aucun des 7 n'y figure).
+
+**NB — `check_47_global` exclu (dette, TODO #27)** : créé hors `generateChecks` (dans `recalculateSurfaceChecks`) et **empêtré dans la collision d'id tracée TODO #27** (double `push` du même id qui s'écrasent, données audits/synthèses différentes). Poser une `portee` unique aurait exigé de **trancher la collision** = hors périmètre. Il reste sur la Méthode 3 ; fragilité résiduelle **faible** (déclencheur `'somme'`, mot **structurel** du libellé, peu réécrit).
+
+**Sources** : [Session 5 juin 2026 — chantier B, assainissement routage Global avant grille 2D]
 
 ---
 
@@ -859,7 +879,7 @@ CREATE TABLE analyses (
 ## 📊 STATISTIQUES
 
 **TODOs actifs** : 8
-- 🔴 Critiques : 2 (TODO #22 — modèle Chantier/Cellule, à cadrer ; TODO #29 — alerte 1.4 logique à 3 issues, faux « conforme » silencieux, à cadrer) — *(TODO #30 routage global : ✅ RÉSOLU 05/06 `3d4d75f` ; TODO #26 / évolution 1.3 : ✅ TERMINÉE en prod)*
+- 🔴 Critiques : 2 (TODO #22 — modèle Chantier/Cellule, à cadrer ; TODO #29 — alerte 1.4 logique à 3 issues, faux « conforme » silencieux, à cadrer) — *(TODO #30 + #34 routage global : ✅ RÉSOLU 05/06 (`3d4d75f` + `be607dc`) ; TODO #26 / évolution 1.3 : ✅ TERMINÉE en prod)*
 - 🟡 Importantes : 1 (TODO #3 reportée)
 - 🟢 Nice to have : 5 (dont TODO #31 — confiner renderChecksByFamille + nettoyer console.log ; TODO #32 — checks 31-34 redondants) — *(TODO #33 fiche technique globale = mémo, rien à corriger)*
 - 🔍 Bugs à investiguer (non comptés) : TODO #27 — `check_39` faux positif multi-chantiers même adresse ; appariement adresse « 4 » manquant ; réf produit `compareProductRef`
@@ -868,7 +888,7 @@ CREATE TABLE analyses (
 > ✅ Bug « état dossier » volet 2/2 (champs ref* conditionnels) **résolu le 2 juin 2026** (commit `1ec2c49`, mergé `6a38915`) — bug entièrement clos avec le volet 1/2 (commits `86a5906` + `7f15377`). Voir `SOURCE_DE_VERITE_CHECKS.md` §7.
 > ✅ Bug prod (non numéroté) **résolu 29/05/2026** : crash `norm.cee` null dans `generateChecks` (commit `27e7918`). Anomalie A2 (check_41 majeur) résolue le même jour (commit `f976521`). Voir `SOURCE_DE_VERITE_CHECKS.md` §7/§6.
 
-**TODOs complétés récemment** : 26 (7 mai - 3 juin 2026)
+**TODOs complétés récemment** : 27 (7 mai - 5 juin 2026)
 - 7 mai : Multi-chantiers (ADR 003)
 - 8 mai : Sélecteur LED (ADR 006), Normalisation adresses (ADR 007), Extraction CLIENT (ADR 008)
 - 9 mai : UX hiérarchique (ADR 009), Secteur par chantier (ADR 010), Matching INDEX (ADR 011)
@@ -888,6 +908,7 @@ CREATE TABLE analyses (
 - 3 juin : Évolution 1.3 COMPLÈTE — maille stabilisée (`af21eb8`) + C2 champ `attestationNonAgricole` (`0bef3d7`) + C3 détection/alerte gatée NAF (`5f1da89`) + C4 doc (`b475ef9`)
 - 3 juin : Évolution 1.2 — délais de travaux : 4 dates + 3 règles (R1 ≥ prévisite +14j / R2 fin>début strict / R3 facture>fin strict), alerte confirmable (`ab9242d`). **→ Phase 1 fonctionnelle (hors UI/UX) COMPLÈTE.**
 - 3 juin : Correctif extraction section C — `entrepriseMiseEnOeuvre` fiabilisé (ancrage SOURCE sur le titre + « Raison sociale », fin du non-déterminisme émetteur facture ↔ section C), patron `af21eb8`, commit `e456b70`. Volet logique aval à 3 issues → **TODO #29 (à cadrer)**.
+- 5 juin : 7 checks dossier restants routés par `portee:'global-cee'` (`be607dc`, suite TODO #30 → **TODO #34**) — fin de la dépendance à l'heuristique Méthode 3 ; `check_47_global` exclu (dette **TODO #27**).
 
 **TODOs reportés** : 1
 - 27 mai : Modularisation index.html (TODO #3) - À refaire après cadrage modèle Chantier/Cellule (TODO #22)
@@ -936,5 +957,5 @@ Ce document doit être mis à jour :
 
 ---
 
-**Dernière révision** : 3 juin 2026 (évolution 1.2 délais de travaux en prod `ab9242d` → **Phase 1 fonctionnelle hors UI/UX COMPLÈTE** ; évolution 1.3 complète ; **TODO #28 volet extraction corrigé en prod** (`e456b70`) — volet logique à 3 issues bascule en **TODO #29 (à cadrer)** ; bugs TODO #27 tracés)
+**Dernière révision** : 5 juin 2026 (**TODO #34** — patron `portee` étendu aux 7 checks dossier restants `be607dc`, suite TODO #30 ; `check_47_global` exclu, dette TODO #27). Préc. — 3 juin 2026 (évolution 1.2 délais de travaux en prod `ab9242d` → **Phase 1 fonctionnelle hors UI/UX COMPLÈTE** ; évolution 1.3 complète ; **TODO #28 volet extraction corrigé en prod** (`e456b70`) — volet logique à 3 issues bascule en **TODO #29 (à cadrer)** ; bugs TODO #27 tracés)
 **Prochaine révision** : Prochaine session de développement
