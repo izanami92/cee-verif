@@ -6215,18 +6215,15 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
       renderFamillesGrid(checksToDisplay, elements.checksListFamilles);
     }
 
-    // Rendu paresseux + confiné (TODO #31), calqué sur renderFamillesActiveTab. STUB (commit 2) :
-    // la grille « Par chantier » viendra dans les commits suivants ; ici, seul un placeholder muet.
+    // Rendu paresseux + confiné (TODO #31), calqué sur renderFamillesActiveTab.
+    // Délègue à renderChantierGrid (grille Audit|Synthèse + ligne « Dossier (global) » + bloc CEE provisoire).
     function renderChantierActiveTab() {
       const panel = document.getElementById('tabChantier');
       if (!panel || !panel.classList.contains('active')) return;
       const checksToDisplay = activeFilter
         ? currentChecks.filter(c => c.niveau === activeFilter)
         : currentChecks;
-      // Placeholder : aucune grille, aucun getCheckProvenance/etatCellule/resolveFamille encore (commits 3→6).
-      if (elements.checksListChantier) {
-        elements.checksListChantier.innerHTML = '<div class="check-card info"><div class="check-detail">Vue par chantier — à venir (grille en cours d\'implémentation)</div></div>';
-      }
+      renderChantierGrid(checksToDisplay, elements.checksListChantier);
     }
 
     // Ordre de gravité IDENTIQUE à familleEtat (bloquant > majeur > ok > info). Réutilisé tel quel,
@@ -6603,6 +6600,192 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
           .famille-pastille-dot { width: 0.6rem; height: 0.6rem; border-radius: 50%; flex: 0 0 auto; }
           .famille-pastille-cle { font-weight: 600; }
           .famille-pastille-n { font-weight: 700; } /* lisibilité : hérite la couleur lisible de la pastille (plus de gris clair) */
+        `;
+        document.head.appendChild(style);
+      }
+    }
+
+    // ====================== VUE « PAR CHANTIER » (grille chantier × document) ======================
+    // Réutilise getCheckProvenance (axe), etatCellule (badge), renderDetailLigne (détail), createCheckCard.
+    // NE MODIFIE PAS la grille « Par famille ». Colonnes = Audit | Synthèse (le CEE a son bloc à part).
+
+    // Cellule chantier = badge etatCellule + compteur de CONFORMES « N✓ » (volume vérifié, anti-faux-sentiment
+    // d'absence de couverture sur une cellule toutes-familles). NE touche PAS renderCelluleGrid (grille famille).
+    function renderCelluleChantier(cellChecks) {
+      const e = etatCellule(cellChecks);
+      if (e.etat === 'vide') {
+        return `<div class="grille-cellule vide">—</div>`; // vide → neutre, JAMAIS vert (principe n°1)
+      }
+      const icone = e.etat === 'a_verifier' ? '⚠ ' : '';
+      const marque = e.etat === 'a_verifier' ? ' marque' : '';
+      const compteur = e.nbErr > 0 ? ` ${e.nbErr}` : (e.etat === 'a_verifier' ? ` ·${e.nbInfo}` : '');
+      const suffixeInfo = (e.nbErr > 0 && e.nbInfo > 0) ? ` <span class="badge-info-mixte">⚠${e.nbInfo}</span>` : '';
+      // « N✓ » = nb conformes. Séparateur « · » si un compteur le précède (erreur/à-vérifier) ; collé sinon (CONFORME pur).
+      const aCompteurAvant = e.nbErr > 0 || e.etat === 'a_verifier';
+      const conformes = e.nbOk > 0 ? `${aCompteurAvant ? ' ·' : ''} <span class="badge-ok-count">${e.nbOk}✓</span>` : '';
+      return `<div class="grille-cellule"><span class="grille-badge ${e.etat}${marque}" style="background: ${e.couleur};">${icone}${e.label}${compteur}${suffixeInfo}${conformes}</span></div>`;
+    }
+
+    // Ligne de la grille chantier (chantier ou « Dossier (global) »). MÊME condensation D1 que renderLigneGrid
+    // (ligne CHANTIER tout-conforme repliée ; global jamais condensé). Réutilise renderDetailLigne pour le détail.
+    function renderLigneChantier(ligneKey, lNode, COLONNES) {
+      const etiquette = ligneKey === 'global' ? 'Dossier (global)' : etiquetteLigne(ligneKey);
+      const etats = COLONNES.map(col => etatCellule(lNode[col] || []));
+      const nonVides = etats.filter(e => e.etat !== 'vide');
+      const condensable = ligneKey !== 'global'
+        && nonVides.length >= 1
+        && nonVides.every(e => e.etat === 'conforme');
+      if (condensable) {
+        const toutesCartes = COLONNES.map(col => (lNode[col] || []).map(c => createCheckCard(c)).join('')).join('');
+        return `
+          <div class="grille-ligne" style="margin-bottom: 4px; border: 1px solid var(--color-conforme); border-radius: var(--radius-sm); overflow: hidden;">
+            <div style="padding: var(--spacing-sm); cursor: pointer; display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.03);"
+                 onclick="this.parentElement.querySelector('.grille-ligne-content').classList.toggle('collapsed')">
+              <span style="font-weight: 600; color: var(--color-conforme);">${etiquette} — conforme ✓</span>
+              <span class="toggle-icon">▼</span>
+            </div>
+            <div class="grille-ligne-content collapsed" style="padding: var(--spacing-sm);">${toutesCartes}</div>
+          </div>`;
+      }
+      const cellulesHTML = COLONNES.map(col => renderCelluleChantier(lNode[col] || [])).join('');
+      const aDetail = COLONNES.some(col => (lNode[col] || []).length > 0);
+      const aNonConforme = COLONNES.some(col => (lNode[col] || []).some(c => c.niveau !== 'ok'));
+      const detailHTML = aDetail ? renderDetailLigne(lNode, COLONNES, !aNonConforme) : '';
+      const clic = aDetail ? ` onclick="this.parentElement.querySelector('.grille-detail').classList.toggle('collapsed')"` : '';
+      return `
+        <div class="grille-ligne-wrap">
+          <div class="grille-row-chantier${aDetail ? ' grille-row-clickable' : ''}"${clic}>
+            <div class="grille-etiquette" title="${etiquette}">${aDetail ? '▾ ' : ''}${etiquette}</div>
+            ${cellulesHTML}
+          </div>
+          ${detailHTML}
+        </div>`;
+    }
+
+    // Fonction principale de la vue « Par chantier ». Bloc CEE PROVISOIRE (commit 3) + grille Audit|Synthèse.
+    function renderChantierGrid(checks, container) {
+      if (!container) return;
+      const COLONNES = ['audit', 'synthese'];
+      const COL_LABELS = { audit: 'Audit', synthese: 'Synthèse' };
+
+      // MATRICE : matrice[ligneKey][type] = [checks]. Gardes EXCLUSIVES (premier match → return : un check dans UN seul seau).
+      const matrice = {};
+      const lignesChantier = new Set();
+      const ceeChecks = [];   // type==='cee' → bloc CEE (PROVISOIRE ce commit ; vrai bloc au commit 5)
+      const sheetChecks = []; // sheet_* ou type hors {audit,synthese,cee} → seau VISIBLE (jamais masqué)
+      let aGlobal = false;
+
+      (checks || []).forEach(check => {
+        if ((check.id || '').startsWith('sheet_')) { sheetChecks.push(check); return; }
+        const prov = getCheckProvenance(check);
+        if (prov.type === 'cee') { ceeChecks.push(check); return; } // CRITÈRE STRICT type==='cee' (jamais chantierIndex===null : check_36 reste dans la grille)
+        if (COLONNES.indexOf(prov.type) === -1) { sheetChecks.push(check); return; } // type inattendu → seau visible
+        const ligneKey = (prov.chantierIndex === null || prov.chantierIndex === undefined)
+          ? 'global' : String(prov.chantierIndex);
+        if (ligneKey === 'global') aGlobal = true; else lignesChantier.add(prov.chantierIndex);
+        const lNode = matrice[ligneKey] || (matrice[ligneKey] = {});
+        (lNode[prov.type] || (lNode[prov.type] = [])).push(check);
+      });
+
+      const chantiersTries = Array.from(lignesChantier).sort((a, b) => a - b);
+
+      // Lignes : « Dossier (global) » EN TÊTE (si checks audit/synthese globaux), puis chantiers triés.
+      const lignes = [];
+      if (aGlobal) lignes.push('global');
+      chantiersTries.forEach(ci => lignes.push(String(ci)));
+
+      let html = '';
+
+      // 1. Bloc CEE PROVISOIRE (rendu brut, titre explicite). Remplacé par le vrai bloc enrichi au commit 5.
+      //    Affiché EN TÊTE et VISIBLE → aucun check type='cee' masqué (principe n°1).
+      if (ceeChecks.length > 0) {
+        html += `
+          <div class="groupe-checks" style="margin-bottom: var(--spacing-md); border: 1px dashed var(--color-info); border-radius: var(--radius-md); overflow: hidden;">
+            <div class="groupe-header" style="background: rgba(100,116,139,0.08); padding: var(--spacing-md); cursor: pointer; display: flex; justify-content: space-between; align-items: center;"
+                 onclick="this.parentElement.querySelector('.groupe-content').classList.toggle('collapsed')">
+              <h4 style="margin: 0; font-size: 1rem;">Dossier CEE (affichage provisoire — sera enrichi au prochain commit) (${ceeChecks.length})</h4>
+              <span class="toggle-icon">▼</span>
+            </div>
+            <div class="groupe-content" style="padding: var(--spacing-sm);">
+              ${ceeChecks.map(c => createCheckCard(c)).join('')}
+            </div>
+          </div>`;
+      }
+
+      // 2. GRILLE chantier (en-tête + lignes). En-tête et rangées partagent .grille-row-chantier (gabarit UNIQUE).
+      if (lignes.length > 0) {
+        const enTete = `
+          <div class="grille-row-chantier grille-entete">
+            <div></div>
+            ${COLONNES.map(col => `<div>${COL_LABELS[col]}</div>`).join('')}
+          </div>`;
+        const corps = lignes.map(ligneKey => renderLigneChantier(ligneKey, matrice[ligneKey], COLONNES)).join('');
+        html += `
+          <div class="groupe-checks" style="margin-bottom: var(--spacing-md); border: 1px solid rgba(255,255,255,0.1); border-radius: var(--radius-md); overflow: hidden;">
+            <div style="padding: var(--spacing-sm);">
+              <div class="grille-scroll">
+                ${enTete}
+                ${corps}
+              </div>
+            </div>
+          </div>`;
+      }
+
+      // 3. Seau Google Sheet / types inattendus VISIBLE (jamais masqué).
+      if (sheetChecks.length > 0) {
+        html += `
+          <div class="groupe-checks" style="margin-bottom: var(--spacing-md); border: 1px dashed rgba(255,255,255,0.2); border-radius: var(--radius-md); overflow: hidden;">
+            <div class="groupe-header" style="background: rgba(255,255,255,0.03); padding: var(--spacing-md); cursor: pointer; display: flex; justify-content: space-between; align-items: center;"
+                 onclick="this.parentElement.querySelector('.groupe-content').classList.toggle('collapsed')">
+              <div style="display: flex; align-items: center; gap: var(--spacing-md);">
+                <span class="niveau-badge info" style="background: var(--color-info); color: white; padding: 0.25rem 0.5rem; border-radius: var(--radius-sm); font-size: 0.75rem; font-weight: 600;">SHEET</span>
+                <h4 style="margin: 0; font-size: 1rem;">Comparaison Google Sheet / non rangés (${sheetChecks.length})</h4>
+              </div>
+              <span class="toggle-icon">▼</span>
+            </div>
+            <div class="groupe-content" style="padding: var(--spacing-sm);">
+              ${sheetChecks.map(c => createCheckCard(c)).join('')}
+            </div>
+          </div>`;
+      }
+
+      // Aucun contenu (aucun check) → message neutre, jamais un panneau vide silencieux.
+      container.innerHTML = html || '<div class="check-card info"><div class="check-detail">Aucun check à afficher pour cette vue.</div></div>';
+
+      // Styles chantier AUTOSUFFISANTS : gabarit 2 colonnes + « N✓ » + COPIES des règles partagées dont dépend
+      // le rendu chantier (badge/cellule/détail/collapsed…). Duplication ASSUMÉE avec #familles-grille-style pour
+      // SUPPRIMER la dépendance d'ordre (sinon badge « à vérifier » jaune-sur-jaune ILLISIBLE si la grille famille
+      // n'a pas encore rendu → faux conforme visuel). Dette tracée (pending-todos #36 : extraire un bloc neutre
+      // partagé). NE touche PAS #familles-grille-style ni renderFamillesGrid.
+      if (!document.getElementById('chantier-grille-style')) {
+        const style = document.createElement('style');
+        style.id = 'chantier-grille-style';
+        style.textContent = `
+          /* — Spécifique chantier — */
+          .grille-row-chantier { display: grid; grid-template-columns: minmax(130px, 200px) repeat(2, minmax(120px, 1fr)); gap: 4px; align-items: center; }
+          .badge-ok-count { font-weight: 600; } /* « N✓ » : couleur héritée du badge (#1a1a1a sur jaune, blanc sinon) → lisible partout */
+
+          /* — Copies des règles partagées (autosuffisance, cf. dette #36) — */
+          .groupe-content.collapsed { display: none; }
+          .grille-conformes-content.collapsed { display: none; }
+          .grille-ligne-content.collapsed { display: none; }
+          .grille-detail.collapsed { display: none; }
+          .grille-scroll { overflow-x: auto; }
+          .grille-entete { font-size: 0.75rem; color: var(--color-text-light); font-weight: 600; padding: 0 var(--spacing-sm) 0.25rem; align-items: end; }
+          .grille-row-clickable { cursor: pointer; }
+          .grille-ligne-wrap { margin-bottom: 4px; }
+          .grille-etiquette { padding: var(--spacing-sm); font-size: 0.85rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+          .grille-cellule { padding: var(--spacing-sm); }
+          .grille-cellule.vide { text-align: center; color: var(--color-text-light); opacity: 0.5; }
+          .grille-badge { display: inline-block; color: white; padding: 0.15rem 0.45rem; border-radius: var(--radius-sm); font-size: 0.72rem; font-weight: 600; white-space: nowrap; }
+          .grille-badge.a_verifier { color: #1a1a1a; } /* CRITIQUE : texte sombre lisible sur le jaune « à vérifier » */
+          .grille-badge.marque { border: 2px solid rgba(0,0,0,0.45); }
+          .badge-info-mixte { background: var(--color-a-verifier); color: #1a1a1a; border-radius: var(--radius-sm); padding: 0 0.25rem; margin-left: 0.1rem; font-weight: 700; }
+          .grille-detail { padding: var(--spacing-sm); margin: 0 0 4px; display: flex; flex-wrap: wrap; gap: var(--spacing-md); border-left: 3px solid rgba(255,255,255,0.15); }
+          .grille-detail-col { flex: 1 1 280px; min-width: 0; }
+          .grille-detail-col-titre { font-size: 0.75rem; font-weight: 600; color: var(--color-text-light); margin-bottom: 0.25rem; }
+          .grille-conformes { margin-top: var(--spacing-sm); }
+          .grille-conformes-toggle { cursor: pointer; font-size: 0.8rem; color: var(--color-text-light); }
         `;
         document.head.appendChild(style);
       }

@@ -376,6 +376,16 @@ Application des règles lors de l'analyse
 
 **Sources** : [Session 8 juin 2026 — chantier B, grille 2D commit 1]
 
+### TODO #36 : [refactor CSS] extraire les styles de grille partagés dans un bloc neutre
+
+**Statut** : 🟢 **À FAIRE après merge** (9 juin 2026) — dette assumée du commit 3 de la vue « Par chantier ».
+
+**Contexte** : `renderChantierGrid` (vue « Par chantier ») et `renderFamillesGrid` (vue « Par famille ») partagent les mêmes classes de rendu (`.grille-badge`, `.grille-badge.a_verifier`, `.grille-cellule`, `.grille-detail*`, `.grille-conformes*`, `.grille-row-clickable`, `.collapsed`…). Pour supprimer une **dépendance d'ordre** (la grille chantier dépendait du `#familles-grille-style` injecté par la grille famille → badge « à vérifier » jaune-sur-jaune **illisible** si la famille n'avait pas rendu = faux conforme visuel), ces règles ont été **dupliquées** dans `#chantier-grille-style` (autosuffisance, décision Option A du commit 3). 
+
+**Action** : extraire ces règles communes dans **une fonction d'injection neutre unique** (ex. `injectGrilleStyles()`, id dédié) appelée par les **deux** grilles → supprime la duplication ET la dépendance d'ordre. Touche `renderFamillesGrid` (remplacer son bloc `<style>` inline par l'appel) → changement préservant le comportement, **hors périmètre du commit 3** (interdiction de toucher `renderFamillesGrid`).
+
+**Sources** : [Session 9 juin 2026 — chantier B, vue par chantier commit 3, vérif adverse]
+
 ### TODO #32 : [Simplification] checks 31-34 redondants — 4 checks pour une seule détection globale
 
 `checkMentionsAgricoles` est appelé **1× sur tout le dossier**, mais son résultat est recopié dans **4 checks identiques** (`check_31→34`), avec une `categorie` alternée arbitraire (`i === 32 ? 'audit' : 'synthese'`). Un **seul check global** suffirait. Candidat à simplification — **non urgent**. (La maille document × chantier des mentions n'est pas implémentée ; cf. modèle Chantier/Cellule **TODO #22**.)
