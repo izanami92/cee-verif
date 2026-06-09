@@ -6730,8 +6730,12 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
       return out;
     }
 
-    // Rendu de la ZONE 1 : ligne de chips (JAMAIS d'accordéon ; détail par chantier → title=, jamais inline ni masqué).
-    // Gate NAF 1.3 RÉPLIQUÉ À L'IDENTIQUE du call site (cf. index.html:2946) : selectedCodeNaf || localStorage || ''.
+    // Rendu de la ZONE 1 : ligne de chips CLIQUABLES + panneau de détail dépliable propre à chaque chip.
+    // La chip (pastille + libellé + compteur) est rendue INCONDITIONNELLEMENT (principe n°1, jamais masquable) ;
+    // seul le détail (ex-attribut title=) passe au CLIC, dans un panneau .collapsed (replié par défaut), pleine largeur.
+    // Pattern .collapsed réutilisé tel quel (classList.toggle('collapsed')) ; ciblage par id car le panneau n'est pas
+    // un frère direct de la chip. Détail = c.title (calculé par computeAvertissementsCEE, NON modifié), découpé sur
+    // ' | ' → 1 chantier par ligne. Gate NAF 1.3 RÉPLIQUÉ À L'IDENTIQUE du call site (cf. index.html:2946).
     function renderLigneAvertissementsCEE() {
       const cee = currentExtractedData && currentExtractedData.cee;
       if (!cee) return ''; // pas de dossier CEE extrait → aucune ligne (rien à évaluer)
@@ -6739,16 +6743,25 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
       const isAgricole = codeNaf.startsWith('01.') || codeNaf.startsWith('02.');
       const escAttr = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
       const couleur = (etat) => etat === 'conforme' ? 'var(--color-conforme)' : 'var(--color-a-verifier)';
-      const chips = computeAvertissementsCEE(cee, isAgricole).map(c => {
+      const averts = computeAvertissementsCEE(cee, isAgricole);
+      // Chips : toujours rendues en dur (pastille + libellé + compteur). Clic → toggle du panneau de même index.
+      const chips = averts.map((c, i) => {
         const col = couleur(c.etat);
-        return `<span class="cee-avert-chip" title="${escAttr(c.title)}" style="display:inline-flex; align-items:center; gap:5px; padding:3px 9px; border-radius:999px; border:1px solid ${col}; font-size:0.75rem; white-space:nowrap; cursor:default;">`
+        return `<span class="cee-avert-chip" onclick="document.getElementById('cee-avert-detail-${i}').classList.toggle('collapsed')" style="display:inline-flex; align-items:center; gap:5px; padding:3px 9px; border-radius:999px; border:1px solid ${col}; font-size:0.75rem; white-space:nowrap; cursor:pointer;">`
           + `<span style="width:8px; height:8px; border-radius:50%; background:${col}; flex:0 0 auto;"></span>`
           + `${c.label}${c.n > 0 ? ` ·${c.n}` : ''}</span>`;
+      }).join('');
+      // Panneaux de détail (repliés par défaut) : 1 par chip. c.title découpé sur ' | ' (séparateur multi-chantier)
+      // → 1 segment/ligne ; détail global (sans ' | ') = 1 seule ligne. Tout échappé via escAttr (jamais de HTML brut).
+      const panneaux = averts.map((c, i) => {
+        const lignes = String(c.title).split(' | ').map(seg => escAttr(seg)).join('<br>');
+        return `<div class="cee-avert-detail collapsed" id="cee-avert-detail-${i}"><span class="cee-avert-detail-titre">${escAttr(c.label)}</span>${lignes}</div>`;
       }).join('');
       return `
         <div class="cee-avertissements-ligne" style="display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin-bottom:var(--spacing-md); padding:var(--spacing-sm) var(--spacing-md); border:1px dashed var(--color-info); border-radius:var(--radius-md);">
           <span style="font-weight:600; font-size:0.8rem; margin-right:4px;">⚠ Avertissements CEE (live)</span>
           ${chips}
+          ${panneaux}
         </div>`;
     }
 
@@ -6898,6 +6911,11 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
           #checksListChantier .grille-bloc-titre { font-size: 1rem; font-weight: 700; padding: var(--spacing-sm) var(--spacing-md); border-bottom: 1px solid var(--color-border); background: rgba(0,0,0,0.03); }
           /* Bloc 2 « Chantiers » : gabarit 2 pistes de données (label + Audit + Synthèse), aucune colonne CEE */
           #checksListChantier .grille-bloc-chantiers .grille-row-chantier { grid-template-columns: minmax(130px, 200px) repeat(2, minmax(120px, 1fr)); }
+
+          /* — ZONE 1 : panneau de détail dépliable des chips d'avertissement CEE (chips cliquables). SCOPÉ #checksListChantier → « Par famille » (#checksListFamilles) intacte. La chip reste toujours visible ; seul ce panneau s'ouvre/se ferme au clic. flex:0 0 100% → le panneau occupe sa propre ligne, pleine largeur, SOUS les chips. — */
+          #checksListChantier .cee-avert-detail { flex: 0 0 100%; margin-top: 2px; padding: var(--spacing-sm) var(--spacing-md); font-size: 0.78rem; line-height: 1.5; border-left: 3px solid var(--color-info); background: rgba(0,0,0,0.03); border-radius: var(--radius-sm); }
+          #checksListChantier .cee-avert-detail.collapsed { display: none; }
+          #checksListChantier .cee-avert-detail-titre { display: block; font-weight: 600; margin-bottom: 0.2rem; }
         `;
         document.head.appendChild(style);
       }
