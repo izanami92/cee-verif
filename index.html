@@ -6755,21 +6755,22 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
     // Fonction principale de la vue « Par chantier ». ZONE 1 avertissements live + ZONE 2 comparaisons transversales (commit 5) + grille Audit|Synthèse.
     function renderChantierGrid(checks, container) {
       if (!container) return;
-      const COLONNES = ['audit', 'synthese'];
-      const COL_LABELS = { audit: 'Audit', synthese: 'Synthèse' };
+      const COLONNES = ['cee', 'audit', 'synthese']; // AMENDEMENT commit 5 (approche A) : grille UNIFORME 3 col. — 'cee' retombe dans matrice['global']['cee']
+      const COL_LABELS = { cee: 'CEE', audit: 'Audit', synthese: 'Synthèse' };
 
       // MATRICE : matrice[ligneKey][type] = [checks]. Gardes EXCLUSIVES (premier match → return : un check dans UN seul seau).
       const matrice = {};
       const lignesChantier = new Set();
-      const ceeChecks = [];   // type==='cee' → bloc CEE (PROVISOIRE ce commit ; vrai bloc au commit 5)
-      const sheetChecks = []; // sheet_* ou type hors {audit,synthese,cee} → seau VISIBLE (jamais masqué)
+      const sheetChecks = []; // sheet_* ou type hors {cee,audit,synthese} → seau VISIBLE (jamais masqué)
       let aGlobal = false;
 
       (checks || []).forEach(check => {
         if ((check.id || '').startsWith('sheet_')) { sheetChecks.push(check); return; }
         const prov = getCheckProvenance(check);
-        if (prov.type === 'cee') { ceeChecks.push(check); return; } // CRITÈRE STRICT type==='cee' (jamais chantierIndex===null : check_36 reste dans la grille)
-        if (COLONNES.indexOf(prov.type) === -1) { sheetChecks.push(check); return; } // type inattendu → seau visible
+        // AMENDEMENT commit 5 (approche A) : plus de détour des type='cee' vers un bloc séparé.
+        // 'cee' ∈ COLONNES → ils retombent ici dans matrice['global']['cee'] (tous chantierIndex=null) et
+        // s'affichent dans la colonne CEE de la ligne « Dossier (global) ». UN seul chemin → ni perdu, ni dupliqué.
+        if (COLONNES.indexOf(prov.type) === -1) { sheetChecks.push(check); return; } // type inattendu (hors cee/audit/synthese) → seau visible
         const ligneKey = (prov.chantierIndex === null || prov.chantierIndex === undefined)
           ? 'global' : String(prov.chantierIndex);
         if (ligneKey === 'global') aGlobal = true; else lignesChantier.add(prov.chantierIndex);
@@ -6803,24 +6804,9 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
       // ZONE 1 (commit 5) — ligne compacte d'avertissements CEE, RECALCULÉE live (jamais une capture). EN TÊTE, VISIBLE.
       html += renderLigneAvertissementsCEE();
 
-      // ZONE 2 (commit 5, approche B) — bloc des comparaisons transversales : la TOTALITÉ de ceeChecks, AUCUN filtre.
-      //    Partition exhaustive (diagnostic D) : Zone 1 = recalcul HORS checks, Zone 2 = TOUS les checks type='cee'.
-      //    Ne JAMAIS filtrer ceeChecks (sinon disparition de check_attestation_non_agricole_naf_inconnu / check_47_global).
-      if (ceeChecks.length > 0) {
-        html += `
-          <div class="groupe-checks" style="margin-bottom: var(--spacing-md); border: 1px dashed var(--color-info); border-radius: var(--radius-md); overflow: hidden;">
-            <div class="groupe-header" style="background: rgba(100,116,139,0.08); padding: var(--spacing-md); cursor: pointer; display: flex; justify-content: space-between; align-items: center;"
-                 onclick="this.parentElement.querySelector('.groupe-content').classList.toggle('collapsed')">
-              <h4 style="margin: 0; font-size: 1rem;">Dossier CEE — comparaisons transversales (${ceeChecks.length})</h4>
-              <span class="toggle-icon">▼</span>
-            </div>
-            <div class="groupe-content" style="padding: var(--spacing-sm);">
-              ${ceeChecks.map(c => createCheckCard(c)).join('')}
-            </div>
-          </div>`;
-      }
-
-      // 2. GRILLE chantier (en-tête + lignes). En-tête et rangées partagent .grille-row-chantier (gabarit UNIQUE).
+      // GRILLE chantier (en-tête + lignes). AMENDEMENT commit 5 (approche A) : les checks type='cee' ne sont PLUS
+      // dans un bloc séparé — ils retombent dans la colonne CEE de la ligne « Dossier (global) » (grille UNIFORME).
+      // En-tête et rangées partagent .grille-row-chantier (gabarit UNIQUE, désormais 3 colonnes CEE|Audit|Synthèse).
       if (lignes.length > 0) {
         const enTete = `
           <div class="grille-row-chantier grille-entete">
@@ -6860,7 +6846,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
       // Aucun contenu (aucun check) → message neutre, jamais un panneau vide silencieux.
       container.innerHTML = html || '<div class="check-card info"><div class="check-detail">Aucun check à afficher pour cette vue.</div></div>';
 
-      // Styles chantier AUTOSUFFISANTS : gabarit 2 colonnes + « N✓ » + COPIES des règles partagées dont dépend
+      // Styles chantier AUTOSUFFISANTS : gabarit 3 colonnes + « N✓ » + COPIES des règles partagées dont dépend
       // le rendu chantier (badge/cellule/détail/collapsed…). Duplication ASSUMÉE avec #familles-grille-style pour
       // SUPPRIMER la dépendance d'ordre (sinon badge « à vérifier » jaune-sur-jaune ILLISIBLE si la grille famille
       // n'a pas encore rendu → faux conforme visuel). Dette tracée (pending-todos #36 : extraire un bloc neutre
@@ -6870,7 +6856,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
         style.id = 'chantier-grille-style';
         style.textContent = `
           /* — Spécifique chantier — */
-          .grille-row-chantier { display: grid; grid-template-columns: minmax(130px, 200px) repeat(2, minmax(120px, 1fr)); gap: 4px; align-items: center; }
+          .grille-row-chantier { display: grid; grid-template-columns: minmax(130px, 200px) repeat(3, minmax(120px, 1fr)); gap: 4px; align-items: center; } /* 3 col. CEE|Audit|Synthèse (amendement commit 5, approche A) */
           .badge-ok-count { font-weight: 600; } /* « N✓ » : couleur héritée du badge (#1a1a1a sur jaune, blanc sinon) → lisible partout */
 
           /* — Copies des règles partagées (autosuffisance, cf. dette #36) — */
