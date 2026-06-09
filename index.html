@@ -6753,9 +6753,13 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
       }).join('');
       // Panneaux de détail (repliés par défaut) : 1 par chip. c.title découpé sur ' | ' (séparateur multi-chantier)
       // → 1 segment/ligne ; détail global (sans ' | ') = 1 seule ligne. Tout échappé via escAttr (jamais de HTML brut).
+      // Accent d'état : barre latérale = couleur(c.etat) EN INLINE (MÊME source que la chip, l.6745 — pas de mapping
+      // dupliqué → chip↔panneau ne peuvent pas diverger). Titre coloré par classe d'état (conforme=texte vert /
+      // a_verifier=badge jaune+texte sombre, cf. CSS). FOND du panneau laissé NEUTRE (principe n°1 : pas de nappe colorée).
       const panneaux = averts.map((c, i) => {
+        const col = couleur(c.etat);
         const lignes = String(c.title).split(' | ').map(seg => escAttr(seg)).join('<br>');
-        return `<div class="cee-avert-detail collapsed" id="cee-avert-detail-${i}"><span class="cee-avert-detail-titre">${escAttr(c.label)}</span>${lignes}</div>`;
+        return `<div class="cee-avert-detail collapsed" id="cee-avert-detail-${i}" style="border-left-color:${col};"><span class="cee-avert-detail-titre ${c.etat}">${escAttr(c.label)}</span>${lignes}</div>`;
       }).join('');
       return `
         <div class="cee-avertissements-ligne" style="display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin-bottom:var(--spacing-md); padding:var(--spacing-sm) var(--spacing-md); border:1px dashed var(--color-info); border-radius:var(--radius-md);">
@@ -6918,6 +6922,9 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
           #checksListChantier .cee-avert-detail { flex: 0 0 100%; margin-top: 2px; padding: var(--spacing-sm) var(--spacing-md); font-size: 0.78rem; line-height: 1.5; border-left: 3px solid var(--color-info); background: rgba(0,0,0,0.03); border-radius: var(--radius-sm); }
           #checksListChantier .cee-avert-detail.collapsed { display: none; }
           #checksListChantier .cee-avert-detail-titre { display: block; font-weight: 600; margin-bottom: 0.2rem; }
+          /* Accent d'état du titre : conforme = texte vert lisible ; a_verifier = badge jaune + texte sombre #1a1a1a (calque .famille-a-verifier ; JAMAIS de texte jaune sur fond clair, illisible ~2:1). width:fit-content → le fond jaune épouse le label sans nappe pleine largeur, le titre reste un bloc au-dessus des lignes. */
+          #checksListChantier .cee-avert-detail-titre.conforme { color: var(--color-conforme); }
+          #checksListChantier .cee-avert-detail-titre.a_verifier { width: fit-content; background: var(--color-a-verifier); color: #1a1a1a; padding: 0.15rem 0.45rem; border-radius: var(--radius-sm); white-space: nowrap; }
         `;
         document.head.appendChild(style);
       }
