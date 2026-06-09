@@ -1398,6 +1398,7 @@
         <!-- Onglets -->
         <div class="tabs">
           <button class="tab active" data-tab="familles">Par famille</button>
+          <button class="tab" data-tab="chantier">Par chantier</button>
           <button class="tab" data-tab="tous">Tous les points</button>
           <button class="tab" data-tab="garde">Page de garde</button>
           <button class="tab" data-tab="synthese">Synthèse</button>
@@ -1408,6 +1409,10 @@
         <!-- Panneaux -->
         <div id="tabFamilles" class="tab-panel active">
           <div id="checksListFamilles" class="checks-list"></div>
+        </div>
+
+        <div id="tabChantier" class="tab-panel">
+          <div id="checksListChantier" class="checks-list"></div>
         </div>
 
         <div id="tabTous" class="tab-panel">
@@ -1553,6 +1558,7 @@
       tabPanels: document.querySelectorAll('.tab-panel'),
 
       checksListFamilles: document.getElementById('checksListFamilles'),
+      checksListChantier: document.getElementById('checksListChantier'),
       checksListTous: document.getElementById('checksListTous'),
       checksListGarde: document.getElementById('checksListGarde'),
       checksListSynthese: document.getElementById('checksListSynthese'),
@@ -6209,6 +6215,20 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
       renderFamillesGrid(checksToDisplay, elements.checksListFamilles);
     }
 
+    // Rendu paresseux + confiné (TODO #31), calqué sur renderFamillesActiveTab. STUB (commit 2) :
+    // la grille « Par chantier » viendra dans les commits suivants ; ici, seul un placeholder muet.
+    function renderChantierActiveTab() {
+      const panel = document.getElementById('tabChantier');
+      if (!panel || !panel.classList.contains('active')) return;
+      const checksToDisplay = activeFilter
+        ? currentChecks.filter(c => c.niveau === activeFilter)
+        : currentChecks;
+      // Placeholder : aucune grille, aucun getCheckProvenance/etatCellule/resolveFamille encore (commits 3→6).
+      if (elements.checksListChantier) {
+        elements.checksListChantier.innerHTML = '<div class="check-card info"><div class="check-detail">Vue par chantier — à venir (grille en cours d\'implémentation)</div></div>';
+      }
+    }
+
     // Ordre de gravité IDENTIQUE à familleEtat (bloquant > majeur > ok > info). Réutilisé tel quel,
     // aucune 2e échelle inventée. Sert à la pastille de famille et au pire niveau d'une cellule en erreur.
     function pireEtatFamille(checksList) {
@@ -7301,6 +7321,8 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
       // actif (confinement TODO #31). renderChecksByFamille (accordéon) est conservé plus haut comme
       // filet de revert mais n'est plus appelé.
       renderFamillesActiveTab();
+      // Idem vue « Par chantier » (placeholder pour l'instant) — confinée à son onglet actif.
+      renderChantierActiveTab();
 
       // Afficher avec la nouvelle structure hiérarchique dans l'onglet "Tous"
       renderChecksHierarchical(checksToDisplay, elements.checksListTous);
@@ -7331,6 +7353,8 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
 
         // Rendu paresseux de la grille « Par famille » : seulement quand son onglet devient actif (TODO #31).
         renderFamillesActiveTab();
+        // Idem vue « Par chantier » (placeholder) — confinée à son onglet actif.
+        renderChantierActiveTab();
       });
     });
 
