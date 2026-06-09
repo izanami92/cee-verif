@@ -6662,6 +6662,22 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
         </div>`;
     }
 
+    // COMMIT 4 — comparateur du détail « Par chantier » : gravité DÉCROISSANTE (bloquant>majeur>info>ok)
+    // PUIS ordre famille CEE_FAMILLES.ORDRE. Famille inconnue (resolveFamille → null) OU niveau inattendu
+    // → QUEUE de leur groupe de gravité (principe n°1 : jamais perdu, jamais masqué — un réordonnancement
+    // ne supprime rien). Pur : lecture seule de resolveFamille + CEE_FAMILLES, n'altère aucun check.
+    // Tri stable (Array.prototype.sort, garanti ES2019) → ordre d'origine préservé à (gravité, famille) égales.
+    function compareDetailCellChantier(a, b) {
+      const RANG = { bloquant: 0, majeur: 1, info: 2, ok: 3 };
+      const ga = (a.niveau in RANG) ? RANG[a.niveau] : 9; // niveau hors des 4 connus → queue (anti-perte)
+      const gb = (b.niveau in RANG) ? RANG[b.niveau] : 9;
+      if (ga !== gb) return ga - gb;
+      const ORDRE = window.CEE_FAMILLES.ORDRE;
+      const ia = ORDRE.indexOf(window.resolveFamille(a));
+      const ib = ORDRE.indexOf(window.resolveFamille(b));
+      return (ia === -1 ? ORDRE.length : ia) - (ib === -1 ? ORDRE.length : ib); // null → ORDRE.length = queue
+    }
+
     // Fonction principale de la vue « Par chantier ». Bloc CEE PROVISOIRE (commit 3) + grille Audit|Synthèse.
     function renderChantierGrid(checks, container) {
       if (!container) return;
@@ -6686,6 +6702,20 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
         const lNode = matrice[ligneKey] || (matrice[ligneKey] = {});
         (lNode[prov.type] || (lNode[prov.type] = [])).push(check);
       });
+
+      // COMMIT 4 — tri du détail (gravité ↓ puis ordre famille), VUE CHANTIER SEULE.
+      // matrice[k][col] = les MÊMES tableaux que lNode[prov.type] remplis ci-dessus (l.6703) : lNode est un
+      // ALIAS de matrice[ligneKey] (l.6702 : `matrice[ligneKey] || (matrice[ligneKey] = {})`), jamais une copie
+      // → trier matrice[k][col] EN PLACE agit sur le tableau réellement rendu, et sur lui seul. Tableaux PRIVÉS
+      // à cette vue (matrice locale) ; « Par famille » bâtit son propre fNode et reste intouchée. La ligne
+      // tout-conforme condensée (toutesCartes) ET renderDetailLigne reçoivent matrice[ligneKey] en 6749 → elles
+      // consomment ces mêmes tableaux triés, SANS modif de ces fonctions. familles-config.js absent → tri sauté
+      // (ordre d'insertion conservé, aucun check perdu — principe n°1).
+      if (typeof window.resolveFamille === 'function' && window.CEE_FAMILLES) {
+        Object.keys(matrice).forEach(k => {
+          COLONNES.forEach(col => { if (matrice[k][col]) matrice[k][col].sort(compareDetailCellChantier); });
+        });
+      }
 
       const chantiersTries = Array.from(lignesChantier).sort((a, b) => a - b);
 
