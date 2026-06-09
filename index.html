@@ -6880,6 +6880,14 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
           .grille-detail-col-titre { font-size: 0.75rem; font-weight: 600; color: var(--color-text-light); margin-bottom: 0.25rem; }
           .grille-conformes { margin-top: var(--spacing-sm); }
           .grille-conformes-toggle { cursor: pointer; font-size: 0.8rem; color: var(--color-text-light); }
+
+          /* — Commit esthétique : CSS PUR, toutes les règles SCOPÉES #checksListChantier → « Par famille » (#checksListFamilles) intacte — */
+          /* A — frontière visuelle entre zones (Dossier / Chantier N). Lignes condensées (.grille-ligne) déjà bordées vert → non concernées. */
+          #checksListChantier .grille-ligne-wrap:not(:first-child) { border-top: 1px solid var(--color-border); margin-top: var(--spacing-sm); padding-top: var(--spacing-sm); }
+          /* C — titre de zone plus marqué (reste inline ; white-space/ellipsis hérités de la règle globale .grille-etiquette) */
+          #checksListChantier .grille-etiquette { font-size: 0.95rem; font-weight: 700; }
+          /* B — libellés de colonne CEE/Audit/Synthèse discrets (repère de colonne GARDÉ, jamais masqué) */
+          #checksListChantier .grille-detail-col-titre { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--color-text-light); opacity: 0.75; }
         `;
         document.head.appendChild(style);
       }
