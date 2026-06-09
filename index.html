@@ -6888,6 +6888,8 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
           .grille-etiquette { padding: var(--spacing-sm); font-size: 0.85rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
           .grille-cellule { padding: var(--spacing-sm); }
           .grille-cellule.vide { text-align: center; color: var(--color-text-light); opacity: 0.5; }
+          /* Vue chantier : « — » de cellule vide calé À GAUCHE (à l'aplomb des badges, même padding-left), SCOPÉ #checksListChantier → la règle famille .grille-cellule.vide (#familles-grille-style) reste centrée, NON touchée. SEUL text-align change ; color/opacity (aspect neutre/vide, principe n°1) conservés par la règle globale ci-dessus. */
+          #checksListChantier .grille-cellule.vide { text-align: left; }
           .grille-badge { display: inline-block; color: white; padding: 0.15rem 0.45rem; border-radius: var(--radius-sm); font-size: 0.72rem; font-weight: 600; white-space: nowrap; }
           .grille-badge.a_verifier { color: #1a1a1a; } /* CRITIQUE : texte sombre lisible sur le jaune « à vérifier » */
           .grille-badge.marque { border: 2px solid rgba(0,0,0,0.45); }
