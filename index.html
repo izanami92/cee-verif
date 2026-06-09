@@ -6678,7 +6678,81 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
       return (ia === -1 ? ORDRE.length : ia) - (ib === -1 ? ORDRE.length : ib); // null → ORDRE.length = queue
     }
 
-    // Fonction principale de la vue « Par chantier ». Bloc CEE PROVISOIRE (commit 3) + grille Audit|Synthèse.
+    // ===== ZONE 1 du bloc CEE « Par chantier » (commit 5) : avertissements confirmables, RECALCULÉS LIVE =====
+    // Appelle les 6 helpers PURS en LECTURE SEULE sur currentExtractedData.cee (RAW, comme les call sites du
+    // handler) + window.selectedCodeNaf. JAMAIS une capture d'état « OK déjà cliqué ». Sorties HÉTÉROGÈNES
+    // (liste de fautifs / statut 3 états / objet 3 sous-règles) → descripteur {label, etat, n, title}.
+    // Principe n°1 : donnée ABSENTE → 'a_verifier' (JAUNE), jamais 'conforme' (vert). 1.3 inclus si isAgricole seulement.
+    function computeAvertissementsCEE(cee, isAgricole) {
+      const attestations = Array.isArray(cee.attestations) ? cee.attestations : [];
+      const aData = attestations.length > 0; // données par chantier présentes ?
+      const out = [];
+      const add = (label, etat, n, title) => out.push({ label, etat, n, title });
+
+      // 1.A secteur — sortie {secteursByChantier, autresSecteurs} ; les fautifs = autresSecteurs (liste)
+      const sect = detectAutresSecteurs(attestations).autresSecteurs || [];
+      if (!aData) add('Secteur', 'a_verifier', 0, 'Aucune attestation extraite — secteur à vérifier');
+      else if (sect.length) add('Secteur', 'a_verifier', sect.length, sect.map(f => `Chantier ${f.index} : ${f.secteur || '—'}`).join(' | '));
+      else add('Secteur', 'conforme', 0, 'Tous les secteurs reconnus « entrepôt »');
+
+      // 1.1 reste à payer — statut 'absent'|'non_nul'|'ok'
+      const reste = detectResteAPayer(cee);
+      if (reste.statut === 'ok') add('Reste à payer', 'conforme', 0, 'Reste à payer = 0 €');
+      else if (reste.statut === 'non_nul') add('Reste à payer', 'a_verifier', 0, `Reste à payer non nul : ${reste.rawReste}`);
+      else add('Reste à payer', 'a_verifier', 0, 'Reste à payer non lu — à vérifier manuellement');
+
+      // 1.4 professionnel mise en œuvre — statut 'absent'|'energie_responsable'|'ok'
+      const pro = detectProfessionnelMiseEnOeuvre(cee);
+      if (pro.statut === 'ok') add('Professionnel', 'conforme', 0, `Professionnel : ${pro.entrepriseStr}`);
+      else if (pro.statut === 'energie_responsable') add('Professionnel', 'a_verifier', 0, 'Professionnel = Energie Responsable — à vérifier');
+      else add('Professionnel', 'a_verifier', 0, 'Professionnel non lu — à vérifier manuellement');
+
+      // 1.2 délais — objet {r1,r2,r3}, statut 'ok'|'fautif'|'non_verifiable' ; chip = pire des 3 (tout 'ok' → conforme)
+      const d = verifierDelaisTravaux(cee);
+      const sub = [['Prévisite→début', d.r1], ['Début→fin', d.r2], ['Fin→facture', d.r3]];
+      const nKo = sub.filter(([, x]) => x.statut !== 'ok').length;
+      add('Délais', nKo === 0 ? 'conforme' : 'a_verifier', nKo, sub.map(([lib, x]) => `${lib} : ${x.statut}`).join(' | '));
+
+      // 1.3 attestation non agricole — GATÉ isAgricole (sinon NON affiché ; exclusif du check NAF-inconnu de Zone 2)
+      if (isAgricole) {
+        const fa = detectFautifsAttestationNonAgricole(attestations);
+        if (!aData) add('Attest. non agri.', 'a_verifier', 0, 'NAF agricole, aucune attestation — vérifier BAT-EQ-127');
+        else if (fa.length) add('Attest. non agri.', 'a_verifier', fa.length, fa.map(f => `Chantier ${f.index} : ${f.adresse || '—'} (${f.surface} m²)`).join(' | '));
+        else add('Attest. non agri.', 'conforme', 0, 'Attestation « entrepôt non agricole » présente pour chaque chantier');
+      }
+
+      // 1.5 dimensionnement — liste de fautifs [{index, adresse, type:'absent'|'autre', valeur}]
+      const dim = detectFautifsDimensionnement(attestations);
+      if (!aData) add('Dimensionnement', 'a_verifier', 0, 'Aucune attestation extraite — dimensionnement à vérifier');
+      else if (dim.length) add('Dimensionnement', 'a_verifier', dim.length, dim.map(f => `Chantier ${f.index} : ${f.type === 'absent' ? 'absente' : (f.valeur || '—')}`).join(' | '));
+      else add('Dimensionnement', 'conforme', 0, 'Étude de dimensionnement = Prime Evolution pour chaque chantier');
+
+      return out;
+    }
+
+    // Rendu de la ZONE 1 : ligne de chips (JAMAIS d'accordéon ; détail par chantier → title=, jamais inline ni masqué).
+    // Gate NAF 1.3 RÉPLIQUÉ À L'IDENTIQUE du call site (cf. index.html:2946) : selectedCodeNaf || localStorage || ''.
+    function renderLigneAvertissementsCEE() {
+      const cee = currentExtractedData && currentExtractedData.cee;
+      if (!cee) return ''; // pas de dossier CEE extrait → aucune ligne (rien à évaluer)
+      const codeNaf = window.selectedCodeNaf || localStorage.getItem('ceeVerifCodeNaf') || '';
+      const isAgricole = codeNaf.startsWith('01.') || codeNaf.startsWith('02.');
+      const escAttr = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      const couleur = (etat) => etat === 'conforme' ? 'var(--color-conforme)' : 'var(--color-a-verifier)';
+      const chips = computeAvertissementsCEE(cee, isAgricole).map(c => {
+        const col = couleur(c.etat);
+        return `<span class="cee-avert-chip" title="${escAttr(c.title)}" style="display:inline-flex; align-items:center; gap:5px; padding:3px 9px; border-radius:999px; border:1px solid ${col}; font-size:0.75rem; white-space:nowrap; cursor:default;">`
+          + `<span style="width:8px; height:8px; border-radius:50%; background:${col}; flex:0 0 auto;"></span>`
+          + `${c.label}${c.n > 0 ? ` ·${c.n}` : ''}</span>`;
+      }).join('');
+      return `
+        <div class="cee-avertissements-ligne" style="display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin-bottom:var(--spacing-md); padding:var(--spacing-sm) var(--spacing-md); border:1px dashed var(--color-info); border-radius:var(--radius-md);">
+          <span style="font-weight:600; font-size:0.8rem; margin-right:4px;">⚠ Avertissements CEE (live)</span>
+          ${chips}
+        </div>`;
+    }
+
+    // Fonction principale de la vue « Par chantier ». ZONE 1 avertissements live + ZONE 2 comparaisons transversales (commit 5) + grille Audit|Synthèse.
     function renderChantierGrid(checks, container) {
       if (!container) return;
       const COLONNES = ['audit', 'synthese'];
@@ -6726,14 +6800,18 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
 
       let html = '';
 
-      // 1. Bloc CEE PROVISOIRE (rendu brut, titre explicite). Remplacé par le vrai bloc enrichi au commit 5.
-      //    Affiché EN TÊTE et VISIBLE → aucun check type='cee' masqué (principe n°1).
+      // ZONE 1 (commit 5) — ligne compacte d'avertissements CEE, RECALCULÉE live (jamais une capture). EN TÊTE, VISIBLE.
+      html += renderLigneAvertissementsCEE();
+
+      // ZONE 2 (commit 5, approche B) — bloc des comparaisons transversales : la TOTALITÉ de ceeChecks, AUCUN filtre.
+      //    Partition exhaustive (diagnostic D) : Zone 1 = recalcul HORS checks, Zone 2 = TOUS les checks type='cee'.
+      //    Ne JAMAIS filtrer ceeChecks (sinon disparition de check_attestation_non_agricole_naf_inconnu / check_47_global).
       if (ceeChecks.length > 0) {
         html += `
           <div class="groupe-checks" style="margin-bottom: var(--spacing-md); border: 1px dashed var(--color-info); border-radius: var(--radius-md); overflow: hidden;">
             <div class="groupe-header" style="background: rgba(100,116,139,0.08); padding: var(--spacing-md); cursor: pointer; display: flex; justify-content: space-between; align-items: center;"
                  onclick="this.parentElement.querySelector('.groupe-content').classList.toggle('collapsed')">
-              <h4 style="margin: 0; font-size: 1rem;">Dossier CEE (affichage provisoire — sera enrichi au prochain commit) (${ceeChecks.length})</h4>
+              <h4 style="margin: 0; font-size: 1rem;">Dossier CEE — comparaisons transversales (${ceeChecks.length})</h4>
               <span class="toggle-icon">▼</span>
             </div>
             <div class="groupe-content" style="padding: var(--spacing-sm);">
