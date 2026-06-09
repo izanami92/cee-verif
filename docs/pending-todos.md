@@ -2,7 +2,42 @@
 
 **Document de suivi** des fonctionnalités discutées, en cours, ou à implémenter.
 
-**Dernière mise à jour** : 5 juin 2026
+**Dernière mise à jour** : 9 juin 2026
+
+---
+
+## 🚧 BRANCHE EN COURS — `feat/vue-par-chantier` (vue « Par chantier »)
+
+**Statut** : 🚧 **EN COURS** (9 juin 2026) — branche **JAMAIS mergée sur main**. Base = `f734f8d` (sommet de `feat/familles-grille-2d`, fix grille famille). **Reprise de session : repartir du sommet `096ae77`.**
+
+> Objectif : vue « Par chantier » (lignes=chantiers × colonnes Audit|Synthèse + bloc CEE en tête), EN PLUS de la vue « Par famille » qui reste intacte. Au merge final, l'ensemble (grille famille + vue chantier) part sur `main` d'un bloc — geste d'IZANAMI.
+
+### Commits livrés (figés + poussés sur origin, validés en preview)
+
+| Commit | Hash | Contenu |
+|--------|------|---------|
+| 1 — refactor | `ddae5e1` | Extraction de 3 helpers PURS partagés (`detectAutresSecteurs` / `detectResteAPayer` / `detectProfessionnelMiseEnOeuvre`) depuis le handler `btnAnalyze`. Comportement strictement identique. Prérequis anti-divergence du futur bloc CEE. |
+| 2 — squelette | `8764041` | Onglet « Par chantier » (bouton + panneau `#tabChantier` + `renderChantierActiveTab` confiné TODO #31 + 2 branchements). |
+| 3 — grille | `096ae77` | `renderChantierGrid` : lignes=chantiers + ligne « Dossier (global) », colonnes Audit\|Synthèse, `renderCelluleChantier` (badge `etatCellule` + compteur `N✓`), condensation D1, **bloc CEE PROVISOIRE** visible, seaux Sheet/non-rangés visibles. Critère bloc CEE = `type==='cee'` STRICT (`check_36` reste dans la grille). CSS `#chantier-grille-style` autosuffisant (option A, dette #36). `renderFamillesGrid` / `#familles-grille-style` NON touchés. Vérif adverse 3 angles OK. |
+
+### Décisions ACTÉES pour le commit 5 (bloc CEE FINAL) — n'existent que dans la conversation, à ne pas perdre
+
+- **Le bloc CEE = AVERTISSEMENTS seulement** : les 6 alertes confirmables (Règle A secteur, 1.1 reste à payer, 1.2 délais, 1.3 attestation agricole, 1.4 professionnel, 1.5 dimensionnement), **RECALCULÉES** au rendu via les 3 helpers du commit 1 (`ddae5e1`) + les 3 helpers purs préexistants (`verifierDelaisTravaux`, `detectFautifsAttestationNonAgricole`, `detectFautifsDimensionnement`), depuis `currentExtractedData` + `window.selectedCodeNaf`. **JAMAIS de capture d'état** (mémoriser « OK cliqué » = faux conforme).
+- **Les comparaisons transversales** (checks `type='cee'` : `check_09a`, `check_09b`, `check_39`, `check_41`, `check_42`, `check_43`, `check_31→34`, `check_cee_incomplet`) → doivent aller dans la **ligne « Dossier (global) » de la grille**, PAS dans le bloc CEE. *(Aujourd'hui, commit 3, elles sont toutes dans le bloc CEE provisoire — d'où le bloc « pollué » par les comparaisons, sujet reporté au commit 5.)*
+- **Critère « comparaison vs avertissement » à TRANCHER en diagnostic** (avant de coder le commit 5). Le tri se fait **DANS la vue**, sans toucher `getCheckProvenance` ni `generateChecks` (ni `familles-config.js`).
+
+### Sujets restants
+
+- **Commit 4** : détail de cellule trié (gravité d'abord, puis ordre `CEE_FAMILLES.ORDRE` via `resolveFamille` ; check à famille `null` → queue de son groupe de gravité, jamais perdu).
+- **Commit 5** : bloc CEE final (cf. décisions actées ci-dessus).
+- **Commit 6** : bandeau pastilles familles à NOMS (`LIBELLES` au lieu des clés courtes), non cliquables, scroll horizontal déjà en place.
+
+### Dettes / bugs liés à cette branche
+
+- **TODO #36** (créé ce chantier) : extraire les styles de grille partagés dans un bloc neutre (supprime la duplication `#chantier-grille-style` / `#familles-grille-style` + la dépendance d'ordre). À traiter après merge (touche `renderFamillesGrid`).
+- **TODO #35** (préexistant) : supprimer le corps mort `renderChecksByFamille` après validation prod de la grille famille.
+- **TODO #32** (préexistant) : `check_31→34` = 4 checks redondants pour 1 seule détection `checkMentionsAgricoles` → 4 cartes identiques « mention agricole » visibles dans la grille chantier. Candidat simplification, non urgent.
+- **Observation mineure (cosmétique, non bloquant)** : le sélecteur `.groupe-content.collapsed + .groupe-header .toggle-icon` (rotation de l'icône ▼) ne matche jamais (le `.groupe-header` précède le `.groupe-content` dans le markup) — quirk **préexistant** de la grille famille, recopié à l'identique dans `#chantier-grille-style`. Sans effet fonctionnel (le repli marche via `display:none`).
 
 ---
 
