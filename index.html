@@ -4802,22 +4802,20 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
         });
       }
 
-      // ========== MENTIONS AGRICOLES (31-34) ==========
+      // ========== MENTION AGRICOLE (31) — check global unique, couvre Audit + Synthèse ==========
       const mentionsAgri = checkMentionsAgricoles(extracted, references.nom);
 
-      for (let i = 31; i <= 34; i++) {
-        checks.push({
-          id: `check_${i}`,
-          portee: 'global-cee',
-          categorie: i === 32 ? 'audit' : 'synthese',
-          niveau: mentionsAgri.found ? 'majeur' : 'ok',
-          champ: `Mention agricole ${i - 30}`,
-          localisation: mentionsAgri.location || 'Documents',
-          detail: mentionsAgri.found ? `Mention agricole trouvée : ${mentionsAgri.location}` : 'Aucune mention agricole',
-          valeur_attendue: 'Aucune mention agricole',
-          valeur_trouvee: mentionsAgri.found ? 'Mention trouvée' : 'Conforme'
-        });
-      }
+      checks.push({
+        id: 'check_31',
+        portee: 'global-cee',
+        categorie: 'synthese',
+        niveau: mentionsAgri.found ? 'majeur' : 'ok',
+        champ: 'Mention agricole (Audit + Synthèse)',
+        localisation: mentionsAgri.location || 'Audit + Synthèse',
+        detail: mentionsAgri.found ? `Mention agricole trouvée : ${mentionsAgri.location}` : 'Aucune mention agricole (Audit + Synthèses)',
+        valeur_attendue: 'Aucune mention agricole',
+        valeur_trouvee: mentionsAgri.found ? 'Mention trouvée' : 'Conforme'
+      });
 
       // ========== CHECKS 35-38 : THD, Fiche technique, Référence, Durée de vie ==========
       // Récupérer la fiche technique sélectionnée

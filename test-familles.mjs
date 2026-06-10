@@ -52,10 +52,7 @@ const CAS_POSITIFS = [
   { id: 'check_14_conflict', champ: 'Secteur d\'activité CEE',                   attendu: '3' },
   { id: 'check_20',          champ: 'Secteur étude indicateurs',                attendu: '3' },
   { id: 'check_23',          champ: 'Activité bâtiment état projeté',           attendu: '3' },
-  { id: 'check_31',          champ: 'Mention agricole 1',                       attendu: '3' },
-  { id: 'check_32',          champ: 'Mention agricole 2',                       attendu: '3' },
-  { id: 'check_33',          champ: 'Mention agricole 3',                       attendu: '3' },
-  { id: 'check_34',          champ: 'Mention agricole 4',                       attendu: '3' },
+  { id: 'check_31',          champ: 'Mention agricole (Audit + Synthèse)',      attendu: '3' },
   { id: 'check_attestation_non_agricole_naf_inconnu', champ: 'Attestation entrepôt non agricole (BAT-EQ-127)', attendu: '3' },
 
   // --- 4 — Adresses chantier ---
@@ -120,7 +117,8 @@ const CAS_POSITIFS = [
 const CAS_NEGATIFS = [
   { id: 'check_42_7',        champ: 'Libellé qui aurait changé' }, // collision 42 : fragment introuvable → null
   { id: 'check_zzz_inconnu', champ: '' },                          // id totalement inconnu → null
-  { id: 'check_45_9',        champ: 'Forme de check_45 jamais vue' } // collision 45 : fragment surface introuvable → null
+  { id: 'check_45_9',        champ: 'Forme de check_45 jamais vue' }, // collision 45 : fragment surface introuvable → null
+  { id: 'check_32',          champ: 'Mention agricole 2' }         // fusionné dans check_31, entrée de table retirée → null
 ];
 
 // --- Exécution ---
