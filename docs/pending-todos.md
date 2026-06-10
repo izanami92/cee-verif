@@ -42,7 +42,7 @@ La vue « Par chantier » a été **restructurée en 2 blocs distincts** : Bloc 
 
 ### Sujets restants
 
-- **TODO #32** (mentions agricoles 4→1) : `check_31→34` = 4 checks redondants pour 1 détection `checkMentionsAgricoles`. Simplification vers 1 check global → touche `generateChecks` ⇒ **le harnais `test-familles.mjs` changera de forme** (les ids `check_32`/`check_33`/`check_34` disparaîtront). Non urgent.
+- ✅ **TODO #32** (mentions agricoles 4→1) : **réalisé** le 10/06/2026, commit `e3dbd6d` — voir « COMPLÉTÉS RÉCEMMENT ». Le harnais est passé de 71 à 69 cas comme prévu (changement de forme attendu, pas une régression).
 - **Commit 6 (non livré)** : bandeau pastilles familles à NOMS (`LIBELLES` au lieu des clés courtes), non cliquables, scroll horizontal déjà en place — planifié sur cette branche, **pas encore réalisé** *(statut à confirmer avec IZANAMI : garder ou abandonner)*.
 
 ### Dettes / bugs liés à cette branche
@@ -434,12 +434,6 @@ Application des règles lors de l'analyse
 
 **Sources** : [Session 9 juin 2026 — chantier B, vue par chantier commit 3, vérif adverse]
 
-### TODO #32 : [Simplification] checks 31-34 redondants — 4 checks pour une seule détection globale
-
-`checkMentionsAgricoles` est appelé **1× sur tout le dossier**, mais son résultat est recopié dans **4 checks identiques** (`check_31→34`), avec une `categorie` alternée arbitraire (`i === 32 ? 'audit' : 'synthese'`). Un **seul check global** suffirait. Candidat à simplification — **non urgent**. (La maille document × chantier des mentions n'est pas implémentée ; cf. modèle Chantier/Cellule **TODO #22**.)
-
-**Sources** : [Session 5 juin 2026 — chantier B, fix routage global]
-
 ### TODO #33 : [Mémo] fiche technique (check_36) en maille globale — rien à corriger
 
 `check_36` (fiche technique) est **1 fiche unique pour tout le dossier** (celle du CEE) — légitimement **global**. La vérification **par chantier** de la RÉFÉRENCE produit existe déjà via `check_37` (par chantier) + `check_38` (durée de vie, par chantier). **Rien à corriger** ; noté pour mémoire.
@@ -535,6 +529,28 @@ CREATE TABLE analyses (
 
 ## ✅ COMPLÉTÉS RÉCEMMENT
 
+### ✅ TODO #32 : Fusion check_31→34 en un check global mentions agricoles
+
+**Statut** : ✅ **COMPLÉTÉ** (10 juin 2026)
+
+**Problème** : `checkMentionsAgricoles` est appelé **1× sur tout le dossier**, mais son résultat était recopié dans **4 checks identiques** (`check_31→34`, `categorie` alternée arbitraire `i === 32 ? 'audit' : 'synthese'`) → compteurs gonflés ×4 (MAJEUR comme ✓) et 4 lignes majeures dupliquées dans le message auditeur.
+
+**Correctif appliqué** (décisions IZANAMI : survivant `check_31` / retrait des entrées de table mortes / `categorie:'synthese'`) :
+- `index.html` : boucle `for (i=31..34)` remplacée par un push unique — `id:'check_31'`, `portee:'global-cee'` conservée (routage méthode 0bis vers Bloc 1 Dossier global / colonne CEE), `categorie:'synthese'`, champ « Mention agricole (Audit + Synthèse) » (le mot « agricole » maintient le groupe sémantique `'secteur'`)
+- `familles-config.js` : retrait des 3 entrées mortes `/^check_32$/`, `/^check_33$/`, `/^check_34$/` (l'entrée `/^check_31$/ → '3'` reste) ; `resolveFamille` intouchée
+- `test-familles.mjs` : **71 → 69 cas** (65 positifs + 4 négatifs) — retrait des 3 cas positifs, `check_32` converti en **contrôle négatif** (attendu `null` : non-régression active du dédoublonnage)
+- Détection `checkMentionsAgricoles` strictement **inchangée** (périmètre Audit + Synthèse, fix B1 intact). L'onglet legacy Audit perd sa ligne (ex-`check_32`) — assumé, essence du dédoublonnage. Maille document × chantier toujours hors périmètre (**TODO #22**).
+
+**Fichiers modifiés** : `index.html`, `familles-config.js`, `test-familles.mjs` (+15, −22)
+
+**Commits** :
+- `e3dbd6d` - "refactor(checks): fusionne check_31→34 en un check global mentions agricoles (TODO #32)"
+
+**Sources** :
+- [Session 10 juin 2026 — diagnostic (workflow 3 explorateurs + conception) puis implémentation validée]
+
+---
+
 ### ✅ TODO #23 : Correction bug B1 — mentions agricoles
 
 **Statut** : ✅ **COMPLÉTÉ** (27 mai 2026)
@@ -546,6 +562,8 @@ CREATE TABLE analyses (
 **Correctif appliqué** :
 - Niveau passé en `'majeur'` (`index.html:4288`)
 - Bloc de recherche dans le CEE supprimé (`index.html:3444-3449`)
+
+> Post-fusion **TODO #32** (10/06/2026, `e3dbd6d`) : les checks 31-34 n'existent plus — le fix B1 (niveau `majeur`, périmètre Audit + Synthèse) s'applique au check global unique `check_31`.
 
 **Fichiers modifiés** :
 - `index.html` (+1, -8)
@@ -958,7 +976,7 @@ CREATE TABLE analyses (
 > ✅ Bug « état dossier » volet 2/2 (champs ref* conditionnels) **résolu le 2 juin 2026** (commit `1ec2c49`, mergé `6a38915`) — bug entièrement clos avec le volet 1/2 (commits `86a5906` + `7f15377`). Voir `SOURCE_DE_VERITE_CHECKS.md` §7.
 > ✅ Bug prod (non numéroté) **résolu 29/05/2026** : crash `norm.cee` null dans `generateChecks` (commit `27e7918`). Anomalie A2 (check_41 majeur) résolue le même jour (commit `f976521`). Voir `SOURCE_DE_VERITE_CHECKS.md` §7/§6.
 
-**TODOs complétés récemment** : 27 (7 mai - 5 juin 2026)
+**TODOs complétés récemment** : 28 (7 mai - 10 juin 2026)
 - 7 mai : Multi-chantiers (ADR 003)
 - 8 mai : Sélecteur LED (ADR 006), Normalisation adresses (ADR 007), Extraction CLIENT (ADR 008)
 - 9 mai : UX hiérarchique (ADR 009), Secteur par chantier (ADR 010), Matching INDEX (ADR 011)
@@ -979,6 +997,7 @@ CREATE TABLE analyses (
 - 3 juin : Évolution 1.2 — délais de travaux : 4 dates + 3 règles (R1 ≥ prévisite +14j / R2 fin>début strict / R3 facture>fin strict), alerte confirmable (`ab9242d`). **→ Phase 1 fonctionnelle (hors UI/UX) COMPLÈTE.**
 - 3 juin : Correctif extraction section C — `entrepriseMiseEnOeuvre` fiabilisé (ancrage SOURCE sur le titre + « Raison sociale », fin du non-déterminisme émetteur facture ↔ section C), patron `af21eb8`, commit `e456b70`. Volet logique aval à 3 issues → **TODO #29 (à cadrer)**.
 - 5 juin : 7 checks dossier restants routés par `portee:'global-cee'` (`be607dc`, suite TODO #30 → **TODO #34**) — fin de la dépendance à l'heuristique Méthode 3 ; `check_47_global` exclu (dette **TODO #27**).
+- 10 juin : Fusion `check_31→34` en un check global mentions agricoles (TODO #32, commit `e3dbd6d`) — harnais 71→69 cas, `check_32` converti en contrôle négatif.
 
 **TODOs reportés** : 1
 - 27 mai : Modularisation index.html (TODO #3) - À refaire après cadrage modèle Chantier/Cellule (TODO #22)

@@ -164,7 +164,9 @@ Déclencheur actif — Délais de travaux (dates du dossier CEE). Implémenté l
 ### Mentions agricoles (Règle B)
 | ID | Vérifie | Niveau | Portée |
 |----|---------|--------|--------|
-| `check_31`→`check_34` | Aucune mention agricole (Audit + Synthèse) | 🟠 | UNIQUE (×4) |
+| `check_31` | Aucune mention agricole (Audit + Synthèse) | 🟠 | UNIQUE |
+
+> ✅ **Fusion TODO #32 (10/06/2026)** — commit `e3dbd6d` : les 4 checks redondants `check_31→34` (même détection recopiée ×4) sont fusionnés en un check global unique `check_31`. Détection `checkMentionsAgricoles` inchangée (périmètre Audit + Synthèse, fix B1 intact).
 
 ### Spécifications LED
 | ID | Vérifie | Niveau | Portée |
@@ -247,6 +249,7 @@ Règle R05 = tolérance ZÉRO (1 LED d'écart = erreur). Code = `Math.abs(...) <
 | 1.4 | Alerte confirmable « Professionnel ayant mis en œuvre = Energie Responsable » (3 états : non détecté / Energie Responsable → exception / autre → silence), valeur globale du dossier (patron reste à payer), jamais bloquant | 01/06/2026 | 91bf93d (extraction) + 5392776 (alerte) |
 | Chantier B | Vue « Par famille » — rapport de résultats groupé par famille de donnée métier. Fichier `familles-config.js` (`window.CEE_FAMILLES` = 10 familles + `ORDRE`/`LIBELLES` ; `window.resolveFamille(check)` → clé famille ou `null`) + harnais `test-familles.mjs` (71/71). Onglet « Par famille » (1er/actif) via `renderChecksByFamille` dans `index.html`. Accordéon livré ; grille 2D à venir (roadmap). | 05/06/2026 | 94aa7a1 (table + harnais) + ebb496d (vue) |
 | Fix provenance | Routage des checks « dossier » via propriété `portee` (`global-cee` / `global-synthese`) lue par `getCheckProvenance` (méthode 0bis → `chantierIndex:null`, colonne portée par la valeur) + anti « chantier null » dans `groupChecksByHierarchy`. `check_39`/`36`/`31→34` → bloc Dossier. Prérequis de la future grille 2D. | 05/06/2026 | `3d4d75f` |
+| TODO #32 | Fusion des 4 checks « mentions agricoles » (check_31→34) en un check global unique check_31 (portee:'global-cee', categorie:'synthese', champ « Mention agricole (Audit + Synthèse) ») — détection checkMentionsAgricoles strictement inchangée (fix B1 intact), compteurs et message auditeur dédoublonnés, harnais 71→69 (65 positifs + 4 négatifs, cas négatif check_32) | 10/06/2026 | e3dbd6d |
 
 **Chantier B — 10 familles** (ordre `CEE_FAMILLES.ORDRE`) : 1a Identité société · 1b Coordonnées client · 2 Dates · 3 Type de local + mention agricole · 4 Adresses chantier · 5 Nb LED total + répartition · 6 Parcelles · 7 Surface + superficies · 8 Fiche technique · 9 Complétude.
 
