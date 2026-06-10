@@ -6895,6 +6895,8 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
           /* Vue chantier : « — » de cellule vide calé À GAUCHE (à l'aplomb des badges, même padding-left), SCOPÉ #checksListChantier → la règle famille .grille-cellule.vide (#familles-grille-style) reste centrée, NON touchée. SEUL text-align change ; color/opacity (aspect neutre/vide, principe n°1) conservés par la règle globale ci-dessus. */
           #checksListChantier .grille-cellule.vide { text-align: left; }
           .grille-badge { display: inline-block; color: white; padding: 0.15rem 0.45rem; border-radius: var(--radius-sm); font-size: 0.72rem; font-weight: 600; white-space: nowrap; }
+          /* Badge resserré : line-height propre (sinon hérite 1.6 du body, l.66 → boîte trop haute pour le texte 0.72rem, « rectangle trop grand » sur CONFORME). SCOPÉ #checksListChantier → .grille-badge famille (#familles-grille-style) NON touchée. 1.2 = serré sans rogner accents é/à ni ✓/⚠. Le contour .marque du « à vérifier » reste intact. */
+          #checksListChantier .grille-badge { line-height: 1.2; }
           .grille-badge.a_verifier { color: #1a1a1a; } /* CRITIQUE : texte sombre lisible sur le jaune « à vérifier » */
           .grille-badge.marque { border: 2px solid rgba(0,0,0,0.45); }
           .badge-info-mixte { background: var(--color-a-verifier); color: #1a1a1a; border-radius: var(--radius-sm); padding: 0 0.25rem; margin-left: 0.1rem; font-weight: 700; }
