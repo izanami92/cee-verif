@@ -3566,7 +3566,12 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
           secteurActivite: secteurUnique || secteursUniques.join(' / '), // Si conflit, montrer tous
           secteurConflict: secteurConflict, // Flag pour détecter les conflits
           nbBatiments: groupe.nbBatiments,
-          nbAttestations: groupe.attestations.length
+          nbAttestations: groupe.attestations.length,
+          // Grain par-cellule (1 entrée = 1 attestation brute), exposé en COPIE SUPERFICIELLE
+          // (lecture seule — ne pas muter : les originales sont lues par detectFautifs*).
+          // Les agrégats ci-dessus (surfaces/parcelles/ledTotal/secteur…) restent conservés
+          // en parallèle. Fondation du modèle Cellule — S1 / ADR-014 / #22.
+          cellules: groupe.attestations.map(a => ({ ...a }))
         };
       });
     }
