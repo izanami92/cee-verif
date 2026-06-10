@@ -87,7 +87,7 @@ const CAS_POSITIFS = [
   { id: 'check_27',         champ: 'Surface Audit description',                         attendu: '7' },
   { id: 'check_45b_0',      champ: 'Surfaces détaillées Synthèse',                      attendu: '7' },
   { id: 'check_45b_0_bat1', champ: 'Surface bâtiment 1 Synthèse vs Attestation',        attendu: '7' },
-  { id: 'check_47_global',  champ: 'Somme surfaces manuelles = Somme synthèses (global)', attendu: '7' },
+  { id: 'check_47_global',  champ: 'Somme surfaces manuelles = Sommes audits & synthèses (global)', attendu: '7' },
   // 7 via COLLISION check_45_N (formes surface)
   { id: 'check_45_0', champ: 'Somme surfaces Audit = Somme attestation', attendu: '7' },
   { id: 'check_45_0', champ: 'Surface Synthèse = Somme attestation',     attendu: '7' },
