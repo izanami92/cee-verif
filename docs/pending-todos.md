@@ -8,7 +8,7 @@
 
 ## 🚧 BRANCHE EN COURS — `feat/vue-par-chantier` (vue « Par chantier »)
 
-**Statut** : 🚧 **EN COURS** (9 juin 2026) — branche **JAMAIS mergée sur main**. Base = `f734f8d` (sommet de `feat/familles-grille-2d`, fix grille famille). **Sommet actuel : `23ac9de`** (vue « Par chantier » restructurée en 2 blocs titrés ; prête à relecture preview, merge sur `main` = geste d'IZANAMI).
+**Statut** : 🚧 **EN COURS** (10 juin 2026) — branche **JAMAIS mergée sur main**. Base = `f734f8d` (sommet de `feat/familles-grille-2d`, fix grille famille). **Sommet actuel : `ba04bee`** (réordonnancement des onglets — Par chantier / Tous les points / Par famille en tête ; prête à relecture preview, merge sur `main` = geste d'IZANAMI).
 
 > Objectif : vue « Par chantier » en 2 blocs (Bloc 1 « Dossier global » CEE|Audit|Synthèse ; Bloc 2 « Chantiers » Audit|Synthèse), précédés d'une ligne d'avertissements CEE recalculés live (chips), EN PLUS de la vue « Par famille » qui reste intacte. Au merge final, l'ensemble (grille famille + vue chantier) part sur `main` d'un bloc — geste d'IZANAMI.
 
@@ -25,6 +25,14 @@
 | amendement A | `297e00c` | Fusion des checks `type='cee'` dans la ligne « Dossier (global) » (grille uniforme 3 col CEE\|Audit\|Synthèse) ; retrait du bloc transversal séparé ; repli conditionnel du détail global. |
 | esthétique | `6761827` | CSS pur scopé `#checksListChantier` : démarcation entre zones + titre de zone marqué + libellés de colonne discrets. « Par famille » (`#checksListFamilles`) strictement intacte. |
 | restructuration | `23ac9de` | Vue scindée en **2 blocs titrés** : Bloc 1 « Dossier global » (CEE\|Audit\|Synthèse) / Bloc 2 « Chantiers » (Audit\|Synthèse, sans CEE) + **filet `cee→global`** (`renderChantierGrid` : tout `type='cee'` forcé en ligne globale → jamais perdu, même un hypothétique cee+chantierIndex). |
+| chips au clic | `c8af4c8` | feat(chantier) : détail des chips d'avertissement CEE accessible **AU CLIC** (panneau déplié `.collapsed`) au lieu du survol `title=`. Chip (pastille + libellé + compteur) toujours visible ; seul le détail par chantier passe au clic (1 chantier/ligne). Principe n°1 préservé. CSS scopé `#checksListChantier`. |
+| align. « — » | `dabf1c8` | style(chantier) : « — » des cellules vides calé à gauche (à l'aplomb des badges). Règle CSS scopée `#checksListChantier` ; règle famille (`#familles-grille-style`) intacte ; aspect neutre/vide conservé (principe n°1). |
+| accent panneau | `0d89623` | style(chantier) : accent d'état sur le panneau de détail des chips — barre latérale colorée via `couleur(c.etat)` (**MÊME source que la chip** → pas de divergence), titre conforme=texte vert / à_vérifier=badge jaune+texte `#1a1a1a`, **FOND du panneau neutre** (principe n°1 : pas de nappe colorée). Scopé `#checksListChantier`. |
+| badges (line-height) | `bb71ff9` | style(chantier) : resserrage de la boîte des badges de cellule (`line-height: 1.2` ; sinon héritage 1.6 du body → boîte trop haute, « rectangle trop grand » sur CONFORME). Corrige Bloc 1 + Bloc 2. Contour `.marque` du « à vérifier » préservé. Scopé `#checksListChantier`. |
+| défaut chantier | `9a5b880` | feat(chantier) : « Par chantier » devient la vue affichée **PAR DÉFAUT** au chargement (déplacement de la classe `active` du couple bouton+panneau familles → chantier dans le HTML statique ; zéro JS). « Par famille » reste accessible au clic. |
+| ordre onglets | `ba04bee` | feat(chantier) : réordonnancement des onglets — ordre Par chantier, Tous les points, Par famille, puis Page de garde / Synthèse / Audit / Message auditeur (4 derniers inchangés). Déplacement de boutons uniquement (handler par `data-tab`, panneaux par classe `active`) ; aucun panneau/JS/CSS touché. |
+
+> **Les 6 commits de session (`c8af4c8` → `ba04bee`) = AFFICHAGE / agencement UI** (chips au clic, alignement « — », accent d'état du panneau, resserrage badges, vue « Par chantier » par défaut, ordre des onglets) : **aucune règle métier touchée**, harnais `test-familles.mjs` resté **71/71**, **principe n°1 préservé à chaque étape** (chip toujours visible, « — » jamais vert, fond de panneau neutre, contour « à vérifier » conservé) → **aucune entrée `SOURCE_DE_VERITE_CHECKS.md` §7bis requise**.
 
 ### Décision majeure de la session (9 juin) — restructuration en 2 blocs (approche B re-choisie)
 
@@ -34,7 +42,6 @@ La vue « Par chantier » a été **restructurée en 2 blocs distincts** : Bloc 
 
 ### Sujets restants
 
-- **Chips cliquables** (évolution de la ZONE 1) : remplacer le détail au survol (`title=`) par un détail **au clic**. Garde-fou principe n°1 : la chip reste **visible** (pastille + libellé + compteur), seul le **détail** passe du tooltip au clic — jamais masqué.
 - **TODO #32** (mentions agricoles 4→1) : `check_31→34` = 4 checks redondants pour 1 détection `checkMentionsAgricoles`. Simplification vers 1 check global → touche `generateChecks` ⇒ **le harnais `test-familles.mjs` changera de forme** (les ids `check_32`/`check_33`/`check_34` disparaîtront). Non urgent.
 - **Commit 6 (non livré)** : bandeau pastilles familles à NOMS (`LIBELLES` au lieu des clés courtes), non cliquables, scroll horizontal déjà en place — planifié sur cette branche, **pas encore réalisé** *(statut à confirmer avec IZANAMI : garder ou abandonner)*.
 
