@@ -5609,55 +5609,41 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
           }
         });
 
-        // Check 46 : Somme surfaces manuelles = Somme surfaces audits
+        // Check 47 : Somme surfaces manuelles = Sommes audits ET synthèses (global, fusionné).
+        // UN SEUL check sous l'id 'check_47_global' : échoue (majeur) si l'un OU l'autre volet
+        // diverge, en nommant le(s) fautif(s). Avant : 2 blocs partageant le même id en
+        // findIndex+replace → la synthèse écrasait le résultat audit = faux conforme silencieux.
+        // (Sujet S4a / ADR-014 / TODO #22. id + categorie 'synthese' inchangés ; champ garde « somme ».)
         const auditGlobalMatch = Math.abs(sommeManuelleTotale - sommeTotaleAudits) < 1;
-        const check45Id = 'check_47_global';
-        const check45Index = state.analysisResult.checks.findIndex(c => c.id === check45Id);
-
-        const check45 = {
-          id: check45Id,
-          categorie: 'audit',
-          niveau: auditGlobalMatch ? 'ok' : 'majeur',
-          champ: 'Somme surfaces manuelles = Somme audits (global)',
-          localisation: 'Vérification globale - Tous chantiers',
-          detail: auditGlobalMatch ?
-            `Somme globale cohérente : ${sommeManuelleTotale} m²` :
-            `Somme surfaces manuelles (${sommeManuelleTotale} m²) ≠ Somme audits (${sommeTotaleAudits} m²)`,
-          valeur_attendue: sommeTotaleAudits.toString() + ' m²',
-          valeur_trouvee: sommeManuelleTotale.toString() + ' m²'
-        };
-
-        if (check45Index !== -1) {
-          state.analysisResult.checks[check45Index] = check45;
-        } else {
-          state.analysisResult.checks.push(check45);
-        }
-        console.log(`✓ Check ${check45Id} recalculé : ${auditGlobalMatch ? 'OK' : 'MAJEUR'}`);
-
-        // Check 47 : Somme surfaces manuelles = Somme surfaces synthèses
         const syntheseGlobalMatch = Math.abs(sommeManuelleTotale - sommeTotaleSyntheses) < 1;
-        const check46Id = 'check_47_global';
-        const check46Index = state.analysisResult.checks.findIndex(c => c.id === check46Id);
+        const surfacesGlobalOk = auditGlobalMatch && syntheseGlobalMatch;
 
-        const check46 = {
-          id: check46Id,
+        const partsFautifs = [];
+        if (!auditGlobalMatch)    partsFautifs.push(`audits (${sommeTotaleAudits} m²)`);
+        if (!syntheseGlobalMatch) partsFautifs.push(`synthèses (${sommeTotaleSyntheses} m²)`);
+
+        const check47Id = 'check_47_global';
+        const check47Index = state.analysisResult.checks.findIndex(c => c.id === check47Id);
+
+        const check47 = {
+          id: check47Id,
           categorie: 'synthese',
-          niveau: syntheseGlobalMatch ? 'ok' : 'majeur',
-          champ: 'Somme surfaces manuelles = Somme synthèses (global)',
+          niveau: surfacesGlobalOk ? 'ok' : 'majeur',
+          champ: 'Somme surfaces manuelles = Sommes audits & synthèses (global)',
           localisation: 'Vérification globale - Tous chantiers',
-          detail: syntheseGlobalMatch ?
-            `Somme globale cohérente : ${sommeManuelleTotale} m²` :
-            `Somme surfaces manuelles (${sommeManuelleTotale} m²) ≠ Somme synthèses (${sommeTotaleSyntheses} m²)`,
-          valeur_attendue: sommeTotaleSyntheses.toString() + ' m²',
+          detail: surfacesGlobalOk ?
+            `Somme globale cohérente : ${sommeManuelleTotale} m² (audits & synthèses)` :
+            `Somme surfaces manuelles (${sommeManuelleTotale} m²) ≠ ${partsFautifs.join(' et ')}`,
+          valeur_attendue: `audits ${sommeTotaleAudits} m² / synthèses ${sommeTotaleSyntheses} m²`,
           valeur_trouvee: sommeManuelleTotale.toString() + ' m²'
         };
 
-        if (check46Index !== -1) {
-          state.analysisResult.checks[check46Index] = check46;
+        if (check47Index !== -1) {
+          state.analysisResult.checks[check47Index] = check47;
         } else {
-          state.analysisResult.checks.push(check46);
+          state.analysisResult.checks.push(check47);
         }
-        console.log(`✓ Check ${check46Id} recalculé : ${syntheseGlobalMatch ? 'OK' : 'MAJEUR'}`);
+        console.log(`✓ Check ${check47Id} recalculé : ${surfacesGlobalOk ? 'OK' : 'MAJEUR'}`);
       }
     }
 
