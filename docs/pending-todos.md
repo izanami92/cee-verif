@@ -2,7 +2,55 @@
 
 **Document de suivi** des fonctionnalités discutées, en cours, ou à implémenter.
 
-**Dernière mise à jour** : 5 juin 2026
+**Dernière mise à jour** : 9 juin 2026
+
+---
+
+## 🚧 BRANCHE EN COURS — `feat/vue-par-chantier` (vue « Par chantier »)
+
+**Statut** : 🚧 **EN COURS** (10 juin 2026) — branche **JAMAIS mergée sur main**. Base = `f734f8d` (sommet de `feat/familles-grille-2d`, fix grille famille). **Sommet actuel : `ba04bee`** (réordonnancement des onglets — Par chantier / Tous les points / Par famille en tête ; prête à relecture preview, merge sur `main` = geste d'IZANAMI).
+
+> Objectif : vue « Par chantier » en 2 blocs (Bloc 1 « Dossier global » CEE|Audit|Synthèse ; Bloc 2 « Chantiers » Audit|Synthèse), précédés d'une ligne d'avertissements CEE recalculés live (chips), EN PLUS de la vue « Par famille » qui reste intacte. Au merge final, l'ensemble (grille famille + vue chantier) part sur `main` d'un bloc — geste d'IZANAMI.
+
+### Commits livrés (figés + poussés sur origin, validés en preview)
+
+| Commit | Hash | Contenu |
+|--------|------|---------|
+| 1 — refactor | `ddae5e1` | Extraction de 3 helpers PURS partagés (`detectAutresSecteurs` / `detectResteAPayer` / `detectProfessionnelMiseEnOeuvre`) depuis le handler `btnAnalyze`. Comportement strictement identique. Prérequis anti-divergence du futur bloc CEE. |
+| 2 — squelette | `8764041` | Onglet « Par chantier » (bouton + panneau `#tabChantier` + `renderChantierActiveTab` confiné TODO #31 + 2 branchements). |
+| 3 — grille | `096ae77` | `renderChantierGrid` : lignes=chantiers + ligne « Dossier (global) », colonnes Audit\|Synthèse, `renderCelluleChantier` (badge `etatCellule` + compteur `N✓`), condensation D1, **bloc CEE PROVISOIRE** visible, seaux Sheet/non-rangés visibles. Critère bloc CEE = `type==='cee'` STRICT (`check_36` reste dans la grille). CSS `#chantier-grille-style` autosuffisant (option A, dette #36). `renderFamillesGrid` / `#familles-grille-style` NON touchés. Vérif adverse 3 angles OK. |
+| consignation | `00525b1` | Doc : consignation de l'état (commits 1-3) + décisions actées du futur commit 5. |
+| 4 — tri détail | `38f50ab` | Détail d'une cellule trié : gravité décroissante (bloquant>majeur>info>ok) puis ordre `CEE_FAMILLES.ORDRE` via `resolveFamille` ; famille `null` → **queue** de son groupe de gravité (jamais perdu). Pré-tri local des tableaux `lNode[col]` dans `renderChantierGrid`, tri stable. Vue chantier seule ; `renderDetailLigne` / « Par famille » non touchés. |
+| 5 — bloc CEE | `3c16e43` | ZONE 1 = ligne compacte d'**AVERTISSEMENTS confirmables RECALCULÉS live** (chips + tooltip) via les 6 helpers purs (`detectAutresSecteurs`/`detectResteAPayer`/`detectProfessionnelMiseEnOeuvre`/`verifierDelaisTravaux`/`detectFautifsAttestationNonAgricole`/`detectFautifsDimensionnement`) sur `currentExtractedData.cee` + `window.selectedCodeNaf` (gate NAF 1.3 répliqué) — **jamais de capture d'état**. ZONE 2 (approche B initiale) = bloc « comparaisons transversales » montrant **toute** `ceeChecks`. |
+| amendement A | `297e00c` | Fusion des checks `type='cee'` dans la ligne « Dossier (global) » (grille uniforme 3 col CEE\|Audit\|Synthèse) ; retrait du bloc transversal séparé ; repli conditionnel du détail global. |
+| esthétique | `6761827` | CSS pur scopé `#checksListChantier` : démarcation entre zones + titre de zone marqué + libellés de colonne discrets. « Par famille » (`#checksListFamilles`) strictement intacte. |
+| restructuration | `23ac9de` | Vue scindée en **2 blocs titrés** : Bloc 1 « Dossier global » (CEE\|Audit\|Synthèse) / Bloc 2 « Chantiers » (Audit\|Synthèse, sans CEE) + **filet `cee→global`** (`renderChantierGrid` : tout `type='cee'` forcé en ligne globale → jamais perdu, même un hypothétique cee+chantierIndex). |
+| chips au clic | `c8af4c8` | feat(chantier) : détail des chips d'avertissement CEE accessible **AU CLIC** (panneau déplié `.collapsed`) au lieu du survol `title=`. Chip (pastille + libellé + compteur) toujours visible ; seul le détail par chantier passe au clic (1 chantier/ligne). Principe n°1 préservé. CSS scopé `#checksListChantier`. |
+| align. « — » | `dabf1c8` | style(chantier) : « — » des cellules vides calé à gauche (à l'aplomb des badges). Règle CSS scopée `#checksListChantier` ; règle famille (`#familles-grille-style`) intacte ; aspect neutre/vide conservé (principe n°1). |
+| accent panneau | `0d89623` | style(chantier) : accent d'état sur le panneau de détail des chips — barre latérale colorée via `couleur(c.etat)` (**MÊME source que la chip** → pas de divergence), titre conforme=texte vert / à_vérifier=badge jaune+texte `#1a1a1a`, **FOND du panneau neutre** (principe n°1 : pas de nappe colorée). Scopé `#checksListChantier`. |
+| badges (line-height) | `bb71ff9` | style(chantier) : resserrage de la boîte des badges de cellule (`line-height: 1.2` ; sinon héritage 1.6 du body → boîte trop haute, « rectangle trop grand » sur CONFORME). Corrige Bloc 1 + Bloc 2. Contour `.marque` du « à vérifier » préservé. Scopé `#checksListChantier`. |
+| défaut chantier | `9a5b880` | feat(chantier) : « Par chantier » devient la vue affichée **PAR DÉFAUT** au chargement (déplacement de la classe `active` du couple bouton+panneau familles → chantier dans le HTML statique ; zéro JS). « Par famille » reste accessible au clic. |
+| ordre onglets | `ba04bee` | feat(chantier) : réordonnancement des onglets — ordre Par chantier, Tous les points, Par famille, puis Page de garde / Synthèse / Audit / Message auditeur (4 derniers inchangés). Déplacement de boutons uniquement (handler par `data-tab`, panneaux par classe `active`) ; aucun panneau/JS/CSS touché. |
+
+> **Les 6 commits de session (`c8af4c8` → `ba04bee`) = AFFICHAGE / agencement UI** (chips au clic, alignement « — », accent d'état du panneau, resserrage badges, vue « Par chantier » par défaut, ordre des onglets) : **aucune règle métier touchée**, harnais `test-familles.mjs` resté **71/71**, **principe n°1 préservé à chaque étape** (chip toujours visible, « — » jamais vert, fond de panneau neutre, contour « à vérifier » conservé) → **aucune entrée `SOURCE_DE_VERITE_CHECKS.md` §7bis requise**.
+
+### Décision majeure de la session (9 juin) — restructuration en 2 blocs (approche B re-choisie)
+
+La vue « Par chantier » a été **restructurée en 2 blocs distincts** : Bloc 1 « Dossier global » (3 col CEE\|Audit\|Synthèse) / Bloc 2 « Chantiers » (2 col Audit\|Synthèse, **sans CEE**). C'est structurellement l'**« approche B »** d'abord écartée au profit de la grille uniforme (amendement A `297e00c`), **re-choisie en connaissance de cause** après preview (la grille uniforme à en-tête unique 3 col décrivait mal les lignes chantier qui n'ont jamais de CEE). Le **filet `cee→global`** (dans `renderChantierGrid`) garantit qu'**aucun check `type='cee'` ne disparaît**, même per-chantier : `getCheckProvenance` couple déjà `type='cee'` ⟹ `chantierIndex=null` (3 routes le posent, aucune route cee ne renvoie un index), et le filet force en plus tout `cee` vers le Bloc 1 — seul à porter une colonne CEE.
+
+> Les anciennes « décisions actées pour le commit 5 » (bloc CEE = avertissements recalculés / comparaisons transversales en ligne Dossier / critère à trancher) sont désormais **RÉALISÉES** — commits `3c16e43` → `23ac9de`. Aucune règle métier touchée (affichage + filet de routage défensif) → pas d'entrée §7bis dans `SOURCE_DE_VERITE_CHECKS.md`.
+
+### Sujets restants
+
+- ✅ **TODO #32** (mentions agricoles 4→1) : **réalisé** le 10/06/2026, commit `e3dbd6d` — voir « COMPLÉTÉS RÉCEMMENT ». Le harnais est passé de 71 à 69 cas comme prévu (changement de forme attendu, pas une régression).
+- **Commit 6 (non livré)** : bandeau pastilles familles à NOMS (`LIBELLES` au lieu des clés courtes), non cliquables, scroll horizontal déjà en place — planifié sur cette branche, **pas encore réalisé** *(statut à confirmer avec IZANAMI : garder ou abandonner)*.
+
+### Dettes / bugs liés à cette branche
+
+- **TODO #36** (créé ce chantier) : extraire les styles de grille partagés dans un bloc neutre (supprime la duplication `#chantier-grille-style` / `#familles-grille-style` + la dépendance d'ordre). À traiter après merge (touche `renderFamillesGrid`).
+- **TODO #35** (préexistant) : supprimer le corps mort `renderChecksByFamille` après validation prod de la grille famille.
+- **9 `alert()` restants** (limite connue, cf. § « Harmonisation alert() → modale/toast » plus bas) : supprimables par le navigateur, mais **sans faux « conforme »** (ce ne sont pas des portes de décision, contrairement aux `confirm()`). Passe d'harmonisation modale/toast à prévoir. *(TODO #32 déplacé en « Sujets restants ».)*
+- **Observation mineure (cosmétique, non bloquant)** : le sélecteur `.groupe-content.collapsed + .groupe-header .toggle-icon` (rotation de l'icône ▼) ne matche jamais (le `.groupe-header` précède le `.groupe-content` dans le markup) — quirk **préexistant** de la grille famille, recopié à l'identique dans `#chantier-grille-style`. Sans effet fonctionnel (le repli marche via `display:none`).
 
 ---
 
@@ -358,17 +406,33 @@ Application des règles lors de l'analyse
 
 ### TODO #31 : [UI/debug] confiner renderChecksByFamille à son onglet + nettoyer les console.log
 
+**Statut** : ✅ **CONFINEMENT LIVRÉ le 08/06** (grille 2D, branche `feat/familles-grille-2d`) — `renderChecksByFamille` n'est **plus appelée** → son récap `🔎` ne s'exécute plus ; la nouvelle `renderFamillesGrid` ne se rend que quand l'onglet « Par famille » est actif. Les 5 `console.*` subsistent dans le **corps mort** (filet de revert, cf. **TODO #35**), inertes (jamais exécutés).
+
 `renderChecksByFamille` et son récap console (`🔎 Vue famille — récap`) se déclenchent à **chaque onglet** et à chaque re-rendu (plusieurs logs par analyse). À **confiner à l'onglet « Par famille »** lors de la passe grille, et **nettoyer les `console.log` de debug avant prod**.
 
 **Sources** : [Session 5 juin 2026 — chantier B]
 
 - §9 SOURCE_DE_VERITE — retirer la mention "Prime Evolution" (1.5 livrée le 01/06, oubli de nettoyage)
 
-### TODO #32 : [Simplification] checks 31-34 redondants — 4 checks pour une seule détection globale
+### TODO #35 : [UI] supprimer le corps mort renderChecksByFamille après validation prod de la grille 2D
 
-`checkMentionsAgricoles` est appelé **1× sur tout le dossier**, mais son résultat est recopié dans **4 checks identiques** (`check_31→34`), avec une `categorie` alternée arbitraire (`i === 32 ? 'audit' : 'synthese'`). Un **seul check global** suffirait. Candidat à simplification — **non urgent**. (La maille document × chantier des mentions n'est pas implémentée ; cf. modèle Chantier/Cellule **TODO #22**.)
+**Statut** : 🟢 **À FAIRE après validation prod** (8 juin 2026) — filet de revert (décision ii du diagnostic grille 2D).
 
-**Sources** : [Session 5 juin 2026 — chantier B, fix routage global]
+**Contexte** : la grille 2D « Par famille » (`renderFamillesGrid`, branche `feat/familles-grille-2d`, commit 1) remplace l'accordéon `renderChecksByFamille` au point d'appel (`refreshDisplay`). Le corps de `renderChecksByFamille` est **conservé intact mais non référencé** comme filet de revert (revert = remettre la ligne d'appel `renderChecksByFamille(checksToDisplay, elements.checksListFamilles)`).
+
+**Action** : une fois la grille **confirmée en prod**, supprimer le corps mort de `renderChecksByFamille` (≈ lignes 6017-6164) et ses 5 `console.*`. Tant que la grille n'est pas validée en prod, **NE PAS supprimer** (sécurité revert).
+
+**Sources** : [Session 8 juin 2026 — chantier B, grille 2D commit 1]
+
+### TODO #36 : [refactor CSS] extraire les styles de grille partagés dans un bloc neutre
+
+**Statut** : 🟢 **À FAIRE après merge** (9 juin 2026) — dette assumée du commit 3 de la vue « Par chantier ».
+
+**Contexte** : `renderChantierGrid` (vue « Par chantier ») et `renderFamillesGrid` (vue « Par famille ») partagent les mêmes classes de rendu (`.grille-badge`, `.grille-badge.a_verifier`, `.grille-cellule`, `.grille-detail*`, `.grille-conformes*`, `.grille-row-clickable`, `.collapsed`…). Pour supprimer une **dépendance d'ordre** (la grille chantier dépendait du `#familles-grille-style` injecté par la grille famille → badge « à vérifier » jaune-sur-jaune **illisible** si la famille n'avait pas rendu = faux conforme visuel), ces règles ont été **dupliquées** dans `#chantier-grille-style` (autosuffisance, décision Option A du commit 3). 
+
+**Action** : extraire ces règles communes dans **une fonction d'injection neutre unique** (ex. `injectGrilleStyles()`, id dédié) appelée par les **deux** grilles → supprime la duplication ET la dépendance d'ordre. Touche `renderFamillesGrid` (remplacer son bloc `<style>` inline par l'appel) → changement préservant le comportement, **hors périmètre du commit 3** (interdiction de toucher `renderFamillesGrid`).
+
+**Sources** : [Session 9 juin 2026 — chantier B, vue par chantier commit 3, vérif adverse]
 
 ### TODO #33 : [Mémo] fiche technique (check_36) en maille globale — rien à corriger
 
@@ -465,6 +529,28 @@ CREATE TABLE analyses (
 
 ## ✅ COMPLÉTÉS RÉCEMMENT
 
+### ✅ TODO #32 : Fusion check_31→34 en un check global mentions agricoles
+
+**Statut** : ✅ **COMPLÉTÉ** (10 juin 2026)
+
+**Problème** : `checkMentionsAgricoles` est appelé **1× sur tout le dossier**, mais son résultat était recopié dans **4 checks identiques** (`check_31→34`, `categorie` alternée arbitraire `i === 32 ? 'audit' : 'synthese'`) → compteurs gonflés ×4 (MAJEUR comme ✓) et 4 lignes majeures dupliquées dans le message auditeur.
+
+**Correctif appliqué** (décisions IZANAMI : survivant `check_31` / retrait des entrées de table mortes / `categorie:'synthese'`) :
+- `index.html` : boucle `for (i=31..34)` remplacée par un push unique — `id:'check_31'`, `portee:'global-cee'` conservée (routage méthode 0bis vers Bloc 1 Dossier global / colonne CEE), `categorie:'synthese'`, champ « Mention agricole (Audit + Synthèse) » (le mot « agricole » maintient le groupe sémantique `'secteur'`)
+- `familles-config.js` : retrait des 3 entrées mortes `/^check_32$/`, `/^check_33$/`, `/^check_34$/` (l'entrée `/^check_31$/ → '3'` reste) ; `resolveFamille` intouchée
+- `test-familles.mjs` : **71 → 69 cas** (65 positifs + 4 négatifs) — retrait des 3 cas positifs, `check_32` converti en **contrôle négatif** (attendu `null` : non-régression active du dédoublonnage)
+- Détection `checkMentionsAgricoles` strictement **inchangée** (périmètre Audit + Synthèse, fix B1 intact). L'onglet legacy Audit perd sa ligne (ex-`check_32`) — assumé, essence du dédoublonnage. Maille document × chantier toujours hors périmètre (**TODO #22**).
+
+**Fichiers modifiés** : `index.html`, `familles-config.js`, `test-familles.mjs` (+15, −22)
+
+**Commits** :
+- `e3dbd6d` - "refactor(checks): fusionne check_31→34 en un check global mentions agricoles (TODO #32)"
+
+**Sources** :
+- [Session 10 juin 2026 — diagnostic (workflow 3 explorateurs + conception) puis implémentation validée]
+
+---
+
 ### ✅ TODO #23 : Correction bug B1 — mentions agricoles
 
 **Statut** : ✅ **COMPLÉTÉ** (27 mai 2026)
@@ -476,6 +562,8 @@ CREATE TABLE analyses (
 **Correctif appliqué** :
 - Niveau passé en `'majeur'` (`index.html:4288`)
 - Bloc de recherche dans le CEE supprimé (`index.html:3444-3449`)
+
+> Post-fusion **TODO #32** (10/06/2026, `e3dbd6d`) : les checks 31-34 n'existent plus — le fix B1 (niveau `majeur`, périmètre Audit + Synthèse) s'applique au check global unique `check_31`.
 
 **Fichiers modifiés** :
 - `index.html` (+1, -8)
@@ -888,7 +976,7 @@ CREATE TABLE analyses (
 > ✅ Bug « état dossier » volet 2/2 (champs ref* conditionnels) **résolu le 2 juin 2026** (commit `1ec2c49`, mergé `6a38915`) — bug entièrement clos avec le volet 1/2 (commits `86a5906` + `7f15377`). Voir `SOURCE_DE_VERITE_CHECKS.md` §7.
 > ✅ Bug prod (non numéroté) **résolu 29/05/2026** : crash `norm.cee` null dans `generateChecks` (commit `27e7918`). Anomalie A2 (check_41 majeur) résolue le même jour (commit `f976521`). Voir `SOURCE_DE_VERITE_CHECKS.md` §7/§6.
 
-**TODOs complétés récemment** : 27 (7 mai - 5 juin 2026)
+**TODOs complétés récemment** : 28 (7 mai - 10 juin 2026)
 - 7 mai : Multi-chantiers (ADR 003)
 - 8 mai : Sélecteur LED (ADR 006), Normalisation adresses (ADR 007), Extraction CLIENT (ADR 008)
 - 9 mai : UX hiérarchique (ADR 009), Secteur par chantier (ADR 010), Matching INDEX (ADR 011)
@@ -909,6 +997,7 @@ CREATE TABLE analyses (
 - 3 juin : Évolution 1.2 — délais de travaux : 4 dates + 3 règles (R1 ≥ prévisite +14j / R2 fin>début strict / R3 facture>fin strict), alerte confirmable (`ab9242d`). **→ Phase 1 fonctionnelle (hors UI/UX) COMPLÈTE.**
 - 3 juin : Correctif extraction section C — `entrepriseMiseEnOeuvre` fiabilisé (ancrage SOURCE sur le titre + « Raison sociale », fin du non-déterminisme émetteur facture ↔ section C), patron `af21eb8`, commit `e456b70`. Volet logique aval à 3 issues → **TODO #29 (à cadrer)**.
 - 5 juin : 7 checks dossier restants routés par `portee:'global-cee'` (`be607dc`, suite TODO #30 → **TODO #34**) — fin de la dépendance à l'heuristique Méthode 3 ; `check_47_global` exclu (dette **TODO #27**).
+- 10 juin : Fusion `check_31→34` en un check global mentions agricoles (TODO #32, commit `e3dbd6d`) — harnais 71→69 cas, `check_32` converti en contrôle négatif.
 
 **TODOs reportés** : 1
 - 27 mai : Modularisation index.html (TODO #3) - À refaire après cadrage modèle Chantier/Cellule (TODO #22)

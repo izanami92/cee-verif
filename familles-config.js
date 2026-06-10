@@ -57,9 +57,6 @@
     [/^check_20(_c\d+)?$/,             '3'],
     [/^check_23(_c\d+)?$/,             '3'],
     [/^check_31$/,                     '3'],
-    [/^check_32$/,                     '3'],
-    [/^check_33$/,                     '3'],
-    [/^check_34$/,                     '3'],
     [/^check_attestation_non_agricole_naf_inconnu$/, '3'],
 
     // 4 — Adresses chantier
