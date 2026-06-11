@@ -4280,6 +4280,25 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
       const attestationsRegroupees = regrouperAttestationsParAdresse(attestationsCEE);
       const attestationsAvecLed = attestationsRegroupees.filter(att => att.ledTotal);
 
+      // ===== S2 (ADR-014/#22) : appariement attestation↔chantier non silencieux =====
+      // Compte, par adresse normalisée (MÊME normalisation que la clé de regroupement), combien de
+      // chantiers la partagent. compte>1 ⇒ COLLISION : la comparaison auto compare alors un chantier
+      // au TOTAL agrégé des deux (faux ok/majeur) → on signale 'info' « à vérifier » sur les checks
+      // EXISTANTS (aucun nouvel id). MISS = le .find ne renvoie aucune attestation pour ce chantier.
+      const compteAdresseS2 = {};
+      matchChantiers(norm.audits, norm.syntheses).forEach(ch => {
+        const key = normaliserAdresseSansBatiment(ch.adresse || '');
+        if (key) compteAdresseS2[key] = (compteAdresseS2[key] || 0) + 1;
+      });
+      const nbCoChantiersS2 = (adresse) => compteAdresseS2[normaliserAdresseSansBatiment(adresse || '')] || 0;
+      const collisionAdresseS2 = (adresse) => nbCoChantiersS2(adresse) > 1;
+      // Pousse un check 'info' « à vérifier » sur un id EXISTANT (categorie 'synthese' + chantierIndex
+      // préservés → routage Méthode 0 inchangé ; valeurs neutres, jamais lues comme un résultat).
+      const pushApparInfoS2 = (id, champ, localisation, detail, chantierIndex) => {
+        checks.push({ id, categorie: 'synthese', niveau: 'info', champ, localisation, detail,
+          valeur_attendue: '(non vérifiable)', valeur_trouvee: '(non vérifiable)', chantierIndex });
+      };
+
       if (attestationsAvecLed.length > 0) {
         const chantiers = matchChantiers(norm.audits, norm.syntheses);
 
@@ -4290,7 +4309,19 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
           );
           const chantierIndex = index + 1; // ⭐ Index du chantier
 
-          if (attestationCorrespondante) {
+          if (collisionAdresseS2(chantier.adresse)) {
+            // S2 : 2+ chantiers à la même adresse → LED comparée au TOTAL agrégé = faux → 'info'.
+            pushApparInfoS2(`check_09d_synthese_${(chantier.adresse || '').replace(/[^a-z0-9]/gi, '_')}`,
+              `LED ${chantier.adresse || ''} : à vérifier`, `${chantier.adresse || ''}`,
+              `⚠️ À vérifier manuellement : ${nbCoChantiersS2(chantier.adresse)} chantiers à la même adresse « ${chantier.adresse || ''} » — LED non réconciliable automatiquement (1 chantier = 1 adresse non garanti).`,
+              chantierIndex);
+          } else if (!attestationCorrespondante) {
+            // S2 : aucune attestation CEE appariée (mono ET multi) → 'info' visible, plus de silence.
+            pushApparInfoS2(`check_09d_synthese_${(chantier.adresse || '').replace(/[^a-z0-9]/gi, '_')}`,
+              `LED ${chantier.adresse || ''} : à vérifier`, `${chantier.adresse || ''}`,
+              `⚠️ À vérifier manuellement : aucune attestation CEE trouvée pour ce chantier (adresse « ${chantier.adresse || ''} »).`,
+              chantierIndex);
+          } else {
             const adresseCEE = attestationCorrespondante.adresse; // Adresse de référence du CEE
             const ledCEE = parseFloat(String(attestationCorrespondante.ledTotal || 0).replace(/\s+/g, '')) || 0;
             const ledAudit = chantier.audit ? parseFloat(String(chantier.audit.ledTotal || 0).replace(/\s+/g, '')) || 0 : null;
@@ -4333,9 +4364,6 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
                 chantierIndex // ⭐ Chantier détecté depuis la case d'import
               });
             }
-          } else {
-            // Attestation CEE non trouvée pour ce chantier
-            console.warn(`⚠️ Aucune attestation CEE trouvée pour l'adresse : ${chantier.adresse}`);
           }
         });
       }
@@ -4410,7 +4438,21 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
             compareAddress(synthese.adresse, att.adresse)
           );
 
-          if (attestation && attestation.secteurActivite) {
+          const suffixS2 = norm.syntheses.length > 1 ? ` chantier ${syntheseIndex + 1}` : '';
+          const idSuffixS2 = norm.syntheses.length > 1 ? `_c${syntheseIndex + 1}` : '';
+          if (collisionAdresseS2(synthese.adresse)) {
+            // S2 : 2+ chantiers même adresse → secteur comparé au CEE agrégé = faux → 'info' (pas de sous-check conflit).
+            pushApparInfoS2(`check_14${idSuffixS2}`,
+              `Secteur d'activité Synthèse${suffixS2}`, `Synthèse${suffixS2}, fiche identité du site`,
+              `⚠️ À vérifier manuellement : ${nbCoChantiersS2(synthese.adresse)} chantiers à la même adresse « ${synthese.adresse || ''} » — secteur non réconciliable automatiquement (1 chantier = 1 adresse non garanti).`,
+              syntheseIndex + 1);
+          } else if (!attestation && nbChantiers > 1) {
+            // S2 : multi-chantier, aucune attestation appariée → 'info' (mono garde le fallback references.*).
+            pushApparInfoS2(`check_14${idSuffixS2}`,
+              `Secteur d'activité Synthèse${suffixS2}`, `Synthèse${suffixS2}, fiche identité du site`,
+              `⚠️ À vérifier manuellement : aucune attestation CEE trouvée pour ce chantier (adresse « ${synthese.adresse || ''} »).`,
+              syntheseIndex + 1);
+          } else if (attestation && attestation.secteurActivite) {
             const suffix = norm.syntheses.length > 1 ? ` chantier ${syntheseIndex + 1}` : '';
             const idSuffix = norm.syntheses.length > 1 ? `_c${syntheseIndex + 1}` : '';
 
@@ -4486,22 +4528,36 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
         const attestationCorrespondante = attestationsRegroupees.find(att =>
           compareAddress(synthese.adresse, att.adresse)
         );
-        const parcellesAttendues = attestationCorrespondante?.parcelles || references.parcelles || '';
-        const parcellesOk = compareParcelles(synthese.parcelles, parcellesAttendues);
+        if (collisionAdresseS2(synthese.adresse)) {
+          // S2 : 2+ chantiers même adresse → parcelles comparées au CEE agrégé (join) = faux → 'info'.
+          pushApparInfoS2(`check_15${idSuffix}`,
+            `Parcelles cadastrales Synthèse fiche identité${suffix}`, `Synthèse${suffix}, fiche identité du site`,
+            `⚠️ À vérifier manuellement : ${nbCoChantiersS2(synthese.adresse)} chantiers à la même adresse « ${synthese.adresse || ''} » — parcelles non réconciliables automatiquement (1 chantier = 1 adresse non garanti).`,
+            chantierIndex);
+        } else if (!attestationCorrespondante && nbChantiers > 1) {
+          // S2 : multi-chantier, aucune attestation appariée → 'info' (mono garde le fallback references.parcelles).
+          pushApparInfoS2(`check_15${idSuffix}`,
+            `Parcelles cadastrales Synthèse fiche identité${suffix}`, `Synthèse${suffix}, fiche identité du site`,
+            `⚠️ À vérifier manuellement : aucune attestation CEE trouvée pour ce chantier (adresse « ${synthese.adresse || ''} »).`,
+            chantierIndex);
+        } else {
+          const parcellesAttendues = attestationCorrespondante?.parcelles || references.parcelles || '';
+          const parcellesOk = compareParcelles(synthese.parcelles, parcellesAttendues);
 
-        checks.push({
-          id: `check_15${idSuffix}`,
-          categorie: 'synthese',
-          niveau: parcellesOk ? 'ok' : 'majeur',
-          champ: `Parcelles cadastrales Synthèse fiche identité${suffix}`,
-          localisation: `Synthèse${suffix}, fiche identité du site`,
-          detail: parcellesOk ?
-            'Parcelles cadastrales conformes au dossier CEE pour ce chantier' :
-            'Parcelles cadastrales différentes du dossier CEE pour ce chantier',
-          valeur_attendue: parcellesAttendues,
-          valeur_trouvee: synthese.parcelles || '',
-          chantierIndex
-        });
+          checks.push({
+            id: `check_15${idSuffix}`,
+            categorie: 'synthese',
+            niveau: parcellesOk ? 'ok' : 'majeur',
+            champ: `Parcelles cadastrales Synthèse fiche identité${suffix}`,
+            localisation: `Synthèse${suffix}, fiche identité du site`,
+            detail: parcellesOk ?
+              'Parcelles cadastrales conformes au dossier CEE pour ce chantier' :
+              'Parcelles cadastrales différentes du dossier CEE pour ce chantier',
+            valeur_attendue: parcellesAttendues,
+            valeur_trouvee: synthese.parcelles || '',
+            chantierIndex
+          });
+        }
 
         checks.push({
           id: `check_16${idSuffix}`,
@@ -4563,7 +4619,21 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
           const attestation = attestationsRegroupees.find(att =>
             compareAddress(synthese.adresse, att.adresse)
           );
-          if (attestation && attestation.secteurActivite) {
+          const suffixS2 = norm.syntheses.length > 1 ? ` chantier ${syntheseIndex + 1}` : '';
+          const idSuffixS2 = norm.syntheses.length > 1 ? `_c${syntheseIndex + 1}` : '';
+          if (collisionAdresseS2(synthese.adresse)) {
+            // S2 : 2+ chantiers même adresse → secteur étude comparé au CEE agrégé = faux → 'info'.
+            pushApparInfoS2(`check_20${idSuffixS2}`,
+              `Secteur étude indicateurs${suffixS2}`, `Synthèse${suffixS2}, indicateurs éclairage intérieur état initial`,
+              `⚠️ À vérifier manuellement : ${nbCoChantiersS2(synthese.adresse)} chantiers à la même adresse « ${synthese.adresse || ''} » — secteur non réconciliable automatiquement (1 chantier = 1 adresse non garanti).`,
+              syntheseIndex + 1);
+          } else if (!attestation && nbChantiers > 1) {
+            // S2 : multi-chantier, aucune attestation appariée → 'info' (mono garde le fallback references.*).
+            pushApparInfoS2(`check_20${idSuffixS2}`,
+              `Secteur étude indicateurs${suffixS2}`, `Synthèse${suffixS2}, indicateurs éclairage intérieur état initial`,
+              `⚠️ À vérifier manuellement : aucune attestation CEE trouvée pour ce chantier (adresse « ${synthese.adresse || ''} »).`,
+              syntheseIndex + 1);
+          } else if (attestation && attestation.secteurActivite) {
             const secteurOk = compareSecteurEtude(synthese.secteurEtude, attestation.secteurActivite);
             const suffix = norm.syntheses.length > 1 ? ` chantier ${syntheseIndex + 1}` : '';
             const idSuffix = norm.syntheses.length > 1 ? `_c${syntheseIndex + 1}` : '';
@@ -4654,7 +4724,21 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
           const attestation = attestationsRegroupees.find(att =>
             compareAddress(synthese.adresse, att.adresse)
           );
-          if (attestation && attestation.secteurActivite) {
+          const suffixS2 = norm.syntheses.length > 1 ? ` chantier ${syntheseIndex + 1}` : '';
+          const idSuffixS2 = norm.syntheses.length > 1 ? `_c${syntheseIndex + 1}` : '';
+          if (collisionAdresseS2(synthese.adresse)) {
+            // S2 : 2+ chantiers même adresse → activité comparée au CEE agrégé = faux → 'info'.
+            pushApparInfoS2(`check_23${idSuffixS2}`,
+              `Activité bâtiment état projeté${suffixS2}`, `Synthèse${suffixS2}, inventaire état projeté (2e tableau)`,
+              `⚠️ À vérifier manuellement : ${nbCoChantiersS2(synthese.adresse)} chantiers à la même adresse « ${synthese.adresse || ''} » — secteur non réconciliable automatiquement (1 chantier = 1 adresse non garanti).`,
+              syntheseIndex + 1);
+          } else if (!attestation && nbChantiers > 1) {
+            // S2 : multi-chantier, aucune attestation appariée → 'info' (mono garde le fallback existant).
+            pushApparInfoS2(`check_23${idSuffixS2}`,
+              `Activité bâtiment état projeté${suffixS2}`, `Synthèse${suffixS2}, inventaire état projeté (2e tableau)`,
+              `⚠️ À vérifier manuellement : aucune attestation CEE trouvée pour ce chantier (adresse « ${synthese.adresse || ''} »).`,
+              syntheseIndex + 1);
+          } else if (attestation && attestation.secteurActivite) {
             const activiteOk = compareSecteurEtude(synthese.activiteBatiment, attestation.secteurActivite);
             const suffix = norm.syntheses.length > 1 ? ` chantier ${syntheseIndex + 1}` : '';
             const idSuffix = norm.syntheses.length > 1 ? `_c${syntheseIndex + 1}` : '';
