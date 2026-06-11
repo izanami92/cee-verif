@@ -89,6 +89,7 @@
     [/^check_27(_c\d+)?$/,     '7'],
     [/^check_45b_\d+$/,        '7'],
     [/^check_45b_\d+_bat\d+$/, '7'],
+    [/^check_surface_non_ventilable$/, '7'],
     [/^check_47_global$/,      '7'],
 
     // 8 — Fiche technique

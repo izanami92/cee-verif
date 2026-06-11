@@ -5311,6 +5311,28 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
           // Incrémenter l'index du chantier pour le prochain
           chantierIndex++;
         });
+
+        // ===== FILET ANTI-FAUX-CONFORME (ADR-015 étape 2) : surface non ventilable au grain chantier =====
+        // A = chantiers attendus (audits/synthèses) ; S = attestations PORTEUSES DE SURFACE.
+        // S < A (avec S > 0) ⇒ une (ou plusieurs) attestation(s) surface couvre(nt) plusieurs chantiers :
+        // la surface est repliée → impossible de la recouper par chantier. Constat de COMPTAGE, jamais une
+        // affirmation (« globale » / « manquante ») : peut être légitime OU une extraction incomplète.
+        // Signal DOSSIER (portee:'global-cee'), niveau info → cellule/famille « à vérifier » JAUNE (jamais vert).
+        const nbChantiersAttendus = matchChantiers(norm.audits, norm.syntheses).length;
+        const nbAttestationsSurface = attestations.filter(att => sumSurfaces(att.surfaces) > 0).length;
+        if (nbAttestationsSurface > 0 && nbAttestationsSurface < nbChantiersAttendus) {
+          checks.push({
+            id: 'check_surface_non_ventilable',
+            portee: 'global-cee',
+            categorie: 'cee',
+            niveau: 'info',
+            champ: 'Surface non ventilable par chantier',
+            localisation: 'Dossier CEE — attestation(s) entrepôt',
+            detail: `⚠️ À vérifier manuellement : ${nbAttestationsSurface} attestation(s) de surface pour ${nbChantiersAttendus} chantiers. La surface ne peut pas être recoupée chantier par chantier — soit une attestation couvre plusieurs chantiers, soit une attestation par chantier n'a pas été extraite. Vérifier la surface de chaque chantier sur le Dossier CEE.`,
+            valeur_attendue: `${nbChantiersAttendus} attestation(s) de surface (1 par chantier)`,
+            valeur_trouvee: `${nbAttestationsSurface} attestation(s) de surface`
+          });
+        }
       }
 
       return checks;
