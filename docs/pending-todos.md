@@ -86,6 +86,25 @@ Dossier → Chantiers → Cellules. Détail complet dans `docs/ROADMAP_EVOLUTION
 **Réf** : ADR-014 (`docs/decisions/014-modele-chantier-cellule.md`, commit `9bae343`) — décision initiale « approche A retenue, B différé ».
 **Réf (suite)** : ADR-015 (`docs/decisions/015-modele-grains-cellule-chantier-dossier.md`, 11/06/2026) — cadrage des grains Cellule/Chantier/Dossier (LED + surfaces) + séquencement en étapes 1a/1b → 6 ; réalise l'item 4 « créer un ADR de suivi » ci-dessous.
 
+**Avancement ADR-015 (chantier des grains Cellule/Chantier/Dossier) — au 11/06/2026 :**
+
+Séquence en 6 étapes (cf. ADR-015 §5), branches EMPILÉES (chaque étape part du tip de la précédente) :
+- ✅ **1a** — Collision A1 levée (`check_45_audit/synthese` + `check_synthese_manquante`). Branche `fix/a1-collision-check45`, commit `a61d343`, **non mergé**. Harnais 70/70. Non-régression preview OK.
+- ✅ **2** — Filet `check_surface_non_ventilable` (signal dossier, `S < A`). Branche `feat/s2-filet-surface-non-ventilable-sur-1a` (empilée sur 1a), commit `de0f36d`, **non mergé**. Validé preview double sens (DELEFORTRIE / DES LAURIERS).
+- ⬜ **3** — Extraction grain cellule (`api/analyze.js`, couche LLM). PROCHAINE. Part du tip de l'étape 2. **Zone la plus risquée du chantier** (LLM non déterministe ; le harnais ne couvre pas `generateChecks`).
+- ⬜ **4** — Niveau chantier (`regrouperAttestationsParAdresse` source structurelle, LED agrégée par adresse).
+- ⬜ **5** — Re-câbler `attestations.length`-as-chantier-count (check_39, export, nbChantiers, `[auditIndex]`).
+- ⬜ **6** — Règle surface à comptage (S==C / S==A / S<A, cohérence Σ au bon grain). Sous-divisible.
+
+**Décisions/reports actés en cours de chantier :**
+- Volet `C > A` du filet (étape 2) REPORTÉ après l'étape 3 (C = grain cellule, inexistant avant).
+- Niveau CELLULE du signal de non-ventilabilité REPORTÉ (dépend du grain cellule étape 3 et/ou du fix #27).
+- Signal par chantier (« CE chantier sans attestation ») écarté à l'étape 2 : repose sur `compareAddress`, fragile — bug #27 CONFIRMÉ en preview sur DES LAURIERS (échecs compareAddress en boucle, sauvés par l'appariement par index).
+- Étape 1b (conversion routage famille 7 vers id ancré) NON faite, jugée cosmétique après 1a (routage déjà fonctionnel) : reportée ou à regrouper avec un futur passage `familles-config.js`.
+- Bug préexistant `check_44` (recalcul de surface no-op) corrigé dans 1a.
+
+**Branches du chantier (non mergées) :** `fix/a1-collision-check45` → `feat/s2-filet-surface-non-ventilable-sur-1a`. Merge sur `main` quand le chantier est présentable (étapes 1a→6, ou un sous-ensemble cohérent décidé par IZANAMI).
+
 #### A) État des branches (chaîne EMPILÉE depuis `main` = `279e0e1`)
 
 | Branche | Tip | État | Contenu |
