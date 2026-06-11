@@ -11,6 +11,8 @@
 
 ## CHANTIER MAJEUR — Modèle de données Chantier / Cellule (PRIORITÉ N°1)
 
+> ⭐ **MAJ 11/06/2026 — B (extraction par bâtiment) promu PRIORITÉ N°1** : détail, preuve (dossier DELEFORTRIE FRÈRES) et plan dans `docs/pending-todos.md` §TODO #22 (clôture 11/06/2026).
+
 ### Le problème
 L'outil repose sur l'hypothèse « 1 chantier = 1 adresse » et utilise l'adresse comme clé de regroupement. C'est faux dans beaucoup de cas réels et cause des erreurs silencieuses (faux « conforme » sur parcelles/surfaces).
 

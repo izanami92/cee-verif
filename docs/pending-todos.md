@@ -2,13 +2,13 @@
 
 **Document de suivi** des fonctionnalités discutées, en cours, ou à implémenter.
 
-**Dernière mise à jour** : 9 juin 2026
+**Dernière mise à jour** : 11 juin 2026
 
 ---
 
-## 🚧 BRANCHE EN COURS — `feat/vue-par-chantier` (vue « Par chantier »)
+## ✅ BRANCHE MERGÉE — `feat/vue-par-chantier` (vue « Par chantier »)
 
-**Statut** : 🚧 **EN COURS** (10 juin 2026) — branche **JAMAIS mergée sur main**. Base = `f734f8d` (sommet de `feat/familles-grille-2d`, fix grille famille). **Sommet actuel : `ba04bee`** (réordonnancement des onglets — Par chantier / Tous les points / Par famille en tête ; prête à relecture preview, merge sur `main` = geste d'IZANAMI).
+**Statut** : ✅ **MERGÉE SUR `main`** (merge `ed85199`, 10/06/2026). Base = `f734f8d` (sommet de `feat/familles-grille-2d`, fix grille famille). **Sommet actuel : `ba04bee`** (réordonnancement des onglets — Par chantier / Tous les points / Par famille en tête ; validée en preview puis mergée en prod le 10/06/2026).
 
 > Objectif : vue « Par chantier » en 2 blocs (Bloc 1 « Dossier global » CEE|Audit|Synthèse ; Bloc 2 « Chantiers » Audit|Synthèse), précédés d'une ligne d'avertissements CEE recalculés live (chips), EN PLUS de la vue « Par famille » qui reste intacte. Au merge final, l'ensemble (grille famille + vue chantier) part sur `main` d'un bloc — geste d'IZANAMI.
 
@@ -75,6 +75,49 @@ Dossier → Chantiers → Cellules. Détail complet dans `docs/ROADMAP_EVOLUTION
 
 **Sources** :
 - [Session 28 mai 2026 — cadrage métier]
+- [docs/ROADMAP_EVOLUTIONS.md — section CHANTIER MAJEUR]
+
+---
+
+### TODO #22 (implémentation) — Modèle A : S4a/S1/S2 livrés + ⭐ PIVOT vers B (clôture session 11/06/2026)
+
+**Statut** : 🟠 **EN COURS** (11 juin 2026) — Modèle A entamé (ADR-014). **S4a en prod ; S1+S2 en branches non mergées.** ⭐ **B (extraction par bâtiment) est PROMU PRIORITÉ N°1** : le déclencheur prévu par l'ADR-014 est atteint (preuve dossier réel ci-dessous).
+
+**Réf** : ADR-014 (`docs/decisions/014-modele-chantier-cellule.md`, commit `9bae343`) — décision initiale « approche A retenue, B différé ».
+
+#### A) État des branches (chaîne EMPILÉE depuis `main` = `279e0e1`)
+
+| Branche | Tip | État | Contenu |
+|---------|-----|------|---------|
+| (`main`) | `279e0e1` | ✅ **prod** | S4a mergé (`250ee02`, fusion `check_47_global`, fin du faux conforme silencieux) + ADR-014 (`9bae343`) |
+| `feat/s1-cellules-regroupement` | **`38b0890`** | committé + **poussé**, **NON mergé** | **S1** : `regrouperAttestationsParAdresse` ré-expose `cellules[]` (copie superficielle des attestations brutes, 1 entrée = 1 cellule). Additif, ripple nul, harnais 69/69. |
+| `feat/s2-appariement-non-silencieux` | **`208185c`** | committé + **poussé**, **NON mergé** | **S2** : **basé sur le tip de S1 → la chaîne est EMPILÉE (S2 contient S1+S2)**. Collision d'adresse (2+ chantiers même adresse) ou attestation introuvable → checks `09d/14/15/20/23` passent en `niveau:'info'` « ⚠️ À vérifier » au lieu de disparaître / fallback silencieux `references.*` / faux majeur. Mono-chantier inchangé. Aucun nouvel id, routage Méthode 0 intact, 69/69. |
+
+> ⚠️ **Empilement** : au merge, ordre **S1 puis S2** (ou merge groupé de la chaîne) — geste d'IZANAMI.
+
+> **Résidu S2 (micro-sujet futur, tracé)** : multi-chantier, attestation **appariée** mais champ comparé vide → fallback/silence subsistant. Cas distinct de collision/miss, hors périmètre S2.
+
+#### B) ⭐ PIVOT ARCHITECTURAL — le modèle A est INSUFFISANT seul → B (extraction par bâtiment) requis
+
+**Preuve (dossier réel DELEFORTRIE FRÈRES, testé en preview S2)** : l'extraction CEE produit **UNE seule attestation agrégée** (`ledTotal=66` = total, `surfaces=["2601"]` = somme), alors que le dossier a **3 bâtiments / 2 adresses**. `cee.adressesChantiers` liste bien les 3 adresses **mais SANS valeurs** ; les valeurs par bâtiment (**26 / 26 / 14 LED** ; **1130 / 884 / 587 m²**) existent dans la SOURCE CEE et dans les audits, mais l'extraction les a **FONDUES** (26+26+14 = 66 ; 1130+884+587 = 2601). Donc le grain par-cellule **n'existe pas dans la donnée extraite** → `cellules` (S1) vaut **1, pas 3** → **A ne peut rien ré-exposer**. C'est exactement le déclencheur prévu par l'ADR-014 pour rouvrir B.
+
+**Conséquences** :
+- **S1 + S2 restent CORRECTS et utiles** — NON gâchés, à conserver ; ils se construiront **PAR-DESSUS B**. (S2 a même correctement signalé « 6 rue : à vérifier » sur ce dossier.)
+- **S3 (recompter `check_39` au bon grain) est PRÉMATURÉ → différé APRÈS B** (le bon grain n'existe pas tant que B ne l'a pas extrait).
+- **Bug #27** (liste `adressesChantiers` indexée par bâtiment ≠ chantiers → faux « Attendu : 4 rue BAT 2 » pour le chantier au 6 rue) et l'**extraction secteur** restent hors S2 ; B assainit aussi ce terrain.
+
+**PROCHAINE SESSION — première action : DIAGNOSTIC SOURCE de B (LECTURE SEULE)** :
+1. Confirmer dans le **PDF CEE** que l'attestation sur l'honneur liste bien **surface + LED PAR BÂTIMENT**.
+2. Localiser dans `api/analyze.js` le **prompt d'extraction CEE** qui produit `attestations[]` et comprendre **POURQUOI il agrège** (coller la structure du prompt + le schéma `attestations` attendu).
+3. **Objectif B** : faire produire `attestations[]` à raison d'**UNE entrée par bâtiment** (adresse + surface + LED propres), **SANS casser** les dossiers déjà bien extraits (couche LLM non-déterministe → ancrer le prompt sur titres/labels exacts ; tester avant/après). ⚠️ **B touche `api/analyze.js` = zone sensible → diagnostic + ADR AVANT tout code.**
+4. **Mettre à jour l'ADR-014** (ou créer un ADR de suivi) pour acter : déclencheur atteint, B promu prioritaire, A se construit au-dessus de B.
+
+#### C) Démarrage prochaine session (méthodo)
+Ré-uploader `CLAUDE.md`, `docs/pending-todos.md`, `docs/ROADMAP_EVOLUTIONS.md`, `docs/SOURCE_DE_VERITE_CHECKS.md` + ce handoff à Claude (l'architecte), et **re-valider l'architecture contre le code réel AVANT** d'écrire tout prompt d'implémentation.
+
+**Sources** :
+- [ADR-014 — `docs/decisions/014-modele-chantier-cellule.md`]
+- [Preview S2 sur dossier DELEFORTRIE FRÈRES — 11/06/2026]
 - [docs/ROADMAP_EVOLUTIONS.md — section CHANTIER MAJEUR]
 
 ---
