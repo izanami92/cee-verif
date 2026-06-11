@@ -88,10 +88,10 @@ const CAS_POSITIFS = [
   { id: 'check_45b_0',      champ: 'Surfaces détaillées Synthèse',                      attendu: '7' },
   { id: 'check_45b_0_bat1', champ: 'Surface bâtiment 1 Synthèse vs Attestation',        attendu: '7' },
   { id: 'check_47_global',  champ: 'Somme surfaces manuelles = Sommes audits & synthèses (global)', attendu: '7' },
-  // 7 via COLLISION check_45_N (formes surface)
-  { id: 'check_45_0', champ: 'Somme surfaces Audit = Somme attestation', attendu: '7' },
-  { id: 'check_45_0', champ: 'Surface Synthèse = Somme attestation',     attendu: '7' },
-  { id: 'check_45_0', champ: 'Surface éclairée Synthèse',                attendu: '7' },
+  // 7 via résolveur check_45_audit_N / check_45_synthese_N (formes surface — collision A1 levée, étape 1a)
+  { id: 'check_45_audit_0',    champ: 'Somme surfaces Audit = Somme attestation', attendu: '7' },
+  { id: 'check_45_synthese_0', champ: 'Surface Synthèse = Somme attestation',     attendu: '7' },
+  { id: 'check_45_synthese_0', champ: 'Surface éclairée Synthèse',                attendu: '7' },
   // 7 via COLLISION check_42_N (forme surface)
   { id: 'check_42_0', champ: 'Surfaces Audit observations préliminaires', attendu: '7' },
 
@@ -108,16 +108,16 @@ const CAS_POSITIFS = [
   { id: 'check_43',                      champ: 'Attestation(s) sur l\'honneur',  attendu: '9' },
   { id: 'check_cee_incomplet',           champ: 'Extraction du Dossier CEE',      attendu: '9' },
   { id: 'check_attestation_manquante_0', champ: 'Attestation CEE manquante',      attendu: '9' },
-  // 9 via COLLISION
-  { id: 'check_42_0', champ: 'Audit correspondant (Chantier 1 : ...)',     attendu: '9' },
-  { id: 'check_45_0', champ: 'Synthèse correspondante (Chantier 1 : ...)', attendu: '9' }
+  { id: 'check_synthese_manquante_0',    champ: 'Synthèse correspondante (Chantier 1 : ...)', attendu: '9' }, // ex-collision check_45 → table ancrée (étape 1a)
+  // 9 via COLLISION (check_42 inchangé — étape 1a ne touche pas check_42)
+  { id: 'check_42_0', champ: 'Audit correspondant (Chantier 1 : ...)',     attendu: '9' }
 ];
 
 // === Cas NÉGATIFS (hors couverture) : prouvent que le filet null fonctionne ===
 const CAS_NEGATIFS = [
   { id: 'check_42_7',        champ: 'Libellé qui aurait changé' }, // collision 42 : fragment introuvable → null
   { id: 'check_zzz_inconnu', champ: '' },                          // id totalement inconnu → null
-  { id: 'check_45_9',        champ: 'Forme de check_45 jamais vue' }, // collision 45 : fragment surface introuvable → null
+  { id: 'check_45_synthese_9', champ: 'Forme de check_45 jamais vue' }, // résolveur surface : champ inattendu → null (étape 1a)
   { id: 'check_32',          champ: 'Mention agricole 2' }         // fusionné dans check_31, entrée de table retirée → null
 ];
 

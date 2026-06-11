@@ -101,7 +101,8 @@
     [/^check_39$/,                        '9'],
     [/^check_43$/,                        '9'],
     [/^check_cee_incomplet$/,             '9'],
-    [/^check_attestation_manquante_\d+$/, '9']
+    [/^check_attestation_manquante_\d+$/, '9'],
+    [/^check_synthese_manquante_\d+$/,    '9']
   ];
 
   // --- B) Résolveur : check {id, champ, ...} → clé de famille ou null ---
@@ -115,9 +116,12 @@
       if (champ.indexOf('Surfaces Audit') !== -1) return '7';      // surfaces = surface
       return null; // label inattendu → ne pas deviner (remonté comme trou par le harnais)
     }
-    if (/^check_45_\d+$/.test(id)) {
-      if (champ.indexOf('Synthèse correspondante') !== -1) return '9'; // synthèse manquante = complétude
-      // formes surface connues → '7' ; toute autre forme = imprévue → null (remonté comme trou)
+    if (/^check_45_(audit|synthese)_\d+$/.test(id)) {
+      // Collision A1 levée par préfixage d'id (étape 1a) : check_45_audit_N et
+      // check_45_synthese_N sont tous deux des formes SURFACE → famille 7.
+      // La forme « Synthèse correspondante » (complétude) a migré vers
+      // check_synthese_manquante_N (table ancrée, famille 9).
+      // Filet principe n°1 conservé : forme de champ inattendue → null (trou visible).
       if (champ.indexOf('Somme surfaces') !== -1
         || champ.indexOf('Surface Synthèse') !== -1
         || champ.indexOf('Surface éclairée') !== -1) return '7';

@@ -5167,7 +5167,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
               const sommesAuditMatch = Math.abs(sommeAttestationTotale - sommeAudit) < 1; // Tolérance 1 m²
 
               checks.push({
-                id: `check_45_${chantierIndex}`,
+                id: `check_45_audit_${chantierIndex}`,
                 categorie: 'audit',
                 niveau: sommesAuditMatch ? 'ok' : 'majeur',
                 champ: `Somme surfaces Audit = Somme attestation${chantierLabel}`,
@@ -5185,7 +5185,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
           // Check 45 : Somme surfaces attestations = surface éclairée synthèse (par chantier)
           if (!syntheseCorrespondante) {
             checks.push({
-              id: `check_45_${chantierIndex}`,
+              id: `check_synthese_manquante_${chantierIndex}`,
               categorie: 'synthese',
               niveau: 'majeur',
               champ: `Synthèse correspondante${chantierLabel}`,
@@ -5217,7 +5217,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
             if (!surfaceSynthese || surfaceSyntheseNum === 0) {
               // Surface éclairée non trouvée → check manuel
               checks.push({
-                id: `check_45_${chantierIndex}`,
+                id: `check_45_synthese_${chantierIndex}`,
                 categorie: 'synthese',
                 niveau: 'info',
                 champ: `Surface éclairée Synthèse${chantierLabel}`,
@@ -5231,7 +5231,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
               const sommeSyntheseMatch = Math.abs(sommeAttestationTotale - surfaceSyntheseNum) < 1; // Tolérance 1 m²
 
               checks.push({
-                id: `check_45_${chantierIndex}`,
+                id: `check_45_synthese_${chantierIndex}`,
                 categorie: 'synthese',
                 niveau: sommeSyntheseMatch ? 'ok' : 'majeur',
                 champ: `Surface Synthèse = Somme attestation${chantierLabel}`,
@@ -5467,7 +5467,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
       alert('✅ Surfaces validées et checks recalculés !');
     }
 
-    // Recalculer uniquement les checks de surfaces (check_43 et check_44)
+    // Recalculer uniquement les checks de surfaces (check_45_audit et check_45_synthese)
     function recalculateSurfaceChecks(extractedData) {
       const norm = normalizeExtracted(extractedData);
       const attestations = norm.cee?.attestations || [];
@@ -5517,14 +5517,14 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
           ` (Chantier ${chantierIndex + 1} : ${chantierAdresse.substring(0, 30)}...)` :
           '';
 
-        // Recalculer check_44 : Somme Audit = Somme attestation
+        // Recalculer check_45_audit : Somme Audit = Somme attestation
         if (auditCorrespondant) {
           const surfacesAudit = auditCorrespondant.surfaces || [];
           const sommeAudit = sumSurfaces(surfacesAudit);
 
           if (surfacesAudit.length > 0 && sommeAudit > 0) {
             const sommesAuditMatch = Math.abs(sommeAttestationTotale - sommeAudit) < 1; // Tolérance 1 m²
-            const checkId = `check_44_${chantierIndex}`;
+            const checkId = `check_45_audit_${chantierIndex}`;
 
             // Trouver et mettre à jour le check existant
             const existingCheckIndex = state.analysisResult.checks.findIndex(c => c.id === checkId);
@@ -5547,14 +5547,14 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
           }
         }
 
-        // Recalculer check_45 : Somme surfaces attestations = surface éclairée synthèse
+        // Recalculer check_45_synthese : Somme surfaces attestations = surface éclairée synthèse
         if (syntheseCorrespondante) {
           const surfaceSynthese = syntheseCorrespondante.surfaceEclairee || '';
           const surfaceSyntheseNum = parseFloat(String(surfaceSynthese).replace(/\s+/g, '').replace(/m²/g, '').replace(/,/g, '.')) || 0;
 
           if (surfaceSynthese && surfaceSyntheseNum > 0) {
             const sommeSyntheseMatch = Math.abs(sommeAttestationTotale - surfaceSyntheseNum) < 1; // Tolérance 1 m²
-            const checkId = `check_45_${chantierIndex}`;
+            const checkId = `check_45_synthese_${chantierIndex}`;
 
             // Trouver et mettre à jour le check existant
             const existingCheckIndex = state.analysisResult.checks.findIndex(c => c.id === checkId);
