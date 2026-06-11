@@ -174,6 +174,8 @@ Les décisions techniques majeures sont documentées dans `docs/decisions/` sous
 - **005-support-naf-surfaces-manuelles.md** (11 mai) - Gestion secteur "Autres"
 - **012-parsing-surfaces-client-side.md** (23 mai) - Parser JavaScript surfaces tableau Synthèse
 - **013-detection-attestations-manquantes.md** (25 mai) - Gestion attestations CEE absentes
+- **014-modele-chantier-cellule.md** (11 juin) - Modèle Chantier/Cellule — approche A retenue, B différé (TODO #22)
+- **015-modele-grains-cellule-chantier-dossier.md** (11 juin) - Modèle de grains Cellule/Chantier/Dossier (LED + surfaces) — séquencement 1a→6 (TODO #22)
 
 Chaque ADR contient : Date, Statut, Contexte, Décision, Alternatives, Conséquences, Sources.
 

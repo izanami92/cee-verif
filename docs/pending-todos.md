@@ -84,6 +84,7 @@ Dossier → Chantiers → Cellules. Détail complet dans `docs/ROADMAP_EVOLUTION
 **Statut** : 🟠 **EN COURS** (11 juin 2026) — Modèle A entamé (ADR-014). **S4a en prod ; S1+S2 en branches non mergées.** ⭐ **B (extraction par bâtiment) est PROMU PRIORITÉ N°1** : le déclencheur prévu par l'ADR-014 est atteint (preuve dossier réel ci-dessous).
 
 **Réf** : ADR-014 (`docs/decisions/014-modele-chantier-cellule.md`, commit `9bae343`) — décision initiale « approche A retenue, B différé ».
+**Réf (suite)** : ADR-015 (`docs/decisions/015-modele-grains-cellule-chantier-dossier.md`, 11/06/2026) — cadrage des grains Cellule/Chantier/Dossier (LED + surfaces) + séquencement en étapes 1a/1b → 6 ; réalise l'item 4 « créer un ADR de suivi » ci-dessous.
 
 #### A) État des branches (chaîne EMPILÉE depuis `main` = `279e0e1`)
 
