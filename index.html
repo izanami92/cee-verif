@@ -3447,13 +3447,16 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
     }
 
     // Extraire le nombre de bâtiments mentionnés dans une adresse
-    // Exemples : "Bât 1" → 1, "bâtiments 1,2,3" → 3, "bâtiments 1 à 3" → 3, "batiment 1 2 et 3" → 3
+    // Exemples : "Bât 1" → 1 (accent reconnu via normalize), "bâtiments 1,2,3" → 3, "bâtiments 1 à 3" → 3, "batiment 1 2 et 3" → 3
     function extraireNombreBatiments(adresse) {
       if (!adresse) return 1;
 
       // Pattern : bat/batiment/bâtiment(s) + numéros/plages (avec virgules, tirets, "à", "et")
       const pattern = /\b(bat|batiment|bâtiment|batiments|bâtiments)\s*(?:[\d,\-\sà]|\bet\b)+/gi;
-      const match = adresse.match(pattern);
+      // Matcher sur l'adresse normalisée (normalize replie les accents : « bât »→« bat »),
+      // comme normaliserAdresseSansBatiment, pour reconnaître aussi les graphies accentuées.
+      const adresseNorm = normalize(adresse);
+      const match = adresseNorm.match(pattern);
 
       if (!match || match.length === 0) return 1; // Pas de mention = 1 bâtiment par défaut
 
