@@ -268,22 +268,31 @@ RÈGLE D'EXTRACTION :
 
 CEE - GRAIN CELLULE (LED PAR BÂTIMENT) — TABLEAU cellules[] (NOUVEAU, DISTINCT DE attestations[]) :
 
+⚠️ DÉCLENCHEUR = LA FORME DE L'ADRESSE DU CHANTIER (PAS la présence d'une attestation BAT-EQ-127) :
+- Le code « BAT-EQ-127 » figure sur PLUSIEURS attestations du dossier : sa présence ne discrimine RIEN et ne doit JAMAIS, à elle seule, déclencher une cellule.
+- Émettre une cellule SI ET SEULEMENT SI l'adresse d'un chantier désigne UN bâtiment UNIQUE et EXPLICITE, c.-à-d. contient UN SEUL numéro de bâtiment : ex. "BAT 1", "Bât 2", "bâtiment 3", "Batiment 4". → 1 cellule par bâtiment ainsi désigné (quelle que soit la graphie : BAT, Bât, bâtiment, batiment, singulier/pluriel).
+- NE PAS émettre de cellule (laisser cellules: [] pour CE chantier) dans TOUS les autres cas, notamment :
+  * PLAGE / MULTI de bâtiments : "bâtiment 1 à 4", "bâtiments 1,2,3", "bât 1-3", "batiments 1 et 2" → un seul chantier regroupe plusieurs bâtiments → LED au grain CHANTIER → AUCUNE cellule.
+  * ABSENCE de numéro de bâtiment : "LE MARCHAIS THIEVRAIN", "La Forte Piece", "6 RUE DE FEUILLERES" → le bâtiment unique EST le chantier → AUCUNE cellule.
+
 ⚠️ MAILLE PROPRE À cellules[] — INDÉPENDANTE DE LA MAILLE DE attestations[] :
-- SOURCE EXCLUSIVE : l'« Attestation d'installation de matériel éligible au CEE par le service technique interne » (fiche d'opération standardisée n° BAT-EQ-127). Y lire le champ "Nombre de luminaires à modules LED" (ou "Nombre de luminaires neufs installés").
-  * NE PAS lire la LED depuis la FACTURE pour ce tableau.
-  * NE PAS lire depuis l'« ATTESTATION SUR L'HONNEUR — Existence d'un entrepôt » (celle-là ne porte QUE la surface).
-- 1 attestation BAT-EQ-127 individuelle (= 1 bâtiment, avec son propre Nombre de luminaires) = 1 élément dans cellules[].
-  * S'il y a 3 attestations BAT-EQ-127 (ex. BAT 1 / BAT 2 / 6 rue ...) → 3 éléments dans cellules[].
-  * Cette maille est INDÉPENDANTE de celle de attestations[] : NE JAMAIS aligner le nombre de cellules sur le nombre d'éléments de attestations[], NI l'inverse. Les deux tableaux peuvent avoir des cardinalités DIFFÉRENTES, et c'est NORMAL.
+- 1 bâtiment désigné par un numéro UNIQUE dans une adresse = 1 élément dans cellules[].
+- Cette maille est INDÉPENDANTE de celle de attestations[] : NE JAMAIS aligner le nombre de cellules sur le nombre d'éléments de attestations[], NI l'inverse. Les deux tableaux peuvent avoir des cardinalités DIFFÉRENTES, et c'est NORMAL.
 
-⚠️ RÈGLE ANTI-INVENTION (impérative — jamais de faux conforme silencieux) :
-- N'émettre une cellule QUE si une attestation BAT-EQ-127 individuelle fournit un Nombre de luminaires PROPRE à CE bâtiment.
-- Si la LED n'est disponible qu'au grain CHANTIER (ex. une adresse couvrant plusieurs bâtiments "Bât 1 à 3" SANS attestation par bâtiment) → NE PAS émettre de cellule pour ce chantier.
-- NE JAMAIS répartir / diviser / estimer un total chantier sur des bâtiments supposés. Mieux vaut ZÉRO cellule qu'une cellule inventée.
-- Si aucune attestation BAT-EQ-127 individuelle exploitable → cellules: [].
+⚠️ VALEUR ledCellule + RÈGLE ANTI-INVENTION (renforcée — jamais de faux conforme silencieux) :
+- ledCellule = le « Nombre de luminaires » PROPRE à CE bâtiment, lu sur l'attestation d'installation de matériel correspondante (« Nombre de luminaires neufs installés » / « Nombre de luminaires à modules LED »). PAS la facture, PAS l'attestation entrepôt (surface).
+- NE JAMAIS mettre un TOTAL chantier dans ledCellule. NE JAMAIS diviser / répartir / estimer un total sur des bâtiments supposés.
+- Si AUCUNE adresse ne porte de numéro de bâtiment unique → cellules: [].
+- Mieux vaut cellules: [] qu'une cellule dont le chiffre serait un total chantier ou une estimation.
 
-- Pour CHAQUE attestation BAT-EQ-127 individuelle exploitable, produire UN élément avec EXACTEMENT ces trois champs :
-  - adresse : l'adresse du bâtiment telle qu'écrite sur l'attestation, mention de bâtiment INCLUSE et conservée VERBATIM (ex. "4 RUE DE FEUILLERES BAT 1"), quelle que soit la graphie (BAT, Bât, bâtiment, batiments, singulier/pluriel). NE PAS normaliser, NE PAS retirer la mention de bâtiment ici.
+EXEMPLES (à appliquer tels quels) :
+- "4 RUE DE FEUILLERES BAT 1" + "4 RUE DE FEUILLERES BAT 2" + "6 RUE DE FEUILLERES"
+  → 2 cellules : BAT 1 et BAT 2 (numéro unique). "6 RUE DE FEUILLERES" (sans numéro) → PAS de cellule (son LED reste au grain chantier dans attestations[]).
+- "LE MARCHAIS THIEVRAIN" + "La Forte Piece" (aucun numéro de bâtiment) → cellules: [].
+- "ZA DU MOULIN bâtiment 1 à 4" (plage) → cellules: [].
+
+- Champs de chaque élément cellules[] (EXACTEMENT ces trois) :
+  - adresse : l'adresse du bâtiment telle qu'écrite, mention de bâtiment INCLUSE et conservée VERBATIM (ex. "4 RUE DE FEUILLERES BAT 1"). NE PAS normaliser, NE PAS retirer la mention de bâtiment ici.
   - ledCellule : le Nombre de luminaires de CE bâtiment, en string (ex. "26"), NON sommé.
   - source : la chaîne EXACTE "attestation_bat_eq_127".
 
@@ -586,11 +595,6 @@ FORMAT DE RÉPONSE (JSON uniquement) :
       {
         "adresse": "4 RUE DE FEUILLERES BAT 2",
         "ledCellule": "26",
-        "source": "attestation_bat_eq_127"
-      },
-      {
-        "adresse": "6 RUE DE FEUILLERES",
-        "ledCellule": "14",
         "source": "attestation_bat_eq_127"
       }
     ],
