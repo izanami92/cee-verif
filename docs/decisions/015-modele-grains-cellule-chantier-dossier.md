@@ -162,6 +162,64 @@ ids de checks).
   (recompter check_39 au bon grain) devient l'étape 5 ; bug #27 (adressesChantiers
   indexé par bâtiment) assaini par le terrain de ce chantier.
 
+## Réalisation de l'étape 3 (12/06/2026)
+
+L'étape 3 a été livrée sur la branche `feat/s3-grain-cellule-led-par-batiment`
+(empilée sur `feat/s2-...`), en 2 commits poussés : extraction v1 puis correction
+de la règle d'émission. Validée en preview sur DELEFORTRIE et DES LAURIERS.
+
+**Écart assumé vs le plan §5.** Le tableau §5 prévoyait « C entrées LED/cellule
+regroupées en sortie ». La réalisation retient l'option **A3** : le grain cellule
+est émis dans un tableau `cellules[]` **distinct et additif**, à côté de
+`attestations[]` qui reste strictement inchangé. **Aucun regroupement JS n'est fait
+à l'étape 3** : la ré-agrégation par chantier est reportée à l'étape 4
+(`regrouperAttestationsParAdresse`), pour ne pas mêler extraction LLM et logique JS
+dans un même commit. Le contrat de sortie est donc préservé : les consommateurs de
+`attestations.length` (check_39, export, nbChantiers, indexation) ne voient qu'un
+champ supplémentaire qu'ils ignorent.
+
+**Forme de `cellules[]`** (api/analyze.js, schéma de sortie). Chaque élément :
+- `adresse` : adresse du bâtiment telle qu'écrite, mention de bâtiment conservée
+  verbatim (ex. "4 RUE DE FEUILLERES BAT 1") ;
+- `ledCellule` : Nombre de luminaires de CE bâtiment, en string, NON sommé
+  (nommage choisi pour éviter toute collision avec `totalLed` au grain dossier et
+  `attestations[].ledTotal` au grain chantier) ;
+- `source` : "attestation_bat_eq_127".
+
+**Règle d'émission — déclencheur = LA FORME DE L'ADRESSE** (et non la présence
+d'une attestation BAT-EQ-127, ce code figurant sur plusieurs attestations, donc
+non discriminant) :
+- adresse avec un numéro de bâtiment **UNIQUE** ("BAT 1", "Bât 2", "bâtiment 3") →
+  **1 cellule** par bâtiment ainsi désigné ;
+- adresse avec une **PLAGE** ("bâtiment 1 à 4", "bâtiments 1,2,3") → **aucune
+  cellule** : le chantier regroupe plusieurs bâtiments, la LED est au grain
+  chantier (portée par `attestations[]`) ;
+- adresse **sans numéro de bâtiment** → **aucune cellule** : le bâtiment unique
+  EST le chantier, son LED reste au grain chantier dans `attestations[]`.
+- Conséquence validée : DELEFORTRIE → 2 cellules (BAT 1=26, BAT 2=26) ; le « 6 RUE
+  DE FEUILLERES » (sans numéro, 14 LED) ne génère PAS de cellule, son 14 reste dans
+  `attestations[]` (non perdu). DES LAURIERS (2 chantiers sans numéro de bâtiment)
+  → `cellules: []`.
+
+**Anti-invention (principe n°1).** Si aucune adresse ne porte de numéro de bâtiment
+unique → `cellules: []`. Jamais de total chantier mis dans `ledCellule`, jamais de
+répartition/division d'un total sur des bâtiments supposés.
+
+**Alternatives écartées à l'étape 3 :**
+- *Déclencheur « présence d'une attestation BAT-EQ-127 »* (1ʳᵉ version, commit v1) :
+  écarté — faux positif prouvé en preview sur DES LAURIERS (le code BAT-EQ-127
+  figure aussi sur l'attestation sur l'honneur par chantier ; le LLM émettait 2
+  cellules portant les totaux chantier 50/28 au lieu de `[]`). Corrigé par le
+  déclencheur « forme de l'adresse ».
+- *A2 — émettre `cellules[]` puis reconstruire `attestations[]` en JS dès l'étape 3* :
+  écarté — mêle un changement de prompt (couche LLM non déterministe, hors harnais)
+  et un changement de logique JS (couvert par le harnais) dans le même commit, ce
+  qui rend tout échec preview indébogable. La reconstruction est isolée à l'étape 4.
+
+Les points durs identifiés pendant la réalisation (divergence
+extraireNombreBatiments/normalize, reconstruction ledTotal, bug #27, filet S>A)
+sont consignés dans `docs/pending-todos.md` §TODO #22.
+
 ## Sources
 - ADR-014 — `docs/decisions/014-modele-chantier-cellule.md` (déclencheur B atteint)
 - Diagnostic lecture seule du 11/06/2026 (extraction attestations CEE — verbatim)

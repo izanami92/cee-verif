@@ -86,13 +86,13 @@ Dossier → Chantiers → Cellules. Détail complet dans `docs/ROADMAP_EVOLUTION
 **Réf** : ADR-014 (`docs/decisions/014-modele-chantier-cellule.md`, commit `9bae343`) — décision initiale « approche A retenue, B différé ».
 **Réf (suite)** : ADR-015 (`docs/decisions/015-modele-grains-cellule-chantier-dossier.md`, 11/06/2026) — cadrage des grains Cellule/Chantier/Dossier (LED + surfaces) + séquencement en étapes 1a/1b → 6 ; réalise l'item 4 « créer un ADR de suivi » ci-dessous.
 
-**Avancement ADR-015 (chantier des grains Cellule/Chantier/Dossier) — au 11/06/2026 :**
+**Avancement ADR-015 (chantier des grains Cellule/Chantier/Dossier) — au 12/06/2026 :**
 
 Séquence en 6 étapes (cf. ADR-015 §5), branches EMPILÉES (chaque étape part du tip de la précédente) :
 - ✅ **1a** — Collision A1 levée (`check_45_audit/synthese` + `check_synthese_manquante`). Branche `fix/a1-collision-check45`, commit `a61d343`, **non mergé**. Harnais 70/70. Non-régression preview OK.
 - ✅ **2** — Filet `check_surface_non_ventilable` (signal dossier, `S < A`). Branche `feat/s2-filet-surface-non-ventilable-sur-1a` (empilée sur 1a), commit `de0f36d`, **non mergé**. Validé preview double sens (DELEFORTRIE / DES LAURIERS).
-- ⬜ **3** — Extraction grain cellule (`api/analyze.js`, couche LLM). PROCHAINE. Part du tip de l'étape 2. **Zone la plus risquée du chantier** (LLM non déterministe ; le harnais ne couvre pas `generateChecks`).
-- ⬜ **4** — Niveau chantier (`regrouperAttestationsParAdresse` source structurelle, LED agrégée par adresse).
+- ✅ **3** — Extraction grain cellule (`api/analyze.js`, couche LLM) **LIVRÉE & VALIDÉE** (DELEFORTRIE → 2 cellules BAT 1=26/BAT 2=26 ; DES LAURIERS → `cellules: []`). Branche `feat/s3-grain-cellule-led-par-batiment` (empilée sur s2), 2 commits poussés, **non mergé**. Détail + points durs : `#### Étape 3` ci-dessous.
+- ⬜ **4** — Niveau chantier (`regrouperAttestationsParAdresse` source structurelle, LED agrégée par adresse). **PROCHAINE.**
 - ⬜ **5** — Re-câbler `attestations.length`-as-chantier-count (check_39, export, nbChantiers, `[auditIndex]`).
 - ⬜ **6** — Règle surface à comptage (S==C / S==A / S<A, cohérence Σ au bon grain). Sous-divisible.
 
@@ -104,6 +104,41 @@ Séquence en 6 étapes (cf. ADR-015 §5), branches EMPILÉES (chaque étape part
 - Bug préexistant `check_44` (recalcul de surface no-op) corrigé dans 1a.
 
 **Branches du chantier (non mergées) :** `fix/a1-collision-check45` → `feat/s2-filet-surface-non-ventilable-sur-1a`. Merge sur `main` quand le chantier est présentable (étapes 1a→6, ou un sous-ensemble cohérent décidé par IZANAMI).
+
+#### Étape 3 — Extraction grain cellule : LIVRÉE & VALIDÉE (12/06/2026)
+
+Branche `feat/s3-grain-cellule-led-par-batiment` (empilée sur feat/s2), 2 commits
+poussés (extraction v1 + correction règle d'émission). Validée preview DELEFORTRIE
+(→ 2 cellules BAT 1=26 / BAT 2=26) et DES LAURIERS (→ cellules: []). Détail de la
+décision : ADR-015 §« Réalisation de l'étape 3 ». Non mergée.
+
+**Points durs identifiés — à traiter aux étapes indiquées, PAS avant :**
+
+- **Étape 4** — Divergence `extraireNombreBatiments` (opère sur texte BRUT) vs
+  `normaliserAdresseSansBatiment` (passe par `normalize()`, qui retire les accents
+  via le mapping `'â':'a'` à index.html:3185). Conséquence : « bât »/« BÂT »
+  accentué est reconnu par la seconde mais PAS par la première → `nbBatiments`
+  renvoie 1 au lieu de N sur une adresse en « bât » accentué. Le commentaire
+  `extraireNombreBatiments` (index.html:3450, « Bât 1 → 1 ») est trompeur (retour
+  par défaut, pas reconnaissance). Idem bâtiments par lettre ("Bâtiment A"), "B1".
+
+- **Étape 4** — Reconstruction déterministe de `attestations[].ledTotal` à partir
+  de `cellules[]` (somme par adresse). C'est elle qui fera tomber l'échec
+  « 52 vs 66 » observé en preview sur DELEFORTRIE (le 66 replié posé par le LLM
+  dans l'unique attestation, alors que l'audit dit 52). Tant qu'elle n'est pas
+  faite, cet écart s'affiche en majeur visible (filet étape 2 actif → pas de faux
+  conforme silencieux dans l'intervalle).
+
+- **Étape 5** — Bug #27 (`compareAddress` fragile) reconfirmé en preview
+  DELEFORTRIE : matche « 4 rue » et « 6 rue » (ignore le numéro de voie, → "4 rue
+  de feuilleres hem monacu" == "6 rue de feuilleres hem monacu") → l'unique
+  attestation se colle au chantier 1, « 6 rue » ne trouve aucune attestation
+  ("⚠️ Aucune attestation CEE trouvée"). Ne pas baser de logique critique dessus
+  avant correction.
+
+- **Étape 6** — Le filet `check_surface_non_ventilable` (étape 2) ne teste que
+  `S < A`. Vérifier la couverture du cas `S > A` (une attestation surface par
+  cellule) au moment de la règle surface à comptage.
 
 #### A) État des branches (chaîne EMPILÉE depuis `main` = `279e0e1`)
 
