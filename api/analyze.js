@@ -266,6 +266,27 @@ RÈGLE D'EXTRACTION :
     * ⚠️ La phrase « entrepôt de stockage non agricole » est ce qui DISTINGUE cette attestation de l'« Attestation d'installation de matériel … par le service technique interne ». NE PAS déduire "presente" du seul code « BAT-EQ-127 » (présent sur les DEUX attestations).
 - COMBINER facture + attestations pour obtenir : {adresse: "...", surfaces: ["850"], ledTotal: "35", secteurActivite: "Entrepôts", parcelles: "000/0B/0551 - 000/0B/0547"}
 
+CEE - GRAIN CELLULE (LED PAR BÂTIMENT) — TABLEAU cellules[] (NOUVEAU, DISTINCT DE attestations[]) :
+
+⚠️ MAILLE PROPRE À cellules[] — INDÉPENDANTE DE LA MAILLE DE attestations[] :
+- SOURCE EXCLUSIVE : l'« Attestation d'installation de matériel éligible au CEE par le service technique interne » (fiche d'opération standardisée n° BAT-EQ-127). Y lire le champ "Nombre de luminaires à modules LED" (ou "Nombre de luminaires neufs installés").
+  * NE PAS lire la LED depuis la FACTURE pour ce tableau.
+  * NE PAS lire depuis l'« ATTESTATION SUR L'HONNEUR — Existence d'un entrepôt » (celle-là ne porte QUE la surface).
+- 1 attestation BAT-EQ-127 individuelle (= 1 bâtiment, avec son propre Nombre de luminaires) = 1 élément dans cellules[].
+  * S'il y a 3 attestations BAT-EQ-127 (ex. BAT 1 / BAT 2 / 6 rue ...) → 3 éléments dans cellules[].
+  * Cette maille est INDÉPENDANTE de celle de attestations[] : NE JAMAIS aligner le nombre de cellules sur le nombre d'éléments de attestations[], NI l'inverse. Les deux tableaux peuvent avoir des cardinalités DIFFÉRENTES, et c'est NORMAL.
+
+⚠️ RÈGLE ANTI-INVENTION (impérative — jamais de faux conforme silencieux) :
+- N'émettre une cellule QUE si une attestation BAT-EQ-127 individuelle fournit un Nombre de luminaires PROPRE à CE bâtiment.
+- Si la LED n'est disponible qu'au grain CHANTIER (ex. une adresse couvrant plusieurs bâtiments "Bât 1 à 3" SANS attestation par bâtiment) → NE PAS émettre de cellule pour ce chantier.
+- NE JAMAIS répartir / diviser / estimer un total chantier sur des bâtiments supposés. Mieux vaut ZÉRO cellule qu'une cellule inventée.
+- Si aucune attestation BAT-EQ-127 individuelle exploitable → cellules: [].
+
+- Pour CHAQUE attestation BAT-EQ-127 individuelle exploitable, produire UN élément avec EXACTEMENT ces trois champs :
+  - adresse : l'adresse du bâtiment telle qu'écrite sur l'attestation, mention de bâtiment INCLUSE et conservée VERBATIM (ex. "4 RUE DE FEUILLERES BAT 1"), quelle que soit la graphie (BAT, Bât, bâtiment, batiments, singulier/pluriel). NE PAS normaliser, NE PAS retirer la mention de bâtiment ici.
+  - ledCellule : le Nombre de luminaires de CE bâtiment, en string (ex. "26"), NON sommé.
+  - source : la chaîne EXACTE "attestation_bat_eq_127".
+
 CEE - ADRESSE DU SIÈGE SOCIAL (CRITIQUE) :
 ⚠️ IMPORTANT : L'adresse du siège social est OBLIGATOIRE pour valider le dossier CEE.
 
@@ -554,6 +575,23 @@ FORMAT DE RÉPONSE (JSON uniquement) :
         "parcelles": "000/0E/0277",
         "etudeDimensionnement": "PRIME EVOLUTION",
         "attestationNonAgricole": "presente"
+      }
+    ],
+    "cellules": [
+      {
+        "adresse": "4 RUE DE FEUILLERES BAT 1",
+        "ledCellule": "26",
+        "source": "attestation_bat_eq_127"
+      },
+      {
+        "adresse": "4 RUE DE FEUILLERES BAT 2",
+        "ledCellule": "26",
+        "source": "attestation_bat_eq_127"
+      },
+      {
+        "adresse": "6 RUE DE FEUILLERES",
+        "ledCellule": "14",
+        "source": "attestation_bat_eq_127"
       }
     ],
     "mentionsAgricoles": {
