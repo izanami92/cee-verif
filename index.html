@@ -3447,33 +3447,45 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
     }
 
     // Extraire le nombre de bâtiments mentionnés dans une adresse
-    // Exemples : "Bât 1" → 1 (accent reconnu via normalize), "bâtiments 1,2,3" → 3, "bâtiments 1 à 3" → 3, "batiment 1 2 et 3" → 3
+    // Exemples : "Bât 1" → 1, "bâtiments 1 à 3" → 3 (plage), "bat 1 2 3" → 3 (liste),
+    //            "BAT 1 80360 HEM" → 1 (80360 = code postal, neutralisé),
+    //            "BAT 1 - 000/ZA/0006" → 1 (le "- 000/..." est une parcelle, PAS une plage)
     function extraireNombreBatiments(adresse) {
       if (!adresse) return 1;
 
-      // Pattern : bat/batiment/bâtiment(s) + numéros/plages (avec virgules, tirets, "à", "et")
-      const pattern = /\b(bat|batiment|bâtiment|batiments|bâtiments)\s*(?:[\d,\-\sà]|\bet\b)+/gi;
-      // Matcher sur l'adresse normalisée (normalize replie les accents : « bât »→« bat »),
-      // comme normaliserAdresseSansBatiment, pour reconnaître aussi les graphies accentuées.
+      // 1) Normaliser (normalize replie accents + minuscules : « bât »→« bat », « à »→« a »).
       const adresseNorm = normalize(adresse);
-      const match = adresseNorm.match(pattern);
 
-      if (!match || match.length === 0) return 1; // Pas de mention = 1 bâtiment par défaut
+      // 2) Neutraliser le CODE POSTAL AVANT toute analyse : un n° de bâtiment fait ≤ 2
+      //    chiffres, donc un nombre de 5 chiffres est forcément un CP. Retirer d'ABORD la
+      //    forme découpée "\d{2} \d{3}" ("80 360") en UN bloc — sinon "80" partirait en
+      //    laissant "360" —, PUIS la forme "\d{5}" ("80360"). CP avant OU après la ville →
+      //    remplacement global par un espace. La forme rigide 2+3 garantit le bon découpage :
+      //    dans "bat 12 80 360", seul "80 360" matche ("12" non suivi de 3 chiffres).
+      const sansCP = adresseNorm
+        .replace(/\b\d{2}\s\d{3}\b/g, ' ')
+        .replace(/\b\d{5}\b/g, ' ');
 
-      // Extraire tous les numéros de la première mention trouvée
-      const numeros = match[0].match(/\d+/g);
+      // 3) Capturer « bat… » + son énumération de numéros. Séparateurs CIBLÉS chacun suivi
+      //    d'un NOMBRE (pas de sur-capture d'un mot voisin comme « avenue ») : virgule,
+      //    « a » de plage, « et », tiret, et ESPACE-NU (liste "bat 1 2 3"). Le tiret ET
+      //    l'espace-nu sont REFUSÉS s'ils amorcent une parcelle (nombre suivi de « / »,
+      //    ex. "1 - 000/za/0006" ou "1 000/za/0006").
+      const pattern = /\b(?:bat|batiment|bâtiment|batiments|bâtiments)\s*(\d+(?:(?:\s*,\s*|\s+a\s+|\s+et\s+|\s*-(?!\s*\d+\s*\/)\s*|\s+(?!\d+\s*\/))\d+)*)/i;
+      const match = sansCP.match(pattern);
+      if (!match) return 1; // Pas de mention de bâtiment → 1 par défaut
 
+      const mention = match[1]; // énumération des numéros de bâtiment uniquement
+      const numeros = mention.match(/\d+/g);
       if (!numeros || numeros.length === 0) return 1;
 
-      // Cas "bâtiments 1 à 3" : calculer l'intervalle (max - min + 1)
-      if (match[0].includes('à')) {
+      // 4) PLAGE si un tiret OU un « a » isolé relie DEUX numéros ("1-3", "1 - 3", "1 a 3")
+      //    → compte = max − min + 1. Sinon LISTE (virgule, « et », espace) : compter.
+      const estPlage = /\d\s*-\s*\d/.test(mention) || /\d\s+a\s+\d/.test(mention);
+      if (estPlage) {
         const nums = numeros.map(n => parseInt(n, 10));
-        const min = Math.min(...nums);
-        const max = Math.max(...nums);
-        return max - min + 1;
+        return Math.max(...nums) - Math.min(...nums) + 1;
       }
-
-      // Cas "bâtiments 1,2,3" ou "batiment 1 2 et 3" : compter les numéros distincts
       return numeros.length;
     }
 
