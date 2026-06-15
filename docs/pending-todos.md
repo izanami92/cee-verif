@@ -92,7 +92,8 @@ Séquence en 6 étapes (cf. ADR-015 §5), branches EMPILÉES (chaque étape part
 - ✅ **1a** — Collision A1 levée (`check_45_audit/synthese` + `check_synthese_manquante`). Branche `fix/a1-collision-check45`, commit `a61d343`, **non mergé**. Harnais 70/70. Non-régression preview OK.
 - ✅ **2** — Filet `check_surface_non_ventilable` (signal dossier, `S < A`). Branche `feat/s2-filet-surface-non-ventilable-sur-1a` (empilée sur 1a), commit `de0f36d`, **non mergé**. Validé preview double sens (DELEFORTRIE / DES LAURIERS).
 - ✅ **3** — Extraction grain cellule (`api/analyze.js`, couche LLM) **LIVRÉE & VALIDÉE** (DELEFORTRIE → 2 cellules BAT 1=26/BAT 2=26 ; DES LAURIERS → `cellules: []`). Branche `feat/s3-grain-cellule-led-par-batiment` (empilée sur s2), 2 commits poussés, **non mergé**. Détail + points durs : `#### Étape 3` ci-dessous.
-- ⬜ **4** — Niveau chantier (`regrouperAttestationsParAdresse` source structurelle, LED agrégée par adresse). **PROCHAINE.**
+- ✅ **4a** — `extraireNombreBatiments` refondue (normalize + neutralisation code postal + séparateurs ciblés + gardes parcelle). Branche `fix/s4a-extraire-batiments-accents` (empilée sur s3), `219b024`+`c8b1244`, **non mergé**. Auto-test 21/21, harnais 70/70. Détail : `#### Étape 4a` ci-dessous.
+- 🧊 **4b** — Reconstruire `ledTotal` chantier depuis `cellules[]` (DELEFORTRIE 26+26→52, corrige check_09d « 52 vs 66 »). **GELÉE** (blocage clés d'adresse) — prérequis : révision étape 3 « Philo 2 ». Cf. `#### Étape 4b` ci-dessous.
 - ⬜ **5** — Re-câbler `attestations.length`-as-chantier-count (check_39, export, nbChantiers, `[auditIndex]`).
 - ⬜ **6** — Règle surface à comptage (S==C / S==A / S<A, cohérence Σ au bon grain). Sous-divisible.
 
@@ -103,7 +104,7 @@ Séquence en 6 étapes (cf. ADR-015 §5), branches EMPILÉES (chaque étape part
 - Étape 1b (conversion routage famille 7 vers id ancré) NON faite, jugée cosmétique après 1a (routage déjà fonctionnel) : reportée ou à regrouper avec un futur passage `familles-config.js`.
 - Bug préexistant `check_44` (recalcul de surface no-op) corrigé dans 1a.
 
-**Branches du chantier (non mergées) :** `fix/a1-collision-check45` → `feat/s2-filet-surface-non-ventilable-sur-1a`. Merge sur `main` quand le chantier est présentable (étapes 1a→6, ou un sous-ensemble cohérent décidé par IZANAMI).
+**Branches du chantier (non mergées, EMPILÉES) :** `fix/a1-collision-check45` (1a) → `feat/s2-filet-surface-non-ventilable-sur-1a` (2) → `feat/s3-grain-cellule-led-par-batiment` (3) → `fix/s4a-extraire-batiments-accents` (4a, tip `c8b1244`) → `feat/s4b-led-chantier-depuis-cellules` (4b, **vide/gelée**). Merge sur `main` quand le chantier est présentable (étapes 1a→6, ou un sous-ensemble cohérent décidé par IZANAMI).
 
 #### Étape 3 — Extraction grain cellule : LIVRÉE & VALIDÉE (12/06/2026)
 
@@ -139,6 +140,89 @@ décision : ADR-015 §« Réalisation de l'étape 3 ». Non mergée.
 - **Étape 6** — Le filet `check_surface_non_ventilable` (étape 2) ne teste que
   `S < A`. Vérifier la couverture du cas `S > A` (une attestation surface par
   cellule) au moment de la règle surface à comptage.
+
+#### Étape 4a — `extraireNombreBatiments` : LIVRÉE (12/06/2026)
+
+Branche `fix/s4a-extraire-batiments-accents` (empilée sur s3), commitée+poussée
+(`219b024` v1 + `c8b1244` final). `extraireNombreBatiments` refondue :
+- `normalize()` en amont (graphie « bât »/« BÂT » accentuée reconnue → divergence
+  avec `normaliserAdresseSansBatiment` résolue) ;
+- **neutralisation du code postal** AVANT analyse : `\d{5}` et forme découpée
+  `\d{2}\s\d{3}` (avant OU après la ville) — un n° de bâtiment fait ≤ 2 chiffres,
+  donc un nombre de 5 chiffres est forcément un CP, jamais avalé dans le compte ;
+- **séparateurs ciblés** chacun suivi d'un nombre (pas de sur-capture d'un mot
+  voisin) : virgule, « à »/« a » de plage, tiret, « et », espace-nu ;
+- **gardes parcelle** sur tiret ET espace-nu (lookahead `(?!\d+\s*/)`, parcelles
+  toujours en slashes).
+Gère plages (`max−min+1`) et listes (comptage). **Prouvé par auto-test isolé
+21/21** ; pas de preview (cosmétique : n'affecte qu'un libellé « (N bâtiments) »
+sur check_09d, aucun `niveau` de check n'en dépend). Harnais 70/70. **Non mergée.**
+
+#### Dette 4a-bis — séparateur « & » non géré — À FAIRE
+
+`extraireNombreBatiments` ne reconnaît pas le séparateur « & » (« bat 1 & 2 »
+devrait donner 2). Correctif indépendant : ajouter « & » à l'alternance des
+séparateurs (même forme que « et »/virgule). Petit, isolé.
+
+#### Étape 4b — reconstruire la LED chantier depuis `cellules[]` : 🧊 GELÉE
+
+Objectif : dans `regrouperAttestationsParAdresse` (`index.html:3516`), reconstruire
+`ledTotal` chantier = somme des `ledCellule` des cellules rattachées (DELEFORTRIE :
+26+26 → **52**), pour faire tomber l'échec **« 52 vs 66 » de check_09d**.
+Branche `feat/s4b-led-chantier-depuis-cellules` créée (empilée sur `c8b1244`),
+**`index.html` INTACT** (aucune ligne écrite).
+
+**Décisions actées** (diagnostic axes A→E) :
+- reconstruire DANS `regrouperAttestationsParAdresse` → **seul check_09d impacté**
+  (unique lecteur du `ledTotal` regroupé, prouvé au diagnostic) ;
+- `cellules[]` en **2ᵉ paramètre optionnel** ; au site d'appel (`index.html:4290`),
+  passer `norm.cee?.cellules || []` (accessible : `normalizeExtracted` fait
+  `{...extracted}`, ne strippe pas `cellules`) ;
+- logique **hybride** : groupe avec ≥ 1 cellule → `ledTotal` = Σ `ledCellule` ;
+  groupe sans cellule → `ledTotal` inchangé (grain chantier actuel) ;
+- rattachement par **`normaliserAdresseSansBatiment`** (PAS `compareAddress`, bug #27) ;
+- ne PAS toucher `attestations[].ledTotal` brut.
+
+**Pourquoi GELÉE — blocage prouvé (script `/tmp`, lecture seule)** : l'appariement
+par égalité stricte des clés échoue, car les adresses sont **asymétriques** :
+- `attestations[].adresse` = AVEC ville/CP (« 4 RUE DE FEUILLERES BAT 1 80360
+  HEM-MONACU ») → clé `normaliserAdresseSansBatiment` = **« 4 rue de feuilleres hem
+  monacu »** ;
+- `cellules[].adresse` = SANS ville/CP (« 4 RUE DE FEUILLERES BAT 1 ») → clé =
+  **« 4 rue de feuilleres »**.
+
+→ clés **différentes** → 0 cellule rattachée → `ledTotal` resterait 66, PAS 52.
+(`normaliserAdresseSansBatiment` ne retire pas la ville ; le CP est retiré de façon
+**incohérente** — avalé sur « 4 rue » car collé à « bat 1 », conservé sur « 6 rue ».)
+**4b ne peut avancer qu'après la révision de l'étape 3 ci-dessous.**
+
+#### Révision étape 3 (« Philo 2 ») — PRÉREQUIS de 4b — À FAIRE
+
+La règle d'émission des cellules change. **Aujourd'hui** : « numéro de bâtiment
+unique → cellule ; sinon `cellules: []` » (déclencheur INTRA-adresse). **Nouvelle
+règle** : émettre des cellules SEULEMENT pour une adresse ayant **≥ 2 bâtiments dans
+le dossier** (« BAT 1/BAT 2 », ou « adresse seule + BAT 2 »). Mono-bâtiment → pas de
+cellule (l'attestation suffit). Une adresse **sans numéro** cohabitant avec un
+**frère numéroté à la même rue** = bâtiment de ce groupe (cas **COPPIN** : « 541 »
+sans BAT + « 541 BAT 2 » → 2 cellules **24/12**).
+
+Résultats attendus : **DELEFORTRIE → [26, 26]** ; **COPPIN → [24, 12]** ;
+**DES LAURIERS → []** (2 adresses différentes, chacune mono-bâtiment).
+
+**Implications** : le déclencheur devient une **analyse INTER-chantiers** (comparer
+les adresses du dossier entre elles) ; touche le **prompt LLM** (`api/analyze.js`)
+→ **diagnostic obligatoire avant tout code**. **Question ouverte non tranchée** :
+quelle **source d'adresse** pour l'analyse inter-chantiers (attestation
+entrepôt/surface ? facture ?).
+**Preuve COPPIN** : `CEE_-_COPPIN_JEAN_BAPTISTE.pdf` (uploads de session) — 2
+chantiers même adresse « 541 RUE SAINT-JEAN DES PLEURS », chantier 1 sans BAT
+(24 LED), chantier 2 BAT 2 (12 LED).
+
+#### Chantiers connexes (à ne pas mélanger)
+- **Export Google Sheet** (`compareWithGoogleSheet`, `index.html:1649`) lit le
+  `ledTotal` **brut** ; devra suivre la reconstruction 4b — mais « ne fonctionne
+  pas encore » → **chantier séparé**.
+- **Bug #27** (`compareAddress` « 4 rue » == « 6 rue ») → **terrain étape 5**.
 
 #### A) État des branches (chaîne EMPILÉE depuis `main` = `279e0e1`)
 
