@@ -3468,10 +3468,10 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
 
       // 3) Capturer « bat… » + son énumération de numéros. Séparateurs CIBLÉS chacun suivi
       //    d'un NOMBRE (pas de sur-capture d'un mot voisin comme « avenue ») : virgule,
-      //    « a » de plage, « et », tiret, et ESPACE-NU (liste "bat 1 2 3"). Le tiret ET
-      //    l'espace-nu sont REFUSÉS s'ils amorcent une parcelle (nombre suivi de « / »,
+      //    « a » de plage, « et », tiret, « & », et ESPACE-NU (liste "bat 1 2 3"). Le tiret,
+      //    « & » ET l'espace-nu sont REFUSÉS s'ils amorcent une parcelle (nombre suivi de « / »,
       //    ex. "1 - 000/za/0006" ou "1 000/za/0006").
-      const pattern = /\b(?:bat|batiment|bâtiment|batiments|bâtiments)\s*(\d+(?:(?:\s*,\s*|\s+a\s+|\s+et\s+|\s*-(?!\s*\d+\s*\/)\s*|\s+(?!\d+\s*\/))\d+)*)/i;
+      const pattern = /\b(?:bat|batiment|bâtiment|batiments|bâtiments)\s*(\d+(?:(?:\s*,\s*|\s+a\s+|\s+et\s+|\s*-(?!\s*\d+\s*\/)\s*|\s*&(?!\s*\d+\s*\/)\s*|\s+(?!\d+\s*\/))\d+)*)/i;
       const match = sansCP.match(pattern);
       if (!match) return 1; // Pas de mention de bâtiment → 1 par défaut
 

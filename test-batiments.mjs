@@ -1,0 +1,84 @@
+/**
+ * test-batiments.mjs — Auto-test isolé de extraireNombreBatiments (ADR-015 étape 4a-bis).
+ *
+ * Prouve la fonction SANS navigateur ni app : on lit le VRAI code de index.html
+ * (pas une copie) et on extrait normalize() + extraireNombreBatiments() par
+ * comptage d'accolades, puis on les évalue en portée globale (même esprit que
+ * test-familles.mjs). Lancer :  node test-batiments.mjs
+ * Sort en code ≠ 0 au moindre KO (vrai garde-fou pré-commit).
+ */
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import process from 'node:process';
+
+const htmlPath = fileURLToPath(new URL('./index.html', import.meta.url));
+const src = readFileSync(htmlPath, 'utf8');
+
+// Extrait `function NAME(...) { ... }` par comptage d'accolades à partir de la 1re « { ».
+// OK ici : les seules accolades dans les corps visés sont des quantificateurs regex
+// équilibrés (\d{2}, \d{3}, \d{5}) → solde nul, le compteur retombe juste.
+function extractFn(name) {
+  const sig = `function ${name}(`;
+  const start = src.indexOf(sig);
+  if (start === -1) throw new Error(`Fonction ${name} introuvable dans index.html`);
+  let depth = 0, started = false;
+  for (let j = src.indexOf('{', start); j < src.length; j++) {
+    const c = src[j];
+    if (c === '{') { depth++; started = true; }
+    else if (c === '}') { depth--; if (started && depth === 0) return src.slice(start, j + 1); }
+  }
+  throw new Error(`Accolade fermante introuvable pour ${name}`);
+}
+
+// normalize() est appelée par extraireNombreBatiments → on définit les deux.
+const code = extractFn('normalize') + '\n' + extractFn('extraireNombreBatiments') + '\n'
+  + 'globalThis.__extraireNombreBatiments = extraireNombreBatiments;';
+// eslint-disable-next-line no-eval — eval indirect en portée globale, comme test-familles.mjs
+(0, eval)(code);
+
+const extraireNombreBatiments = globalThis.__extraireNombreBatiments;
+if (typeof extraireNombreBatiments !== 'function') {
+  console.error('❌ extraireNombreBatiments non extraite depuis index.html');
+  process.exit(1);
+}
+
+// === Cas de test ===
+const CAS = [
+  // --- 4a-bis : nouveau séparateur « & » ---
+  { in: 'bat 1 & 2',                   attendu: 2, note: '& espacé → liste 2' },
+  { in: 'bat 1&2',                     attendu: 2, note: '& collé → liste 2' },
+  { in: 'bat 1 & 2 & 3',               attendu: 3, note: 'liste à 3 via &' },
+  { in: 'bat 1 & 000/za/0006',         attendu: 1, note: 'garde parcelle : & ne capture pas la parcelle' },
+  { in: 'bat 1, 2 & 3',                attendu: 3, note: 'mixte virgule + &' },
+  { in: 'bat 1 durand & fils',         attendu: 1, note: '& dans raison sociale après n° → non compté (chaîne rompue)' },
+
+  // --- Non-régression (séparateurs existants) ---
+  { in: 'bat 1 et 2',                  attendu: 2, note: 'et → liste 2' },
+  { in: 'bat 1-3',                     attendu: 3, note: 'tiret → plage 1..3' },
+  { in: 'bat 1 à 3',                   attendu: 3, note: 'à (→a) → plage 1..3' },
+  { in: 'bat 1',                       attendu: 1, note: 'un seul bâtiment' },
+  { in: 'DURAND & FILS, ZAC du Moulin, 80360 AMIENS', attendu: 1, note: 'aucune mention bat numérotée → 1' },
+
+  // --- Garde-fous supplémentaires ---
+  { in: 'bat 1 - 000/za/0006',         attendu: 1, note: 'garde parcelle tiret (non-rég)' },
+  { in: 'bat 12 80360 amiens',         attendu: 1, note: 'code postal neutralisé (non-rég)' },
+];
+
+let ok = 0;
+const echecs = [];
+for (const cas of CAS) {
+  const res = extraireNombreBatiments(cas.in);
+  const pass = res === cas.attendu;
+  if (pass) ok++;
+  else echecs.push({ ...cas, res });
+  const icone = pass ? '✅' : '❌';
+  console.log(`${icone} "${cas.in}" → ${res} (attendu ${cas.attendu})  — ${cas.note}`);
+}
+
+console.log(`\n${ok}/${CAS.length} cas OK`);
+if (echecs.length) {
+  console.error(`\n❌ ${echecs.length} ÉCHEC(S) :`);
+  for (const e of echecs) console.error(`   "${e.in}" → ${e.res}, attendu ${e.attendu}`);
+  process.exit(1);
+}
+console.log('✅ Tous les cas passent.');
