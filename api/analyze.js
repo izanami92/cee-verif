@@ -266,35 +266,60 @@ RÈGLE D'EXTRACTION :
     * ⚠️ La phrase « entrepôt de stockage non agricole » est ce qui DISTINGUE cette attestation de l'« Attestation d'installation de matériel … par le service technique interne ». NE PAS déduire "presente" du seul code « BAT-EQ-127 » (présent sur les DEUX attestations).
 - COMBINER facture + attestations pour obtenir : {adresse: "...", surfaces: ["850"], ledTotal: "35", secteurActivite: "Entrepôts", parcelles: "000/0B/0551 - 000/0B/0547"}
 
-CEE - GRAIN CELLULE (LED PAR BÂTIMENT) — TABLEAU cellules[] (NOUVEAU, DISTINCT DE attestations[]) :
+CEE - GRAIN CELLULE (LED PAR BÂTIMENT) — TABLEAU cellules[] (DISTINCT DE attestations[]) :
 
-⚠️ DÉCLENCHEUR = LA FORME DE L'ADRESSE DU CHANTIER (PAS la présence d'une attestation BAT-EQ-127) :
-- Le code « BAT-EQ-127 » figure sur PLUSIEURS attestations du dossier : sa présence ne discrimine RIEN et ne doit JAMAIS, à elle seule, déclencher une cellule.
-- Émettre une cellule SI ET SEULEMENT SI l'adresse d'un chantier désigne UN bâtiment UNIQUE et EXPLICITE, c.-à-d. contient UN SEUL numéro de bâtiment : ex. "BAT 1", "Bât 2", "bâtiment 3", "Batiment 4". → 1 cellule par bâtiment ainsi désigné (quelle que soit la graphie : BAT, Bât, bâtiment, batiment, singulier/pluriel).
-- NE PAS émettre de cellule (laisser cellules: [] pour CE chantier) dans TOUS les autres cas, notamment :
-  * PLAGE / MULTI de bâtiments : "bâtiment 1 à 4", "bâtiments 1,2,3", "bât 1-3", "batiments 1 et 2" → un seul chantier regroupe plusieurs bâtiments → LED au grain CHANTIER → AUCUNE cellule.
-  * ABSENCE de numéro de bâtiment : "LE MARCHAIS THIEVRAIN", "La Forte Piece", "6 RUE DE FEUILLERES" → le bâtiment unique EST le chantier → AUCUNE cellule.
+⚠️ DÉCLENCHEUR = RÉPÉTITION DE L'ADRESSE SUR LA FACTURE (analyse INTER-chantiers) :
+- Compare entre eux TOUS les blocs facture « Mise en place de luminaires à modules LED »
+  (ceux dont tu extrais déjà adresse + quantité plus haut).
+- Normalise chaque adresse pour la COMPARAISON : garde rue + ville + code postal ;
+  RETIRE de la clé de comparaison la mention de bâtiment (BAT 1, Bât 2, bâtiment A…)
+  ET les parcelles cadastrales. (Tu ne retires ceci que pour COMPARER ; l'adresse
+  écrite dans la cellule, elle, reste verbatim — voir champs plus bas.)
+- Une adresse a PLUSIEURS BÂTIMENTS si DEUX blocs facture ou plus partagent la même
+  adresse normalisée. Dans ce cas : émettre UNE cellule PAR BLOC facture de ce groupe.
+- Une adresse qui n'apparaît que dans UN SEUL bloc facture → AUCUNE cellule (bâtiment
+  unique ; sa LED reste au grain chantier dans attestations[]).
+- ⚠️ Ce déclencheur ne dépend PAS de la présence d'un numéro « BAT n » : deux blocs à
+  la même adresse SANS aucune mention de bâtiment comptent quand même pour 2 bâtiments.
+  Exemple réel : « 541 RUE SAINT-JEAN DES PLEURS » (sans numéro, 24 luminaires) +
+  « 541 RUE SAINT-JEAN DES PLEURS BAT 2 » (12 luminaires) → 2 cellules [24, 12], bien
+  que le premier bloc ne porte aucun numéro de bâtiment.
 
-⚠️ MAILLE PROPRE À cellules[] — INDÉPENDANTE DE LA MAILLE DE attestations[] :
-- 1 bâtiment désigné par un numéro UNIQUE dans une adresse = 1 élément dans cellules[].
-- Cette maille est INDÉPENDANTE de celle de attestations[] : NE JAMAIS aligner le nombre de cellules sur le nombre d'éléments de attestations[], NI l'inverse. Les deux tableaux peuvent avoir des cardinalités DIFFÉRENTES, et c'est NORMAL.
+⚠️ VALEUR ledCellule = QUANTITÉ DE CE BLOC FACTURE (anti-invention, jamais de faux
+conforme silencieux) :
+- ledCellule = la quantité LED lue dans la colonne « Quantité » DU BLOC FACTURE de ce
+  bâtiment (ex. « 26,00 U » → "26"). C'est la SEULE source de ce chiffre.
+- NE JAMAIS lire ledCellule sur l'attestation entrepôt (surface) ni la sommer ; NE
+  JAMAIS répartir/estimer un total chantier sur des bâtiments supposés.
+- La quantité de CHAQUE bloc est conservée TELLE QUELLE, NON sommée — même si plusieurs
+  blocs partagent l'adresse. (Ex. deux blocs « 4 RUE DE FEUILLERES » à 26 chacun → deux
+  cellules à "26", PAS une à "52".)
 
-⚠️ VALEUR ledCellule + RÈGLE ANTI-INVENTION (renforcée — jamais de faux conforme silencieux) :
-- ledCellule = le « Nombre de luminaires » PROPRE à CE bâtiment, lu sur l'attestation d'installation de matériel correspondante (« Nombre de luminaires neufs installés » / « Nombre de luminaires à modules LED »). PAS la facture, PAS l'attestation entrepôt (surface).
-- NE JAMAIS mettre un TOTAL chantier dans ledCellule. NE JAMAIS diviser / répartir / estimer un total sur des bâtiments supposés.
-- Si AUCUNE adresse ne porte de numéro de bâtiment unique → cellules: [].
-- Mieux vaut cellules: [] qu'une cellule dont le chiffre serait un total chantier ou une estimation.
+⚠️ MAILLE PROPRE À cellules[] — INDÉPENDANTE DE attestations[] :
+- 1 bloc facture appartenant à une adresse multi-bâtiments = 1 élément dans cellules[].
+- Cette maille est INDÉPENDANTE de celle de attestations[] : NE JAMAIS aligner le
+  nombre de cellules sur le nombre d'éléments de attestations[], NI l'inverse. Les deux
+  tableaux peuvent avoir des cardinalités DIFFÉRENTES, et c'est NORMAL. (Ex. DELEFORTRIE :
+  1 seule attestation entrepôt — surface 2601 agrégée — mais 2 cellules au « 4 rue ».)
+- Si AUCUNE adresse n'apparaît dans 2 blocs facture ou plus → cellules: [].
+- Mieux vaut cellules: [] qu'une cellule dont le chiffre serait un total ou une estimation.
 
 EXEMPLES (à appliquer tels quels) :
-- "4 RUE DE FEUILLERES BAT 1" + "4 RUE DE FEUILLERES BAT 2" + "6 RUE DE FEUILLERES"
-  → 2 cellules : BAT 1 et BAT 2 (numéro unique). "6 RUE DE FEUILLERES" (sans numéro) → PAS de cellule (son LED reste au grain chantier dans attestations[]).
-- "LE MARCHAIS THIEVRAIN" + "La Forte Piece" (aucun numéro de bâtiment) → cellules: [].
-- "ZA DU MOULIN bâtiment 1 à 4" (plage) → cellules: [].
+- Facture avec « 4 RUE DE FEUILLERES BAT 1 » (26) + « 4 RUE DE FEUILLERES BAT 2 » (26)
+  + « 6 RUE DE FEUILLERES » (14) → « 4 rue » apparaît dans 2 blocs → 2 cellules [26, 26].
+  « 6 rue » dans 1 seul bloc → PAS de cellule.
+- Facture avec « 541 RUE SAINT-JEAN DES PLEURS » (24) + « 541 RUE SAINT-JEAN DES PLEURS
+  BAT 2 » (12) → même adresse normalisée, 2 blocs → 2 cellules [24, 12].
+- Facture avec 2 adresses DIFFÉRENTES, 1 bloc chacune → cellules: [].
+- Un seul bloc facture pour une adresse, même libellée « bâtiment 1 à 4 » → cellules: [].
 
 - Champs de chaque élément cellules[] (EXACTEMENT ces trois) :
-  - adresse : l'adresse du bâtiment telle qu'écrite, mention de bâtiment INCLUSE et conservée VERBATIM (ex. "4 RUE DE FEUILLERES BAT 1"). NE PAS normaliser, NE PAS retirer la mention de bâtiment ici.
-  - ledCellule : le Nombre de luminaires de CE bâtiment, en string (ex. "26"), NON sommé.
-  - source : la chaîne EXACTE "attestation_bat_eq_127".
+  - adresse : l'adresse du bloc facture telle qu'écrite, mention de bâtiment INCLUSE si
+    présente et conservée VERBATIM (ex. "4 RUE DE FEUILLERES BAT 1", ou "541 RUE
+    SAINT-JEAN DES PLEURS" si aucun numéro). NE PAS normaliser ici, NE PAS retirer la
+    mention de bâtiment ici. (La normalisation ne sert qu'à la comparaison ci-dessus.)
+  - ledCellule : la quantité LED de ce bloc facture, en string (ex. "26"), NON sommée.
+  - source : la chaîne EXACTE "facture".
 
 CEE - ADRESSE DU SIÈGE SOCIAL (CRITIQUE) :
 ⚠️ IMPORTANT : L'adresse du siège social est OBLIGATOIRE pour valider le dossier CEE.
@@ -590,12 +615,12 @@ FORMAT DE RÉPONSE (JSON uniquement) :
       {
         "adresse": "4 RUE DE FEUILLERES BAT 1",
         "ledCellule": "26",
-        "source": "attestation_bat_eq_127"
+        "source": "facture"
       },
       {
         "adresse": "4 RUE DE FEUILLERES BAT 2",
         "ledCellule": "26",
-        "source": "attestation_bat_eq_127"
+        "source": "facture"
       }
     ],
     "mentionsAgricoles": {
