@@ -91,9 +91,9 @@ Dossier → Chantiers → Cellules. Détail complet dans `docs/ROADMAP_EVOLUTION
 Séquence en 6 étapes (cf. ADR-015 §5), branches EMPILÉES (chaque étape part du tip de la précédente) :
 - ✅ **1a** — Collision A1 levée (`check_45_audit/synthese` + `check_synthese_manquante`). Branche `fix/a1-collision-check45`, commit `a61d343`, **non mergé**. Harnais 70/70. Non-régression preview OK.
 - ✅ **2** — Filet `check_surface_non_ventilable` (signal dossier, `S < A`). Branche `feat/s2-filet-surface-non-ventilable-sur-1a` (empilée sur 1a), commit `de0f36d`, **non mergé**. Validé preview double sens (DELEFORTRIE / DES LAURIERS).
-- ✅ **3** — Extraction grain cellule (`api/analyze.js`, couche LLM) **LIVRÉE & VALIDÉE** (DELEFORTRIE → 2 cellules BAT 1=26/BAT 2=26 ; DES LAURIERS → `cellules: []`). Branche `feat/s3-grain-cellule-led-par-batiment` (empilée sur s2), 2 commits poussés, **non mergé**. Détail + points durs : `#### Étape 3` ci-dessous.
+- ✅ **3** — Extraction grain cellule (`api/analyze.js`, couche LLM), **RÉVISÉE Philo 2 & VALIDÉE** : déclencheur = répétition d'adresse facture, `source = "facture"`. Preview 3 anchors : DELEFORTRIE → [26, 26], COPPIN → [24, 12], DES LAURIERS → []. Branches `feat/s3-…` (v1/v2) puis révision sur `fix/s4a-…` (`d589c69`), **non mergé**. Détail : `#### Étape 3` ci-dessous.
 - ✅ **4a** — `extraireNombreBatiments` refondue (normalize + neutralisation code postal + séparateurs ciblés + gardes parcelle). Branche `fix/s4a-extraire-batiments-accents` (empilée sur s3), `219b024`+`c8b1244`, **non mergé**. Auto-test 21/21, harnais 70/70. Détail : `#### Étape 4a` ci-dessous.
-- 🧊 **4b** — Reconstruire `ledTotal` chantier depuis `cellules[]` (DELEFORTRIE 26+26→52, corrige check_09d « 52 vs 66 »). **GELÉE** (blocage clés d'adresse) — prérequis : révision étape 3 « Philo 2 ». Cf. `#### Étape 4b` ci-dessous.
+- ⬜ **4b** — Reconstruire `ledTotal` chantier depuis `cellules[]` (DELEFORTRIE 26+26→52, corrige check_09d « 52 vs 66 »). **DÉBLOQUÉE** (révision étape 3 « Philo 2 » livrée `d589c69` ; blocage clés d'adresse caduc — on groupe les cellules entre elles). Cf. `#### Étape 4b` ci-dessous.
 - ⬜ **5** — Re-câbler `attestations.length`-as-chantier-count (check_39, export, nbChantiers, `[auditIndex]`).
 - ⬜ **6** — Règle surface à comptage (S==C / S==A / S<A, cohérence Σ au bon grain). Sous-divisible.
 
@@ -106,12 +106,17 @@ Séquence en 6 étapes (cf. ADR-015 §5), branches EMPILÉES (chaque étape part
 
 **Branches du chantier (non mergées, EMPILÉES) :** `fix/a1-collision-check45` (1a) → `feat/s2-filet-surface-non-ventilable-sur-1a` (2) → `feat/s3-grain-cellule-led-par-batiment` (3) → `fix/s4a-extraire-batiments-accents` (4a, tip `c8b1244`) → `feat/s4b-led-chantier-depuis-cellules` (4b, **vide/gelée**). Merge sur `main` quand le chantier est présentable (étapes 1a→6, ou un sous-ensemble cohérent décidé par IZANAMI).
 
-#### Étape 3 — Extraction grain cellule : LIVRÉE & VALIDÉE (12/06/2026)
+#### Étape 3 — Extraction grain cellule : LIVRÉE & VALIDÉE, RÉVISÉE Philo 2 (16/06/2026)
 
-Branche `feat/s3-grain-cellule-led-par-batiment` (empilée sur feat/s2), 2 commits
-poussés (extraction v1 + correction règle d'émission). Validée preview DELEFORTRIE
-(→ 2 cellules BAT 1=26 / BAT 2=26) et DES LAURIERS (→ cellules: []). Détail de la
-décision : ADR-015 §« Réalisation de l'étape 3 ». Non mergée.
+Branche `feat/s3-grain-cellule-led-par-batiment` (v1+v2, déclencheur « forme de
+l'adresse »), PUIS révision Philo 2 sur `fix/s4a-extraire-batiments-accents` (commit
+`d589c69`). **Règle finale** : déclencheur = RÉPÉTITION DE L'ADRESSE SUR LA FACTURE
+(≥ 2 blocs facture même adresse normalisée → 1 cellule par bloc ; sinon `cellules: []`),
+`ledCellule` = quantité du bloc facture, `source = "facture"`. Validée preview sur
+LES TROIS anchors : DELEFORTRIE → [26, 26] (6 rue sans cellule), COPPIN → [24, 12]
+(dont 24 SANS « BAT », ce que les versions précédentes rataient), DES LAURIERS → []
+(pas de sur-déclenchement). Détail décision : ADR-015 §« Réalisation de l'étape 3 »
+(+ section « Pourquoi la facture »). Non mergée.
 
 **Points durs identifiés — à traiter aux étapes indiquées, PAS avant :**
 
@@ -180,59 +185,35 @@ blocage 4b sur les clés ville/CP). Un correctif local risquerait de contredire 
 sera tranché au diagnostic Plan Mode de l'étape 3 → **à traiter dans ce contexte**, pas
 avant. Signalée par le diagnostic 4a-bis (16/06/2026).
 
-#### Étape 4b — reconstruire la LED chantier depuis `cellules[]` : 🧊 GELÉE
+#### Étape 4b — reconstruire la LED chantier depuis `cellules[]` : ⬜ DÉBLOQUÉE (à implémenter)
 
-Objectif : dans `regrouperAttestationsParAdresse` (`index.html:3516`), reconstruire
-`ledTotal` chantier = somme des `ledCellule` des cellules rattachées (DELEFORTRIE :
-26+26 → **52**), pour faire tomber l'échec **« 52 vs 66 » de check_09d**.
-Branche `feat/s4b-led-chantier-depuis-cellules` créée (empilée sur `c8b1244`),
-**`index.html` INTACT** (aucune ligne écrite).
+Objectif inchangé : faire tomber l'échec **« 52 vs 66 » de check_09d** sur
+DELEFORTRIE, en reconstruisant `ledTotal` chantier = somme des `ledCellule` des
+cellules d'une même adresse (26+26 → **52**).
 
-**Décisions actées** (diagnostic axes A→E) :
-- reconstruire DANS `regrouperAttestationsParAdresse` → **seul check_09d impacté**
-  (unique lecteur du `ledTotal` regroupé, prouvé au diagnostic) ;
-- `cellules[]` en **2ᵉ paramètre optionnel** ; au site d'appel (`index.html:4290`),
-  passer `norm.cee?.cellules || []` (accessible : `normalizeExtracted` fait
-  `{...extracted}`, ne strippe pas `cellules`) ;
-- logique **hybride** : groupe avec ≥ 1 cellule → `ledTotal` = Σ `ledCellule` ;
-  groupe sans cellule → `ledTotal` inchangé (grain chantier actuel) ;
-- rattachement par **`normaliserAdresseSansBatiment`** (PAS `compareAddress`, bug #27) ;
+**Débloquée par la révision étape 3 (`d589c69`).** Le blocage initial (asymétrie
+`attestations[].adresse` AVEC ville/CP vs `cellules[].adresse` SANS) est **caduc** :
+- depuis Philo 2, les cellules sont émises par bloc facture et leur `ledCellule`
+  porte directement la quantité par bâtiment ; la reconstruction se fait en
+  **groupant les cellules entre elles par adresse normalisée** (cellule vs cellule,
+  même grain), PAS en appariant cellules ↔ attestations. L'asymétrie ville/CP ne se
+  pose donc plus.
+
+**Décisions encore valables** (diagnostic axes A→E, à reconfirmer au moment d'écrire) :
+- reconstruire DANS `regrouperAttestationsParAdresse` (`index.html:3516`) → seul
+  check_09d impacté (unique lecteur du `ledTotal` regroupé) ;
+- `cellules[]` en 2ᵉ paramètre optionnel ; site d'appel `index.html:4290`, passer
+  `norm.cee?.cellules || []` ;
+- logique hybride : groupe avec ≥ 1 cellule → `ledTotal` = Σ `ledCellule` ; groupe
+  sans cellule → `ledTotal` inchangé ;
 - ne PAS toucher `attestations[].ledTotal` brut.
+- ⚠️ Reconfirmer en Plan Mode la clé de regroupement des cellules entre elles avant
+  d'écrire (la forme `cellules[].adresse` peut inclure ou non « BAT n » selon le
+  bloc facture — cf. COPPIN « 541 » vs « 541 BAT 2 »).
 
-**Pourquoi GELÉE — blocage prouvé (script `/tmp`, lecture seule)** : l'appariement
-par égalité stricte des clés échoue, car les adresses sont **asymétriques** :
-- `attestations[].adresse` = AVEC ville/CP (« 4 RUE DE FEUILLERES BAT 1 80360
-  HEM-MONACU ») → clé `normaliserAdresseSansBatiment` = **« 4 rue de feuilleres hem
-  monacu »** ;
-- `cellules[].adresse` = SANS ville/CP (« 4 RUE DE FEUILLERES BAT 1 ») → clé =
-  **« 4 rue de feuilleres »**.
-
-→ clés **différentes** → 0 cellule rattachée → `ledTotal` resterait 66, PAS 52.
-(`normaliserAdresseSansBatiment` ne retire pas la ville ; le CP est retiré de façon
-**incohérente** — avalé sur « 4 rue » car collé à « bat 1 », conservé sur « 6 rue ».)
-**4b ne peut avancer qu'après la révision de l'étape 3 ci-dessous.**
-
-#### Révision étape 3 (« Philo 2 ») — PRÉREQUIS de 4b — À FAIRE
-
-La règle d'émission des cellules change. **Aujourd'hui** : « numéro de bâtiment
-unique → cellule ; sinon `cellules: []` » (déclencheur INTRA-adresse). **Nouvelle
-règle** : émettre des cellules SEULEMENT pour une adresse ayant **≥ 2 bâtiments dans
-le dossier** (« BAT 1/BAT 2 », ou « adresse seule + BAT 2 »). Mono-bâtiment → pas de
-cellule (l'attestation suffit). Une adresse **sans numéro** cohabitant avec un
-**frère numéroté à la même rue** = bâtiment de ce groupe (cas **COPPIN** : « 541 »
-sans BAT + « 541 BAT 2 » → 2 cellules **24/12**).
-
-Résultats attendus : **DELEFORTRIE → [26, 26]** ; **COPPIN → [24, 12]** ;
-**DES LAURIERS → []** (2 adresses différentes, chacune mono-bâtiment).
-
-**Implications** : le déclencheur devient une **analyse INTER-chantiers** (comparer
-les adresses du dossier entre elles) ; touche le **prompt LLM** (`api/analyze.js`)
-→ **diagnostic obligatoire avant tout code**. **Question ouverte non tranchée** :
-quelle **source d'adresse** pour l'analyse inter-chantiers (attestation
-entrepôt/surface ? facture ?).
-**Preuve COPPIN** : `CEE_-_COPPIN_JEAN_BAPTISTE.pdf` (uploads de session) — 2
-chantiers même adresse « 541 RUE SAINT-JEAN DES PLEURS », chantier 1 sans BAT
-(24 LED), chantier 2 BAT 2 (12 LED).
+**Dette 4a-ter liée** : `normaliserAdresseSansBatiment` (`index.html:3502`) ne gère
+pas « & » dans sa classe `[\d,\-\sà]` ; à traiter dans ce contexte si la clé de
+regroupement 4b s'appuie sur cette fonction.
 
 #### Chantiers connexes (à ne pas mélanger)
 - **Export Google Sheet** (`compareWithGoogleSheet`, `index.html:1649`) lit le
@@ -371,6 +352,7 @@ Repérés en testant LES MOUETTES, **hors périmètre 1.3**, à traiter séparé
 - **`check_39` « cohérence nombre de chantiers » — faux positif** en multi-chantiers même adresse : 1 audit + 1 synthèse importés (zones dédupliquées par adresse) vs N attestations attendues → `nbAudits ≠ nbAttestations` signalé MAJEUR sur un dossier valide.
 - **Appariement par adresse cassé** : un « 4 » initial manquant entre l'adresse Audit (« CHASSIFERT… ») et l'adresse CEE (« 4 CHASSIFERT… ») fait échouer `compareAddress` → check d'adresse en échec + log « Aucune attestation CEE trouvée pour l'adresse… ». Rattaché au sujet « adresses dupliquées » / modèle Chantier-Cellule (TODO #22).
 - **Référence produit (`compareProductRef`)** : « NES LIGHT - HB250W » vs attendu « DAEWOO NES-HBL250W » → possible faux positif réf LED.
+- **`adressesChantiers` indexée par bâtiment, pas par chantier** : confirmé en preview sur COPPIN (16/06/2026) — 1 chantier / 2 bâtiments à la même adresse (« 541 » + « 541 BAT 2 ») compté comme **2 chantiers** → oblige à importer audit + synthèse en double, et `compareAddress` échoue en boucle. Anchor de régression pour l'étape 5 (au même titre que DES LAURIERS). Le grain cellule (étape 3 révisée) est la brique qui permettra de distinguer « N bâtiments » de « N chantiers ».
 
 ---
 
@@ -1244,5 +1226,5 @@ Ce document doit être mis à jour :
 
 ---
 
-**Dernière révision** : 5 juin 2026 (**TODO #34** — patron `portee` étendu aux 7 checks dossier restants `be607dc`, suite TODO #30 ; `check_47_global` exclu, dette TODO #27). Préc. — 3 juin 2026 (évolution 1.2 délais de travaux en prod `ab9242d` → **Phase 1 fonctionnelle hors UI/UX COMPLÈTE** ; évolution 1.3 complète ; **TODO #28 volet extraction corrigé en prod** (`e456b70`) — volet logique à 3 issues bascule en **TODO #29 (à cadrer)** ; bugs TODO #27 tracés)
+**Dernière révision** : 16 juin 2026 (**TODO #22 / ADR-015** — 4a-bis livrée (séparateur « & », `a888308`), étape 3 RÉVISÉE Philo 2 (déclencheur répétition d'adresse facture, `source = "facture"`, `d589c69`) validée preview 3 anchors, 4b DÉBLOQUÉE, dette 4a-ter ouverte, bug #27 enrichi anchor COPPIN). Préc. — 5 juin 2026 (**TODO #34** — patron `portee` étendu aux 7 checks dossier restants `be607dc`, suite TODO #30 ; `check_47_global` exclu, dette TODO #27). Préc. — 3 juin 2026 (évolution 1.2 délais de travaux en prod `ab9242d` → **Phase 1 fonctionnelle hors UI/UX COMPLÈTE** ; évolution 1.3 complète ; **TODO #28 volet extraction corrigé en prod** (`e456b70`) — volet logique à 3 issues bascule en **TODO #29 (à cadrer)** ; bugs TODO #27 tracés)
 **Prochaine révision** : Prochaine session de développement

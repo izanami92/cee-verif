@@ -179,38 +179,58 @@ dans un même commit. Le contrat de sortie est donc préservé : les consommateu
 champ supplémentaire qu'ils ignorent.
 
 **Forme de `cellules[]`** (api/analyze.js, schéma de sortie). Chaque élément :
-- `adresse` : adresse du bâtiment telle qu'écrite, mention de bâtiment conservée
-  verbatim (ex. "4 RUE DE FEUILLERES BAT 1") ;
-- `ledCellule` : Nombre de luminaires de CE bâtiment, en string, NON sommé
-  (nommage choisi pour éviter toute collision avec `totalLed` au grain dossier et
-  `attestations[].ledTotal` au grain chantier) ;
-- `source` : "attestation_bat_eq_127".
+- `adresse` : adresse du bloc facture telle qu'écrite, mention de bâtiment conservée
+  verbatim si présente (ex. "4 RUE DE FEUILLERES BAT 1", ou "541 RUE SAINT-JEAN DES
+  PLEURS" sans numéro) ;
+- `ledCellule` : quantité LED du bloc facture de CE bâtiment (colonne « Quantité »),
+  en string, NON sommée (nommage choisi pour éviter toute collision avec `totalLed`
+  au grain dossier et `attestations[].ledTotal` au grain chantier) ;
+- `source` : "facture".
 
-**Règle d'émission — déclencheur = LA FORME DE L'ADRESSE** (et non la présence
-d'une attestation BAT-EQ-127, ce code figurant sur plusieurs attestations, donc
-non discriminant) :
-- adresse avec un numéro de bâtiment **UNIQUE** ("BAT 1", "Bât 2", "bâtiment 3") →
-  **1 cellule** par bâtiment ainsi désigné ;
-- adresse avec une **PLAGE** ("bâtiment 1 à 4", "bâtiments 1,2,3") → **aucune
-  cellule** : le chantier regroupe plusieurs bâtiments, la LED est au grain
-  chantier (portée par `attestations[]`) ;
-- adresse **sans numéro de bâtiment** → **aucune cellule** : le bâtiment unique
-  EST le chantier, son LED reste au grain chantier dans `attestations[]`.
-- Conséquence validée : DELEFORTRIE → 2 cellules (BAT 1=26, BAT 2=26) ; le « 6 RUE
-  DE FEUILLERES » (sans numéro, 14 LED) ne génère PAS de cellule, son 14 reste dans
-  `attestations[]` (non perdu). DES LAURIERS (2 chantiers sans numéro de bâtiment)
-  → `cellules: []`.
+**Règle d'émission — déclencheur = RÉPÉTITION DE L'ADRESSE SUR LA FACTURE**
+(analyse INTER-chantiers, et non la forme d'une adresse isolée) :
+- comparer entre eux tous les blocs facture « Mise en place de luminaires à modules
+  LED » ; normaliser chaque adresse pour la comparaison (rue + ville + CP ; mention
+  de bâtiment ET parcelle retirées de la clé) ;
+- **≥ 2 blocs facture à la même adresse normalisée → 1 cellule par bloc**, avec sa
+  quantité comme `ledCellule` ;
+- **adresse dans un seul bloc facture → aucune cellule** : bâtiment unique, sa LED
+  reste au grain chantier dans `attestations[]`.
+- ⚠️ Indépendant du numéro de bâtiment : 2 blocs à la même adresse SANS aucune
+  mention « BAT n » comptent quand même pour 2 bâtiments (cas COPPIN).
+- Conséquences validées en preview (`d589c69`) : DELEFORTRIE → [26, 26] au « 4 rue »
+  (2 blocs facture), « 6 RUE DE FEUILLERES » (1 bloc) → pas de cellule, son 14 reste
+  dans `attestations[]` ; COPPIN → [24, 12] (« 541 » sans BAT + « 541 BAT 2 », 2
+  blocs) ; DES LAURIERS → `cellules: []` (2 adresses différentes, 1 bloc chacune).
 
-**Anti-invention (principe n°1).** Si aucune adresse ne porte de numéro de bâtiment
-unique → `cellules: []`. Jamais de total chantier mis dans `ledCellule`, jamais de
-répartition/division d'un total sur des bâtiments supposés.
+**Anti-invention (principe n°1).** Si aucune adresse n'apparaît dans ≥ 2 blocs
+facture → `cellules: []`. `ledCellule` lu UNIQUEMENT sur la quantité du bloc facture,
+jamais sur l'attestation entrepôt (surface) ; jamais de total chantier sommé, jamais
+de répartition/division d'un total sur des bâtiments supposés.
 
-**Alternatives écartées à l'étape 3 :**
+**Pourquoi la facture, et pas l'attestation ni la parcelle (tranché au diagnostic) :**
+- *Compter les éléments `attestations[]`* : écarté — l'attestation est à la maille
+  CHANTIER (« 1 phrase de surface = 1 élément »), et un chantier peut replier
+  plusieurs bâtiments. Prouvé sur DELEFORTRIE : 1 seule phrase de surface (2601 m²
+  agrégée) pour 3 bâtiments → sous-compterait.
+- *Parcelle cadastrale comme discriminateur* : écarté — peut être ABSENTE du CEE
+  (DELEFORTRIE n'en porte aucune dans les blocs facture) ou identique sur 2
+  bâtiments réels.
+- *Numéro de bâtiment* : écarté — absent sur certains chantiers (COPPIN ch.1).
+- Seule la **facture** porte un bloc par bâtiment avec sa quantité, de façon fidèle
+  sur les deux dossiers multi-bâtiments (COPPIN 2 blocs, DELEFORTRIE 2 blocs au
+  « 4 rue »).
+
+**Alternatives écartées à l'étape 3 (historique) :**
 - *Déclencheur « présence d'une attestation BAT-EQ-127 »* (1ʳᵉ version, commit v1) :
   écarté — faux positif prouvé en preview sur DES LAURIERS (le code BAT-EQ-127
   figure aussi sur l'attestation sur l'honneur par chantier ; le LLM émettait 2
-  cellules portant les totaux chantier 50/28 au lieu de `[]`). Corrigé par le
-  déclencheur « forme de l'adresse ».
+  cellules portant les totaux chantier 50/28 au lieu de `[]`). Corrigé d'abord par
+  le déclencheur « forme de l'adresse » (numéro de bâtiment unique).
+- *Déclencheur « forme de l'adresse » (numéro de bâtiment unique)* (2ᵉ version,
+  `05c769d`+`8adbdcf`) : écarté à son tour — ratait le bâtiment sans numéro (COPPIN
+  ch.1, 24 LED, comptait [12] au lieu de [24, 12]). Remplacé par la répétition
+  d'adresse sur la facture (Philo 2, `d589c69`).
 - *A2 — émettre `cellules[]` puis reconstruire `attestations[]` en JS dès l'étape 3* :
   écarté — mêle un changement de prompt (couche LLM non déterministe, hors harnais)
   et un changement de logique JS (couvert par le harnais) dans le même commit, ce
