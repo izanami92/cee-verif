@@ -158,11 +158,27 @@ Gère plages (`max−min+1`) et listes (comptage). **Prouvé par auto-test isol�
 21/21** ; pas de preview (cosmétique : n'affecte qu'un libellé « (N bâtiments) »
 sur check_09d, aucun `niveau` de check n'en dépend). Harnais 70/70. **Non mergée.**
 
-#### Dette 4a-bis — séparateur « & » non géré — À FAIRE
+#### Dette 4a-bis — séparateur « & » — ✅ LIVRÉE (16/06/2026, commit `a888308`)
 
-`extraireNombreBatiments` ne reconnaît pas le séparateur « & » (« bat 1 & 2 »
-devrait donner 2). Correctif indépendant : ajouter « & » à l'alternance des
-séparateurs (même forme que « et »/virgule). Petit, isolé.
+Branche `fix/s4a-extraire-batiments-accents` (même branche que 4a, empilée sur s3),
+commit `a888308` poussé, **non mergé**. `extraireNombreBatiments` reconnaît désormais
+le séparateur « & » (« bat 1 & 2 » et « bat 1&2 » → 2). Branche `\s*&(?!\s*\d+\s*\/)\s*`
+ajoutée à l'alternance de `pattern` : **espacement optionnel** (forme virgule/tiret,
+PAS la forme « et » en `\s+` — couvre le « & » collé comme espacé) + **garde parcelle**
+`(?!\s*\d+\s*\/)` répliquée comme sur le tiret et l'espace-nu. `estPlage` non touché
+(« & » = séparateur de LISTE, pas de plage). Nouveau harnais versionné
+`test-batiments.mjs` (lit le vrai code d'`index.html` par extraction d'accolades, pas
+une copie) : **13/13**. Harnais `test-familles.mjs` : **70/70**.
+
+#### Dette 4a-ter — séparateur « & » dans `normaliserAdresseSansBatiment` — À FAIRE
+
+Même lacune « & », autre fonction : `normaliserAdresseSansBatiment` (`index.html:3502`)
+nettoie via la classe `[\d,\-\sà]` qui ne contient PAS « & » → « bat 1 & 2 » y laisse
+traîner « & 2 » après nettoyage. **À NE PAS traiter en isolation** : cette fonction est
+au cœur de l'appariement d'adresses (terrain de la révision étape 3 « Philo 2 » et du
+blocage 4b sur les clés ville/CP). Un correctif local risquerait de contredire ce qui
+sera tranché au diagnostic Plan Mode de l'étape 3 → **à traiter dans ce contexte**, pas
+avant. Signalée par le diagnostic 4a-bis (16/06/2026).
 
 #### Étape 4b — reconstruire la LED chantier depuis `cellules[]` : 🧊 GELÉE
 
