@@ -314,10 +314,17 @@ EXEMPLES (à appliquer tels quels) :
 - Un seul bloc facture pour une adresse, même libellée « bâtiment 1 à 4 » → cellules: [].
 
 - Champs de chaque élément cellules[] (EXACTEMENT ces trois) :
-  - adresse : l'adresse du bloc facture telle qu'écrite, mention de bâtiment INCLUSE si
-    présente et conservée VERBATIM (ex. "4 RUE DE FEUILLERES BAT 1", ou "541 RUE
-    SAINT-JEAN DES PLEURS" si aucun numéro). NE PAS normaliser ici, NE PAS retirer la
-    mention de bâtiment ici. (La normalisation ne sert qu'à la comparaison ci-dessus.)
+  - adresse : l'adresse COMPLÈTE du bloc facture, RECOPIÉE telle qu'écrite sur les lignes
+    du bloc — rue + mention de bâtiment (si présente) + code postal + ville — sans rien
+    omettre. Le bloc facture écrit le code postal et la ville sur la ligne qui SUIT la rue
+    (ex. « 80360 HEM-MONACU ») : tu DOIS recopier cette ligne code postal + ville, ne
+    l'omets JAMAIS. Exemple : "4 RUE DE FEUILLERES BAT 1 80360 HEM-MONACU". Si le bloc ne
+    porte aucun numéro de bâtiment, recopie quand même rue + code postal + ville. NE PAS
+    normaliser ici, NE PAS retirer la mention de bâtiment, NE PAS retirer le code
+    postal/ville. (La normalisation ne sert qu'à la comparaison ci-dessus.) C'est une
+    RECOPIE fidèle, pas une transformation. Cette adresse doit CORRESPONDRE à celle de
+    l'attestation entrepôt du même chantier (qui porte rue + bâtiment + code postal +
+    ville) — c'est la cible de symétrie.
   - ledCellule : la quantité LED de ce bloc facture, en string (ex. "26"), NON sommée.
   - source : la chaîne EXACTE "facture".
 
@@ -613,12 +620,12 @@ FORMAT DE RÉPONSE (JSON uniquement) :
     ],
     "cellules": [
       {
-        "adresse": "4 RUE DE FEUILLERES BAT 1",
+        "adresse": "4 RUE DE FEUILLERES BAT 1 80360 HEM-MONACU",
         "ledCellule": "26",
         "source": "facture"
       },
       {
-        "adresse": "4 RUE DE FEUILLERES BAT 2",
+        "adresse": "4 RUE DE FEUILLERES BAT 2 80360 HEM-MONACU",
         "ledCellule": "26",
         "source": "facture"
       }
