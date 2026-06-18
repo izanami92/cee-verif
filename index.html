@@ -3537,6 +3537,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
       if (!attestations || !Array.isArray(attestations)) return [];
 
       const sommesCellules = sommerCellulesParAdresse(cellules);
+      console.log('[4b-diag] map cellules:', [...sommesCellules.entries()]);
       const groupes = {};
 
       attestations.forEach((attestation, index) => {
@@ -3597,6 +3598,14 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
         // ledTotal = Σ ledCellule (NOMBRE) ; sinon ledTotal brut inchangé (NOMBRE).
         const ledTotalCellules = sommesCellules.get(groupe.adresseNormalisee);
         const ledTotalFinal = ledTotalCellules !== undefined ? ledTotalCellules : groupe.ledTotal;
+        console.log('[4b-diag] groupe', {
+          cleGroupe: groupe.adresseNormalisee,
+          cleDansMap: sommesCellules.has(groupe.adresseNormalisee),
+          clesMap: [...sommesCellules.keys()],
+          ledBrut: groupe.ledTotal,
+          ledCellules: sommesCellules.get(groupe.adresseNormalisee),
+          ledFinal: ledTotalFinal
+        });
 
         return {
           adresse: groupe.adresseOriginale,
@@ -4329,6 +4338,12 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
           if (attestationCorrespondante) {
             const adresseCEE = attestationCorrespondante.adresse; // Adresse de référence du CEE
             const ledCEE = parseFloat(String(attestationCorrespondante.ledTotal || 0).replace(/\s+/g, '')) || 0;
+            console.log('[4b-diag] check09d', {
+              chantierAdresse: chantier.adresse,
+              attCorrespAdresse: attestationCorrespondante.adresse,
+              attCorrespLedTotal: attestationCorrespondante.ledTotal,
+              ledCEE
+            });
             const ledAudit = chantier.audit ? parseFloat(String(chantier.audit.ledTotal || 0).replace(/\s+/g, '')) || 0 : null;
             const ledSynthese = chantier.synthese ? parseFloat(String(chantier.synthese.ledTotal || 0).replace(/\s+/g, '')) || 0 : null;
             const nbBatiments = attestationCorrespondante.nbBatiments || 1;
