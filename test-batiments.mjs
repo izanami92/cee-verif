@@ -30,12 +30,15 @@ function extractFn(name) {
   throw new Error(`Accolade fermante introuvable pour ${name}`);
 }
 
-// normalize() est appelée par extraireNombreBatiments ET normaliserAdresseSansBatiment → on définit les trois.
+// normalize() est appelée par extraireNombreBatiments ET normaliserAdresseSansBatiment ;
+// sommerCellulesParAdresse (4b) réutilise normaliserAdresseSansBatiment → on définit les quatre.
 const code = extractFn('normalize') + '\n'
   + extractFn('extraireNombreBatiments') + '\n'
   + extractFn('normaliserAdresseSansBatiment') + '\n'
+  + extractFn('sommerCellulesParAdresse') + '\n'
   + 'globalThis.__extraireNombreBatiments = extraireNombreBatiments;\n'
-  + 'globalThis.__normaliserAdresseSansBatiment = normaliserAdresseSansBatiment;';
+  + 'globalThis.__normaliserAdresseSansBatiment = normaliserAdresseSansBatiment;\n'
+  + 'globalThis.__sommerCellulesParAdresse = sommerCellulesParAdresse;';
 // eslint-disable-next-line no-eval — eval indirect en portée globale, comme test-familles.mjs
 (0, eval)(code);
 
@@ -48,6 +51,12 @@ if (typeof extraireNombreBatiments !== 'function') {
 const normaliserAdresseSansBatiment = globalThis.__normaliserAdresseSansBatiment;
 if (typeof normaliserAdresseSansBatiment !== 'function') {
   console.error('❌ normaliserAdresseSansBatiment non extraite depuis index.html');
+  process.exit(1);
+}
+
+const sommerCellulesParAdresse = globalThis.__sommerCellulesParAdresse;
+if (typeof sommerCellulesParAdresse !== 'function') {
+  console.error('❌ sommerCellulesParAdresse non extraite depuis index.html');
   process.exit(1);
 }
 
@@ -113,7 +122,47 @@ for (const cas of CAS_NORM) {
   console.log(`${icone} "${cas.in}" → "${res}" (attendu "${cas.attendu}")  — ${cas.note}`);
 }
 
-const total = CAS.length + CAS_NORM.length;
+// === Cas de test — sommerCellulesParAdresse (pré-agrégation cellules, ADR-015 4b-1) ===
+// Helper PUR : groupe les cellules entre elles par normaliserAdresseSansBatiment et somme
+// ledCellule via parseInt (vide/non numérique → 0 par NaN||0, aucune cellule filtrée).
+// Sommes déroulées depuis parseInt, NON inventées. (La substitution dans
+// regrouperAttestationsParAdresse est jugée en preview sur DELEFORTRIE, hors harnais pur.)
+const CAS_CELLULES = [
+  // DELEFORTRIE : 2 cellules même adresse normalisée → 26 + 26 = 52
+  { cle: '4 rue de feuilleres', attendu: 52, note: 'DELEFORTRIE : 26 + 26',
+    cellules: [
+      { adresse: '4 RUE DE FEUILLERES BAT 1', ledCellule: '26', source: 'facture' },
+      { adresse: '4 RUE DE FEUILLERES BAT 2', ledCellule: '26', source: 'facture' },
+    ] },
+  // COPPIN : 541 (24) + 541 BAT 2 (12) → même clé → 36
+  { cle: '541 rue saint jean des pleurs', attendu: 36, note: 'COPPIN : 24 + 12',
+    cellules: [
+      { adresse: '541 RUE SAINT-JEAN DES PLEURS', ledCellule: '24', source: 'facture' },
+      { adresse: '541 RUE SAINT-JEAN DES PLEURS BAT 2', ledCellule: '12', source: 'facture' },
+    ] },
+  // Cellule unique : la clé existe avec sa valeur seule (le helper agrège tout)
+  { cle: '6 rue de feuilleres', attendu: 14, note: 'cellule unique → valeur seule',
+    cellules: [ { adresse: '6 RUE DE FEUILLERES', ledCellule: '14', source: 'facture' } ] },
+  // Vide + non numérique + valide → parseInt(NaN||0) : 0 + 0 + 10 = 10 (aucune cellule filtrée)
+  { cle: 'za du moulin', attendu: 10, note: 'vide + abc + 10 → 0+0+10',
+    cellules: [
+      { adresse: 'ZA DU MOULIN', ledCellule: '',    source: 'facture' },
+      { adresse: 'ZA DU MOULIN', ledCellule: 'abc', source: 'facture' },
+      { adresse: 'ZA DU MOULIN', ledCellule: '10',  source: 'facture' },
+    ] },
+];
+
+console.log('\n— sommerCellulesParAdresse (pré-agrégation cellules, 4b-1) —');
+for (const cas of CAS_CELLULES) {
+  const res = sommerCellulesParAdresse(cas.cellules).get(cas.cle);
+  const pass = res === cas.attendu;
+  if (pass) ok++;
+  else echecs.push({ in: cas.cle, attendu: cas.attendu, res, note: cas.note });
+  const icone = pass ? '✅' : '❌';
+  console.log(`${icone} clé "${cas.cle}" → ${res} (attendu ${cas.attendu})  — ${cas.note}`);
+}
+
+const total = CAS.length + CAS_NORM.length + CAS_CELLULES.length;
 console.log(`\n${ok}/${total} cas OK`);
 if (echecs.length) {
   console.error(`\n❌ ${echecs.length} ÉCHEC(S) :`);

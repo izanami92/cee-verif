@@ -3512,10 +3512,31 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
       return cleaned;
     }
 
+    // Pré-agrège les cellules (grain LED par bâtiment, source facture) par adresse
+    // normalisée. RÉUTILISE normaliserAdresseSansBatiment (clé symétrique avec le
+    // regroupement des attestations, séparateur « & » inclus depuis 4a-ter) et le MÊME
+    // parsing entier que le grain chantier. Retourne une Map { cléNormalisée → Σ nombre }.
+    // ADR-015 étape 4b.
+    function sommerCellulesParAdresse(cellules) {
+      const sommes = new Map();
+      if (!cellules || !Array.isArray(cellules)) return sommes;
+
+      cellules.forEach(cellule => {
+        const cle = normaliserAdresseSansBatiment(cellule.adresse || '');
+        const quantite = parseInt(cellule.ledCellule || 0, 10) || 0;
+        sommes.set(cle, (sommes.get(cle) || 0) + quantite);
+      });
+
+      return sommes;
+    }
+
     // Regrouper les attestations CEE qui ont la même adresse normalisée (= même chantier, plusieurs bâtiments)
-    function regrouperAttestationsParAdresse(attestations) {
+    // 4b : si des cellules couvrent un groupe (même clé normalisée), son ledTotal chantier
+    // est reconstruit = Σ ledCellule (substitution) ; sinon ledTotal brut inchangé.
+    function regrouperAttestationsParAdresse(attestations, cellules = []) {
       if (!attestations || !Array.isArray(attestations)) return [];
 
+      const sommesCellules = sommerCellulesParAdresse(cellules);
       const groupes = {};
 
       attestations.forEach((attestation, index) => {
@@ -3572,10 +3593,15 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
         const secteurUnique = secteursUniques.length === 1 ? secteursUniques[0] : null;
         const secteurConflict = secteursUniques.length > 1;
 
+        // 4b : substitution hybride — si des cellules couvrent ce groupe (clé commune),
+        // ledTotal = Σ ledCellule (NOMBRE) ; sinon ledTotal brut inchangé (NOMBRE).
+        const ledTotalCellules = sommesCellules.get(groupe.adresseNormalisee);
+        const ledTotalFinal = ledTotalCellules !== undefined ? ledTotalCellules : groupe.ledTotal;
+
         return {
           adresse: groupe.adresseOriginale,
           adresseNormalisee: groupe.adresseNormalisee,
-          ledTotal: groupe.ledTotal,
+          ledTotal: ledTotalFinal,
           surfaces: groupe.surfaces,
           parcelles: parcellesConcatenees,
           secteurActivite: secteurUnique || secteursUniques.join(' / '), // Si conflit, montrer tous
@@ -4287,7 +4313,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
       const attestationsCEE = norm.cee?.attestations || [];
 
       // Regrouper les attestations CEE par adresse (gérer les multi-bâtiments)
-      const attestationsRegroupees = regrouperAttestationsParAdresse(attestationsCEE);
+      const attestationsRegroupees = regrouperAttestationsParAdresse(attestationsCEE, norm.cee?.cellules || []);
       const attestationsAvecLed = attestationsRegroupees.filter(att => att.ledTotal);
 
       if (attestationsAvecLed.length > 0) {
