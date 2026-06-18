@@ -3499,7 +3499,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
       // Supprimer TOUTES les mentions de bâtiment (avec numéros, virgules, tirets, "à", "et", etc.)
       // Exemples : "Bât 1", "bâtiments 1,2,3", "batiments 1 à 3", "batiment 1 2 et 3"
       cleaned = cleaned
-        .replace(/\b(bat|batiment|bâtiment|batiments|bâtiments)\s*(?:[\d,\-\sà]|\bet\b)+/gi, '')
+        .replace(/\b(bat|batiment|bâtiment|batiments|bâtiments)\s*(?:[\d,\-\sà&]|\bet\b)+/gi, '')
         .replace(/\b(bat|batiment|bâtiment|batiments|bâtiments)\b/gi, '')
         .replace(/,/g, ' ')
         .replace(/\bfrance\b/gi, '')

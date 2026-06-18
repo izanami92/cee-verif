@@ -30,15 +30,24 @@ function extractFn(name) {
   throw new Error(`Accolade fermante introuvable pour ${name}`);
 }
 
-// normalize() est appelée par extraireNombreBatiments → on définit les deux.
-const code = extractFn('normalize') + '\n' + extractFn('extraireNombreBatiments') + '\n'
-  + 'globalThis.__extraireNombreBatiments = extraireNombreBatiments;';
+// normalize() est appelée par extraireNombreBatiments ET normaliserAdresseSansBatiment → on définit les trois.
+const code = extractFn('normalize') + '\n'
+  + extractFn('extraireNombreBatiments') + '\n'
+  + extractFn('normaliserAdresseSansBatiment') + '\n'
+  + 'globalThis.__extraireNombreBatiments = extraireNombreBatiments;\n'
+  + 'globalThis.__normaliserAdresseSansBatiment = normaliserAdresseSansBatiment;';
 // eslint-disable-next-line no-eval — eval indirect en portée globale, comme test-familles.mjs
 (0, eval)(code);
 
 const extraireNombreBatiments = globalThis.__extraireNombreBatiments;
 if (typeof extraireNombreBatiments !== 'function') {
   console.error('❌ extraireNombreBatiments non extraite depuis index.html');
+  process.exit(1);
+}
+
+const normaliserAdresseSansBatiment = globalThis.__normaliserAdresseSansBatiment;
+if (typeof normaliserAdresseSansBatiment !== 'function') {
+  console.error('❌ normaliserAdresseSansBatiment non extraite depuis index.html');
   process.exit(1);
 }
 
@@ -64,8 +73,27 @@ const CAS = [
   { in: 'bat 12 80360 amiens',         attendu: 1, note: 'code postal neutralisé (non-rég)' },
 ];
 
+// === Cas de test — normaliserAdresseSansBatiment (CLÉ DE REGROUPEMENT, ADR-015 4a-ter) ===
+// Sorties EXACTES déroulées depuis normalize (lowercase + accents + collapse espaces) puis
+// les replace de la fonction (run bâtiment, virgules, tirets). NON inventées (cf. diag 4a-ter).
+const CAS_NORM = [
+  // COPPIN : avec et sans BAT → MÊME clé (invariant de regroupement, motive 4b)
+  { in: '541 RUE SAINT-JEAN DES PLEURS BAT 2', attendu: '541 rue saint jean des pleurs', note: 'COPPIN avec BAT' },
+  { in: '541 RUE SAINT-JEAN DES PLEURS',       attendu: '541 rue saint jean des pleurs', note: 'COPPIN sans BAT → même clé' },
+  // 4a-ter : « & » dans la mention bâtiment consommé en entier (plus de « & 2 » résiduel)
+  { in: '4 RUE DE FEUILLERES BAT 1 & 2', attendu: '4 rue de feuilleres', note: '4a-ter : & espacé' },
+  { in: '4 RUE DE FEUILLERES BAT 1&2',   attendu: '4 rue de feuilleres', note: '4a-ter : & collé → même clé' },
+  { in: '4 RUE DE FEUILLERES',           attendu: '4 rue de feuilleres', note: 'référence sans bâtiment → même clé' },
+  // Invariant : « & » HORS bâtiment CONSERVÉ (raison sociale)
+  { in: 'SARL DURAND & FILS, ZAC DU MOULIN, 80360 AMIENS', attendu: 'sarl durand & fils zac du moulin 80360 amiens', note: 'invariant : & raison sociale conservé' },
+  // Non-régression accent : BÂT accentué regroupe comme BAT
+  { in: '4 RUE DE FEUILLERES BÂT 2', attendu: '4 rue de feuilleres', note: 'accent : BÂT 2 → même clé que BAT 2' },
+];
+
 let ok = 0;
 const echecs = [];
+
+console.log('— extraireNombreBatiments (comptage, 4a-bis) —');
 for (const cas of CAS) {
   const res = extraireNombreBatiments(cas.in);
   const pass = res === cas.attendu;
@@ -75,7 +103,18 @@ for (const cas of CAS) {
   console.log(`${icone} "${cas.in}" → ${res} (attendu ${cas.attendu})  — ${cas.note}`);
 }
 
-console.log(`\n${ok}/${CAS.length} cas OK`);
+console.log('\n— normaliserAdresseSansBatiment (clé de regroupement, 4a-ter) —');
+for (const cas of CAS_NORM) {
+  const res = normaliserAdresseSansBatiment(cas.in);
+  const pass = res === cas.attendu;
+  if (pass) ok++;
+  else echecs.push({ ...cas, res });
+  const icone = pass ? '✅' : '❌';
+  console.log(`${icone} "${cas.in}" → "${res}" (attendu "${cas.attendu}")  — ${cas.note}`);
+}
+
+const total = CAS.length + CAS_NORM.length;
+console.log(`\n${ok}/${total} cas OK`);
 if (echecs.length) {
   console.error(`\n❌ ${echecs.length} ÉCHEC(S) :`);
   for (const e of echecs) console.error(`   "${e.in}" → ${e.res}, attendu ${e.attendu}`);
