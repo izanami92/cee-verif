@@ -3319,6 +3319,10 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
     }
 
     function compareStrings(val1, val2) {
+      if ((String(val1).trim() === '52' && String(val2).trim() === '66') ||
+          (String(val1).trim() === '66' && String(val2).trim() === '52')) {
+        console.log('[66-diag] compareStrings 52/66 appelé par:', new Error().stack);
+      }
       const norm1 = normalize(val1);
       const norm2 = normalize(val2);
 
