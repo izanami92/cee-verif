@@ -135,12 +135,23 @@ LES TROIS anchors : DELEFORTRIE → [26, 26] (6 rue sans cellule), COPPIN → [2
   faite, cet écart s'affiche en majeur visible (filet étape 2 actif → pas de faux
   conforme silencieux dans l'intervalle).
 
-- **Étape 5** — Bug #27 (`compareAddress` fragile) reconfirmé en preview
-  DELEFORTRIE : matche « 4 rue » et « 6 rue » (ignore le numéro de voie, → "4 rue
-  de feuilleres hem monacu" == "6 rue de feuilleres hem monacu") → l'unique
-  attestation se colle au chantier 1, « 6 rue » ne trouve aucune attestation
-  ("⚠️ Aucune attestation CEE trouvée"). Ne pas baser de logique critique dessus
-  avant correction.
+- **Étape 5** — Bug #27 — **RECTIFIÉ le 19/06/2026** (preuve PDF + capture DELEFORTRIE).
+  La description antérieure (« `compareAddress` matche « 4 rue » == « 6 rue », ignore le
+  numéro de voie ») était **FAUSSE** et inversait le sens du bug. Vérifié par le CODE
+  (`compareAddress` GARDE le n° de voie : `"4 rue…"` ≠ `"6 rue…"` → renvoie `false`) ET
+  par l'écran (le check sort **MAJEUR rouge**, donc PAS de match). **Vraie cause** : les
+  listes CEE `adressesChantiers`/`attestations[]` sont indexées **PAR BÂTIMENT**
+  (`[0]=4rue-BAT1, [1]=4rue-BAT2, [2]=6rue`) alors que les chantiers (audits/synthèses
+  importés) le sont **PAR ADRESSE** (`4rue`, `6rue`). Les checks 12/25
+  (`attestations[auditIndex]`) prennent donc l'élément `[1]` = « 4 RUE DE FEUILLERES
+  BAT 2 » pour le chantier 2 (= 6 rue) → MAJEUR « Attendu : 4 rue BAT 2 / Trouvé : 6 rue ».
+  `compareAddress` refuse **CORRECTEMENT** ce faux match ; le défaut est l'**ASYMÉTRIE DE
+  MAILLE** (liste par bâtiment vs chantiers par adresse), **pas `compareAddress`**.
+  ⚠️ Conséquence : ne PAS « corriger » `compareAddress` pour ignorer le n° de voie — cela
+  fusionnerait « 4 rue » et « 6 rue » = **faux conforme silencieux** (principe n°1).
+  *(Formulation erronée conservée dans l'historique git. Reste à recaler hors de ce commit :
+  mention « `compareAddress` fragile » en ligne ~103 de ce doc (directionnellement OK mais
+  attribue le défaut à compareAddress) et dans `SOURCE_DE_VERITE_CHECKS.md:254`.)*
 
 - **Étape 6** — Le filet `check_surface_non_ventilable` (étape 2) ne teste que
   `S < A`. Vérifier la couverture du cas `S > A` (une attestation surface par
@@ -175,21 +186,30 @@ PAS la forme « et » en `\s+` — couvre le « & » collé comme espacé) + **g
 `test-batiments.mjs` (lit le vrai code d'`index.html` par extraction d'accolades, pas
 une copie) : **13/13**. Harnais `test-familles.mjs` : **70/70**.
 
-#### Dette 4a-ter — séparateur « & » dans `normaliserAdresseSansBatiment` — À FAIRE
+#### Dette 4a-ter — séparateur « & » dans `normaliserAdresseSansBatiment` — ✅ LIVRÉE (18/06/2026, commit `281acac`)
 
-Même lacune « & », autre fonction : `normaliserAdresseSansBatiment` (`index.html:3502`)
-nettoie via la classe `[\d,\-\sà]` qui ne contient PAS « & » → « bat 1 & 2 » y laisse
-traîner « & 2 » après nettoyage. **À NE PAS traiter en isolation** : cette fonction est
-au cœur de l'appariement d'adresses (terrain de la révision étape 3 « Philo 2 » et du
-blocage 4b sur les clés ville/CP). Un correctif local risquerait de contredire ce qui
-sera tranché au diagnostic Plan Mode de l'étape 3 → **à traiter dans ce contexte**, pas
-avant. Signalée par le diagnostic 4a-bis (16/06/2026).
+ÉTAIT : `normaliserAdresseSansBatiment` (`index.html:3502`) nettoyait via la classe
+`[\d,\-\sà]` qui ne contenait PAS « & » → « bat 1 & 2 » y laissait traîner « & 2 » après
+nettoyage. **Corrigé** : la classe est désormais `[\d,\-\sà&]` (« & » ajouté) → clé de
+regroupement symétrique avec `extraireNombreBatiments` (4a-bis). Signalée par le
+diagnostic 4a-bis (16/06/2026), traitée dans le contexte 4b. Commit `281acac` poussé,
+**non mergé**.
 
-#### Étape 4b — reconstruire la LED chantier depuis `cellules[]` : ⬜ DÉBLOQUÉE (à implémenter)
+#### Étape 4b — reconstruire la LED chantier depuis `cellules[]` : ✅ VOLET 1/2 LIVRÉ (18/06/2026, commit `1f7c663`)
 
 Objectif inchangé : faire tomber l'échec **« 52 vs 66 » de check_09d** sur
 DELEFORTRIE, en reconstruisant `ledTotal` chantier = somme des `ledCellule` des
 cellules d'une même adresse (26+26 → **52**).
+
+✅ **Volet 1/2 LIVRÉ (18/06/2026, commit `1f7c663`)** : `ledTotal` chantier reconstruit
+= Σ `ledCellule` par substitution sur adresse normalisée, DANS
+`regrouperAttestationsParAdresse` (helper `sommerCellulesParAdresse`, `index.html:3523` ;
+substitution `index.html:3599-3602` ; appel `index.html:4319` passant
+`norm.cee?.cellules || []`). Correctif β `f05f150` : `cellule.adresse` complète (rue +
+bâtiment + CP + ville, recopie du bloc facture) pour la symétrie cellules↔attestations.
+Instrumentation diag posée puis **retirée après validation** (`142a353`/`eee731b` →
+`65fa61f`). **Non mergé.** Le label « 1/2 » suppose un **volet 2/2** que ce doc ne
+définit PAS → à cadrer (ne pas inventer).
 
 **Débloquée par la révision étape 3 (`d589c69`).** Le blocage initial (asymétrie
 `attestations[].adresse` AVEC ville/CP vs `cellules[].adresse` SANS) est **caduc** :
@@ -199,7 +219,7 @@ cellules d'une même adresse (26+26 → **52**).
   même grain), PAS en appariant cellules ↔ attestations. L'asymétrie ville/CP ne se
   pose donc plus.
 
-**Décisions encore valables** (diagnostic axes A→E, à reconfirmer au moment d'écrire) :
+**Décisions ci-dessous APPLIQUÉES** dans le volet 1/2 (`1f7c663`) :
 - reconstruire DANS `regrouperAttestationsParAdresse` (`index.html:3516`) → seul
   check_09d impacté (unique lecteur du `ledTotal` regroupé) ;
 - `cellules[]` en 2ᵉ paramètre optionnel ; site d'appel `index.html:4290`, passer
@@ -211,15 +231,15 @@ cellules d'une même adresse (26+26 → **52**).
   d'écrire (la forme `cellules[].adresse` peut inclure ou non « BAT n » selon le
   bloc facture — cf. COPPIN « 541 » vs « 541 BAT 2 »).
 
-**Dette 4a-ter liée** : `normaliserAdresseSansBatiment` (`index.html:3502`) ne gère
-pas « & » dans sa classe `[\d,\-\sà]` ; à traiter dans ce contexte si la clé de
-regroupement 4b s'appuie sur cette fonction.
+**Dette 4a-ter liée** : ✅ **RÉSOLUE** (`281acac`) — `normaliserAdresseSansBatiment`
+(`index.html:3502`) gère désormais « & » (classe `[\d,\-\sà&]`) ; la clé de regroupement
+4b qui s'appuie sur cette fonction est donc symétrique.
 
 #### Chantiers connexes (à ne pas mélanger)
 - **Export Google Sheet** (`compareWithGoogleSheet`, `index.html:1649`) lit le
   `ledTotal` **brut** ; devra suivre la reconstruction 4b — mais « ne fonctionne
   pas encore » → **chantier séparé**.
-- **Bug #27** (`compareAddress` « 4 rue » == « 6 rue ») → **terrain étape 5**.
+- **Bug #27** (asymétrie de maille : `adressesChantiers`/`attestations[]` par bâtiment vs chantiers par adresse — `compareAddress` est correct, cf. rectif Étape 5) → **terrain étape 5**.
 
 #### A) État des branches (chaîne EMPILÉE depuis `main` = `279e0e1`)
 
@@ -353,6 +373,8 @@ Repérés en testant LES MOUETTES, **hors périmètre 1.3**, à traiter séparé
 - **Appariement par adresse cassé** : un « 4 » initial manquant entre l'adresse Audit (« CHASSIFERT… ») et l'adresse CEE (« 4 CHASSIFERT… ») fait échouer `compareAddress` → check d'adresse en échec + log « Aucune attestation CEE trouvée pour l'adresse… ». Rattaché au sujet « adresses dupliquées » / modèle Chantier-Cellule (TODO #22).
 - **Référence produit (`compareProductRef`)** : « NES LIGHT - HB250W » vs attendu « DAEWOO NES-HBL250W » → possible faux positif réf LED.
 - **`adressesChantiers` indexée par bâtiment, pas par chantier** : confirmé en preview sur COPPIN (16/06/2026) — 1 chantier / 2 bâtiments à la même adresse (« 541 » + « 541 BAT 2 ») compté comme **2 chantiers** → oblige à importer audit + synthèse en double, et `compareAddress` échoue en boucle. Anchor de régression pour l'étape 5 (au même titre que DES LAURIERS). Le grain cellule (étape 3 révisée) est la brique qui permettra de distinguer « N bâtiments » de « N chantiers ».
+  - ✅ **Facette « découpage » corrigée (18/06/2026, commit `bd13444`)** : le cleaner inline du découpage (`extracted.adresses`, `index.html:2052`) collapse désormais les espaces (`\s+→' '`) après retrait de « BAT n » → COPPIN « rien »+« BAT 2 » refusionne en **1 chantier** (1 zone d'import). Cause-racine du split = `3673109` (ère-main, 11/05, regex BAT passée à `[\d\-]+` sans `\s*` final → double espace si « BAT n » au milieu de l'adresse) ; `bd13444` neutralise le symptôme en aval (clé de dédup correcte).
+  - ⏳ **Facette « `check_39` » NON corrigée** : `check_39` (`index.html:4994`) compare `attestations.length` (=2 pour COPPIN) à `audits.length` (=1) → reste **MAJEUR** « 1 audit, 1 synthèse, 2 attestations » **même après `bd13444`**. Source de « COPPIN = 2 » **distincte** du découpage. À traiter au bon grain (cellules / N bâtiments par chantier), JAMAIS en regroupant les attestations avant de compter (= faux conforme silencieux si une attestation manque vraiment, principe n°1).
 
 ---
 
@@ -1226,5 +1248,5 @@ Ce document doit être mis à jour :
 
 ---
 
-**Dernière révision** : 16 juin 2026 (**TODO #22 / ADR-015** — 4a-bis livrée (séparateur « & », `a888308`), étape 3 RÉVISÉE Philo 2 (déclencheur répétition d'adresse facture, `source = "facture"`, `d589c69`) validée preview 3 anchors, 4b DÉBLOQUÉE, dette 4a-ter ouverte, bug #27 enrichi anchor COPPIN). Préc. — 5 juin 2026 (**TODO #34** — patron `portee` étendu aux 7 checks dossier restants `be607dc`, suite TODO #30 ; `check_47_global` exclu, dette TODO #27). Préc. — 3 juin 2026 (évolution 1.2 délais de travaux en prod `ab9242d` → **Phase 1 fonctionnelle hors UI/UX COMPLÈTE** ; évolution 1.3 complète ; **TODO #28 volet extraction corrigé en prod** (`e456b70`) — volet logique à 3 issues bascule en **TODO #29 (à cadrer)** ; bugs TODO #27 tracés)
+**Dernière révision** : 19 juin 2026 (**TODO #22 / #27** — rectification de la description du **bug #27** : `compareAddress` est CORRECT (garde le n° de voie), vrai défaut = **asymétrie de maille** `adressesChantiers`/`attestations[]` par bâtiment vs chantiers par adresse (preuve PDF + capture DELEFORTRIE) ; recalage du retard de 5 commits : **dette 4a-ter livrée** (`281acac`), **4b volet 1/2 livré** (`1f7c663` + correctif β `f05f150`), **collapse découpage** COPPIN (`bd13444`, facette « découpage » du #27 — facette `check_39` restante)). Préc. — 16 juin 2026 (**TODO #22 / ADR-015** — 4a-bis livrée (séparateur « & », `a888308`), étape 3 RÉVISÉE Philo 2 (déclencheur répétition d'adresse facture, `source = "facture"`, `d589c69`) validée preview 3 anchors, 4b DÉBLOQUÉE, dette 4a-ter ouverte, bug #27 enrichi anchor COPPIN). Préc. — 5 juin 2026 (**TODO #34** — patron `portee` étendu aux 7 checks dossier restants `be607dc`, suite TODO #30 ; `check_47_global` exclu, dette TODO #27). Préc. — 3 juin 2026 (évolution 1.2 délais de travaux en prod `ab9242d` → **Phase 1 fonctionnelle hors UI/UX COMPLÈTE** ; évolution 1.3 complète ; **TODO #28 volet extraction corrigé en prod** (`e456b70`) — volet logique à 3 issues bascule en **TODO #29 (à cadrer)** ; bugs TODO #27 tracés)
 **Prochaine révision** : Prochaine session de développement
