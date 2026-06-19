@@ -157,6 +157,58 @@ LES TROIS anchors : DELEFORTRIE → [26, 26] (6 rue sans cellule), COPPIN → [2
   `S < A`. Vérifier la couverture du cas `S > A` (une attestation surface par
   cellule) au moment de la règle surface à comptage.
 
+- **✅ Étape 5 VOLET 1 LIVRÉ (Commit 1, 19/06/2026, commit `f69d7db`)** — Appariement non
+  silencieux check_14/15/20/23 (**MULTI-chantier**), poussé, **NON mergé**, **validé preview**.
+  Sur COLLISION (≥2 chantiers même adresse) ou MISS (`.find` vide) en multi-chantier, ces 4 checks
+  passent en `niveau:'info'` « ⚠️ À vérifier manuellement » au lieu du fallback silencieux
+  `references.*`. Helpers S2 (`compteAdresseS2`/`collisionAdresseS2`/`pushApparInfoS2`) réappliqués
+  **SANS S1** (S2 ne lit pas la clé `cellules` de S1). Harnais **70/70** inchangé. Ids existants,
+  aucun nouvel id, routage Méthode 0 préservé. Réapplication fidèle du commit S2 d'origine `208185c`.
+
+#### ⭐ #27 — RECADRAGE (découverte 19/06/2026) : le vrai défaut est en AMONT (dossier CEE incomplet)
+
+Découverte 19/06 (analyse PDF DELEFORTRIE) : le bug #27 « l'outil confond les adresses » n'est
+**PAS** un défaut d'appariement à corriger dans l'outil — c'est le **SYMPTÔME d'un dossier CEE
+INCOMPLET**. DELEFORTRIE = activité agricole, 3 chantiers tous en secteur Entrepôts, mais **UNE
+SEULE attestation entrepôt** (« existence d'un entrepôt non agricole »), couvrant le seul 4 rue
+BAT 1. Il **MANQUE** les attestations entrepôt de 4 rue BAT 2 et de 6 rue. L'outil, en essayant
+d'apparier 3 chantiers à 1 attestation, produit la confusion d'adresses. SI le dossier avait ses
+3 attestations, l'appariement tomberait juste tout seul. → Le vrai check à valeur métier n'est pas
+de « réparer la maille » mais de **SIGNALER le manque** (principe n°1 : un manque doit surgir).
+L'asymétrie de maille (check_25, faux MAJEUR visible) devient **SECONDAIRE** : elle ne se produit
+que sur dossiers défectueux, déjà signalés par le futur check « attestation entrepôt manquante ».
+
+**RÈGLE CIBLE (figée)** : si le code NAF du bénéficiaire commence par **01.xx ou 02.xx** (activité
+agricole), alors CHAQUE chantier en secteur « Entrepôts » doit avoir SA PROPRE attestation entrepôt.
+Manquante → **signaler** (ex. « 3 chantiers entrepôts, 1 seule attestation entrepôt, manquantes : … »).
+Hors NAF agricole, ou hors secteur entrepôt → aucune attestation entrepôt attendue, donc **aucun signal**.
+
+**POINT DE REPRISE prochaine session (PAS de code avant)** : diagnostic lecture seule de faisabilité
+du check « attestation entrepôt manquante ». 3 ingrédients à confirmer **DISPONIBLE / À EXTRAIRE /
+INCERTAIN** : (i) reconnaître une attestation **ENTREPÔT** parmi les autres types (le PDF a 2 familles :
+« service technique interne » ×3 et « entrepôt non agricole » ×1 — l'extraction les distingue-t-elle ?) ;
+(ii) le **code NAF** du bénéficiaire (extrait ? réutiliser les checks agricoles 31-34 existants ?) ;
+(iii) le **secteur Entrepôts PAR CHANTIER**. Une part ne sera tranchable qu'en **RUN** (ce que le LLM
+produit réellement sur DELEFORTRIE : nb/types d'attestations, NAF) → prévoir observation preview.
+
+**Dettes ouvertes (tracer, ne pas perdre)** :
+- **Mono-MISS** : check_14/15/20/23 en MONO-chantier introuvable restent sur `references.*` (silencieux).
+  Laissé hors périmètre du Commit 1 (choix S2). À décider si à signaler aussi.
+- **Commit 2 prévu, NON commencé** : check_09d non silencieux + complétion `09d_audit` (le S2 d'origine
+  ne pousse que `09d_synthese` en collision/miss). Inconnu à lever : `09d_audit` s'insère-t-il aussi
+  proprement que `09d_synthese` ? **À re-prioriser vs le recadrage ci-dessus.**
+- **Asymétrie de maille** (check_12/25, bloc surfaces, recalc) : sites index-direct par bâtiment.
+  **Rétrogradé en SECONDAIRE** par le recadrage.
+- **Dettes doc résiduelles** : ligne ~103 (« `compareAddress` fragile ») + `SOURCE_DE_VERITE_CHECKS.md:254`
+  — formulations qui attribuent à tort le défaut à compareAddress. À lisser un jour.
+
+**HOUSEKEEPING prioritaire prochaine session (AVANT le reste)** : (a) mesurer la taille des 4 docs de
+session (`wc -l CLAUDE.md` + les 3 autres) — le contexte se remplit plus vite, `pending-todos.md`
+(~1250 l.) est suspect n°1, **CLAUDE.md À MESURER** (jamais lu en entier cette session, taille inconnue) ;
+(b) **SCINDER** `pending-todos.md` en deux : `pending-todos.md` = **ACTIF seulement** (état courant,
+branches, sujet en cours, prochaines étapes, ~150-200 l.) + `pending-todos-archive.md` = historique des
+TODO clos (consulté à la demande, pas lu d'office au rituel). Ne rien perdre ; tri actif/clos à tête reposée.
+
 #### Étape 4a — `extraireNombreBatiments` : LIVRÉE (12/06/2026)
 
 Branche `fix/s4a-extraire-batiments-accents` (empilée sur s3), commitée+poussée
@@ -1248,5 +1300,5 @@ Ce document doit être mis à jour :
 
 ---
 
-**Dernière révision** : 19 juin 2026 (**TODO #22 / #27** — rectification de la description du **bug #27** : `compareAddress` est CORRECT (garde le n° de voie), vrai défaut = **asymétrie de maille** `adressesChantiers`/`attestations[]` par bâtiment vs chantiers par adresse (preuve PDF + capture DELEFORTRIE) ; recalage du retard de 5 commits : **dette 4a-ter livrée** (`281acac`), **4b volet 1/2 livré** (`1f7c663` + correctif β `f05f150`), **collapse découpage** COPPIN (`bd13444`, facette « découpage » du #27 — facette `check_39` restante)). Préc. — 16 juin 2026 (**TODO #22 / ADR-015** — 4a-bis livrée (séparateur « & », `a888308`), étape 3 RÉVISÉE Philo 2 (déclencheur répétition d'adresse facture, `source = "facture"`, `d589c69`) validée preview 3 anchors, 4b DÉBLOQUÉE, dette 4a-ter ouverte, bug #27 enrichi anchor COPPIN). Préc. — 5 juin 2026 (**TODO #34** — patron `portee` étendu aux 7 checks dossier restants `be607dc`, suite TODO #30 ; `check_47_global` exclu, dette TODO #27). Préc. — 3 juin 2026 (évolution 1.2 délais de travaux en prod `ab9242d` → **Phase 1 fonctionnelle hors UI/UX COMPLÈTE** ; évolution 1.3 complète ; **TODO #28 volet extraction corrigé en prod** (`e456b70`) — volet logique à 3 issues bascule en **TODO #29 (à cadrer)** ; bugs TODO #27 tracés)
+**Dernière révision** : 19 juin 2026 (**clôture session #27** — Commit 1 **appariement non silencieux check_14/15/20/23** livré (`f69d7db`, multi-chantier, validé preview) ; ⭐ **RECADRAGE #27** vers « attestation entrepôt manquante » (le vrai défaut est en AMONT : dossier CEE incomplet, cf. DELEFORTRIE) ; **règle NAF agricole figée** (NAF 01/02 → 1 attestation entrepôt par chantier entrepôt) ; **housekeeping** : `pending-todos.md` à scinder actif/archive. Préc. même jour — rectification de la description du **bug #27** : `compareAddress` est CORRECT (garde le n° de voie), vrai défaut = **asymétrie de maille** `adressesChantiers`/`attestations[]` par bâtiment vs chantiers par adresse (preuve PDF + capture DELEFORTRIE) ; recalage du retard de 5 commits : **dette 4a-ter livrée** (`281acac`), **4b volet 1/2 livré** (`1f7c663` + correctif β `f05f150`), **collapse découpage** COPPIN (`bd13444`, facette « découpage » du #27 — facette `check_39` restante)). Préc. — 16 juin 2026 (**TODO #22 / ADR-015** — 4a-bis livrée (séparateur « & », `a888308`), étape 3 RÉVISÉE Philo 2 (déclencheur répétition d'adresse facture, `source = "facture"`, `d589c69`) validée preview 3 anchors, 4b DÉBLOQUÉE, dette 4a-ter ouverte, bug #27 enrichi anchor COPPIN). Préc. — 5 juin 2026 (**TODO #34** — patron `portee` étendu aux 7 checks dossier restants `be607dc`, suite TODO #30 ; `check_47_global` exclu, dette TODO #27). Préc. — 3 juin 2026 (évolution 1.2 délais de travaux en prod `ab9242d` → **Phase 1 fonctionnelle hors UI/UX COMPLÈTE** ; évolution 1.3 complète ; **TODO #28 volet extraction corrigé en prod** (`e456b70`) — volet logique à 3 issues bascule en **TODO #29 (à cadrer)** ; bugs TODO #27 tracés)
 **Prochaine révision** : Prochaine session de développement
