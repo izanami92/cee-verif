@@ -85,7 +85,7 @@ Implémenté le 28/05/2026 (commit 0aaf465) — voir SOURCE_DE_VERITE_CHECKS.md 
 5. **C4 — doc** (ce commit) : ROADMAP §1.3, pending-todos #26, SOURCE_DE_VERITE §1/§5, CLAUDE.md.
 
 **Limites actées (décisions de périmètre, PAS des bugs)** :
-- Ne couvre que les chantiers **ayant une attestation** (= un élément, maille `af21eb8`). Une attestation **entièrement absente** ne produit aucun élément → relève de `check_43` (présence) et de la réconciliation « 1 attestation par chantier » (TODO #27 / #22), hors 1.3.
+- Ne couvre que les chantiers **ayant une attestation** (= un élément, maille `af21eb8`). Une attestation **entièrement absente** ne produit aucun élément → relève de `check_43` (présence) et de la réconciliation « 1 attestation par chantier » (TODO #27 / #22), hors 1.3. **Angle mort prouvé en run (22/06)** : C3 (présentes seules) **+** filet `check_surface_non_ventilable` (éteint si 0 attestation) ⇒ dossier agricole **sans aucune** attestation entrepôt = **non signalé**. Couvert par le futur check #27 (lui-même **gaté par le diagnostic de découpage**, voir « BUGS À INVESTIGUER »).
 - Le champ `attestationNonAgricole` est lu **uniquement sur les attestations ORIGINALES** (`extractedData.cee.attestations`). `regrouperAttestationsParAdresse` reconstruit des objets neufs **sans recopier la clé** — à savoir si l'on touche à cette fonction plus tard (il faudrait alors propager le champ).
 
 ### 1.4 — Professionnel ayant mis en œuvre = Energie Responsable  ✅ IMPLÉMENTÉ
@@ -189,6 +189,8 @@ Le rapport de résultats est désormais groupé par **famille de donnée métier
 - **Problème** : quand deux chantiers ont la même adresse (souvent par erreur de saisie sur Synthèse/Audit), l'outil les confond via le matching par adresse (`compareAddress` / `matchChantiers`) et compare les données au mauvais chantier, produisant un faux « conforme ».
 - **Exemple** : chantier 3 avec adresse Synthèse erronée (identique au chantier 1) → parcelle comparée à celle du chantier 1 → faux OK.
 - **À investiguer** : détecter les doublons d'adresse comme anomalie au lieu de fusionner silencieusement.
+- **⛔ Découpage faux prouvé en run (LATRILLE, 22/06/2026)** : 7 bâtiments / 3 adresses réelles détectés comme **5 chantiers** — le **1er bâtiment de chaque groupe sans « BAT »** (« À Lauriol », « 36 À Grozeille ») + variations de graphie (virgule traînante, parcelles 0022/0023) ne sont **pas neutralisés** par le dédoublonnage (`index.html:2049-2074` + `normaliserAdresseSansBatiment:3497`). Bug #27 en **forme pure**. Détail : `pending-todos.md` §TODO #27.
+- **Conséquence priorité** : le check « attestation entrepôt manquante » (§1.3 / `pending-todos.md` #27) est désormais **gaté par ce diagnostic de découpage** — son **dénominateur est cassé** tant que le découpage est faux. C'est une mesure **pré-Pivot B** : le check pragmatique (« Option 1 borne haute ») est **provisoire** ; **le Pivot B le rendra exact** (extraction du grain bâtiment fiable). Question métier ouverte : parcelles différentes + même adresse postale = 1 ou 2 chantiers ? (tranché par IZANAMI).
 
 ### Crash norm.cee null dans generateChecks  ✅ RÉSOLU
 ✅ **Corrigé le 29/05/2026** (commit `27e7918`) — garde `if (!norm.cee)` + signal majeur `check_cee_incomplet` à la place des checks 41/42 + `?.` sur les 5 accès non gardés. Détail complet : `SOURCE_DE_VERITE_CHECKS.md` §7.

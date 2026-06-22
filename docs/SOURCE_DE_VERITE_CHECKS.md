@@ -202,6 +202,8 @@ Déclencheur actif — Délais de travaux (dates du dossier CEE). Implémenté l
 
 > ℹ️ **Champ `attestationNonAgricole` (évolution 1.3, en prod)** : 2 états — `'presente'` (seul OK) / `'non_detectee'` (défaut sûr) — ancré sur la phrase « entrepôt de stockage non agricole » (commit `0bef3d7`). Alimente l'**alerte confirmable gatée `isAgricole`** (voir §1 ; NAF inconnu → INFO non bloquant ; jamais bloquant ; commit `5f1da89`). Lu sur les attestations **originales** uniquement (le regroupement par adresse ne recopie pas la clé).
 
+> ⚠️ **Angle mort prouvé en run (22/06/2026) — futur check « attestation entrepôt manquante », NON implémenté** : le C3 (`detectFautifsAttestationNonAgricole`) **n'itère que les attestations présentes** → **aveugle aux manquantes** ; le filet `check_surface_non_ventilable` (§7bis) vit dans `if(attestationsPresentes)` → **éteint si 0 attestation**. ⇒ **trou** : dossier **agricole sans AUCUNE attestation entrepôt** → ni C3 ni filet ne signalent. Règle métier **figée** du futur check (par chantier) : *attestation entrepôt attendue ⟺ secteur Entrepôt **ET** NAF 01.xx/02.xx*. Décision (dénominateur « Option 1 borne haute », niveau `info`, message prudent) + blocage découpage LATRILLE : `pending-todos.md` §TODO #27. **Cette note n'altère AUCUNE gravité/règle existante.**
+
 ---
 
 ## 6. ANOMALIES TECHNIQUES À CORRIGER (ne cassent pas l'app)
