@@ -188,13 +188,6 @@ l'extraction CEE ne renvoie aucune adresse → pourrait conserver les chantiers 
 
 ---
 
-## Dettes doc à recaler (commit séparé — NE PAS corriger ici)
-3 mentions attribuent à tort le défaut à `compareAddress` (qui est **CORRECT** — garde le n° de voie ;
-vrai défaut = asymétrie de maille) : `pending-todos.md` ~L103, ~L202, et `SOURCE_DE_VERITE_CHECKS.md:254`.
-À lisser dans un commit doc dédié.
-
----
-
 ## Processus de mise à jour
 Mettre à jour ce fichier : en fin de session ; à chaque évolution proposée ; quand un TODO est complété
 (déplacer vers `pending-todos-archive.md`) ou abandonné (tracer la raison en archive).
