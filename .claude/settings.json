@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if grep -qE '(index\\.html|familles-config\\.js)'; then cd \"${CLAUDE_PROJECT_DIR:-.}\" 2>/dev/null || exit 0; command -v node >/dev/null 2>&1 || { echo \"⚠️ COUCHE 0 : node introuvable (nvm non chargé ?) — harnais NON exécutés, régression possible non détectée.\" >&2; exit 2; }; out=$( (node test-familles.mjs && node test-batiments.mjs) 2>&1 ); if [ $? -ne 0 ]; then printf '%s\\n' \"$out\" >&2; echo \"❌ COUCHE 0 : régression harnais — corrige avant que IZANAMI commit/merge.\" >&2; exit 2; fi; fi; exit 0"
+          }
+        ]
+      }
+    ]
+  }
+}
