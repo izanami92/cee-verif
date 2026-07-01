@@ -97,6 +97,17 @@ const CAS_NORM = [
   { in: 'SARL DURAND & FILS, ZAC DU MOULIN, 80360 AMIENS', attendu: 'sarl durand & fils zac du moulin 80360 amiens', note: 'invariant : & raison sociale conservé' },
   // Non-régression accent : BÂT accentué regroupe comme BAT
   { in: '4 RUE DE FEUILLERES BÂT 2', attendu: '4 rue de feuilleres', note: 'accent : BÂT 2 → même clé que BAT 2' },
+
+  // #27 — LATRILLE : la PARCELLE cadastrale ne doit PAS discriminer un chantier (ADR-015).
+  // Lauriol (parcelle identique AC/0130) : le 1er sans « BAT » + virgule traînante → même clé que BAT 2/3.
+  { in: 'À Lauriol, - 000 / AC / 0130 47120 CAUBON-SAINT-SAUVEUR',       attendu: 'a lauriol 47120 caubon saint sauveur', note: '#27 Lauriol BAT1 (virgule + parcelle retirées)' },
+  { in: 'À Lauriol - BAT 2 - 000 / AC / 0130 47120 CAUBON-SAINT-SAUVEUR', attendu: 'a lauriol 47120 caubon saint sauveur', note: '#27 Lauriol BAT2 → même clé' },
+  { in: 'À Lauriol - BAT 3 - 000 / AC / 0130 47120 CAUBON-SAINT-SAUVEUR', attendu: 'a lauriol 47120 caubon saint sauveur', note: '#27 Lauriol BAT3 → même clé' },
+  // Grozeille : parcelles DIFFÉRENTES (0022 vs 0023), même adresse → doivent converger (parcelle retirée).
+  { in: '36 À Grozeille - 000 / AB / 0022 47120 CAUBON-SAINT-SAUVEUR',       attendu: '36 a grozeille 47120 caubon saint sauveur', note: '#27 Grozeille BAT1 parcelle 0022' },
+  { in: '36 À Grozeille - BAT 2 - 000 / AB / 0023 47120 CAUBON-SAINT-SAUVEUR', attendu: '36 a grozeille 47120 caubon saint sauveur', note: '#27 Grozeille BAT2 parcelle 0023 → même clé' },
+  // Site distinct (autre rue + autre ville/CP) → clé distincte (ne pas sur-fusionner).
+  { in: '2971 Route de La Piotte - 000 / ZD / 0157 33580 SAINT-VIVIEN-DE-MONSÉGUR', attendu: '2971 route de la piotte 33580 saint vivien de monsegur', note: '#27 La Piotte = chantier distinct' },
 ];
 
 let ok = 0;
