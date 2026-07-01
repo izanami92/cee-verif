@@ -4496,16 +4496,18 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
             const suffix = norm.syntheses.length > 1 ? ` chantier ${syntheseIndex + 1}` : '';
             const idSuffix = norm.syntheses.length > 1 ? `_c${syntheseIndex + 1}` : '';
 
-            // Vérifier si les secteurs des bâtiments sont en conflit dans le CEE
+            // Un chantier = 1 adresse peut légitimement regrouper des bâtiments de secteurs
+            // différents (ex. un entrepôt + un local « Autres »). Le secteur n'entre PAS dans le
+            // découpage des chantiers (règle métier #27) → INFO, jamais une erreur.
             if (attestation.secteurConflict) {
               checks.push({
                 id: `check_14_conflict${idSuffix}`,
                 categorie: 'synthese',
-                niveau: 'majeur',
-                champ: `Secteur d'activité CEE${suffix}`,
+                niveau: 'info',
+                champ: `Secteurs multiples à la même adresse${suffix}`,
                 localisation: `Attestations CEE`,
-                detail: `Conflit de secteurs entre bâtiments du CEE : ${attestation.secteurActivite}`,
-                valeur_attendue: 'Secteur unique',
+                detail: `ℹ️ Ce chantier regroupe des bâtiments de secteurs différents (${attestation.secteurActivite}) — normal quand plusieurs bâtiments partagent une adresse. À vérifier seulement si inattendu.`,
+                valeur_attendue: 'Plusieurs secteurs admis à une même adresse',
                 valeur_trouvee: attestation.secteurActivite,
                 chantierIndex: syntheseIndex + 1
               });
