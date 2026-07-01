@@ -30,15 +30,19 @@ function extractFn(name) {
   throw new Error(`Accolade fermante introuvable pour ${name}`);
 }
 
-// normalize() est appelée par extraireNombreBatiments ET normaliserAdresseSansBatiment ;
-// sommerCellulesParAdresse (4b) réutilise normaliserAdresseSansBatiment → on définit les quatre.
+// normalize() est appelée partout ; normaliserAdresseSansBatiment + compareAddress réutilisent
+// retirerParcelle ; sommerCellulesParAdresse réutilise normaliserAdresseSansBatiment → on extrait
+// tout le petit graphe de dépendances (déclarations hoistées, l'ordre importe peu).
 const code = extractFn('normalize') + '\n'
+  + extractFn('retirerParcelle') + '\n'
   + extractFn('extraireNombreBatiments') + '\n'
   + extractFn('normaliserAdresseSansBatiment') + '\n'
   + extractFn('sommerCellulesParAdresse') + '\n'
+  + extractFn('compareAddress') + '\n'
   + 'globalThis.__extraireNombreBatiments = extraireNombreBatiments;\n'
   + 'globalThis.__normaliserAdresseSansBatiment = normaliserAdresseSansBatiment;\n'
-  + 'globalThis.__sommerCellulesParAdresse = sommerCellulesParAdresse;';
+  + 'globalThis.__sommerCellulesParAdresse = sommerCellulesParAdresse;\n'
+  + 'globalThis.__compareAddress = compareAddress;';
 // eslint-disable-next-line no-eval — eval indirect en portée globale, comme test-familles.mjs
 (0, eval)(code);
 
@@ -57,6 +61,12 @@ if (typeof normaliserAdresseSansBatiment !== 'function') {
 const sommerCellulesParAdresse = globalThis.__sommerCellulesParAdresse;
 if (typeof sommerCellulesParAdresse !== 'function') {
   console.error('❌ sommerCellulesParAdresse non extraite depuis index.html');
+  process.exit(1);
+}
+
+const compareAddress = globalThis.__compareAddress;
+if (typeof compareAddress !== 'function') {
+  console.error('❌ compareAddress non extraite depuis index.html');
   process.exit(1);
 }
 
@@ -97,6 +107,16 @@ const CAS_NORM = [
   { in: 'SARL DURAND & FILS, ZAC DU MOULIN, 80360 AMIENS', attendu: 'sarl durand & fils zac du moulin 80360 amiens', note: 'invariant : & raison sociale conservé' },
   // Non-régression accent : BÂT accentué regroupe comme BAT
   { in: '4 RUE DE FEUILLERES BÂT 2', attendu: '4 rue de feuilleres', note: 'accent : BÂT 2 → même clé que BAT 2' },
+
+  // #27 — LATRILLE : la PARCELLE cadastrale ne doit PAS discriminer un chantier (ADR-015).
+  { in: 'À Lauriol, - 000 / AC / 0130 47120 CAUBON-SAINT-SAUVEUR',       attendu: 'a lauriol 47120 caubon saint sauveur', note: '#27 Lauriol BAT1 (virgule + parcelle retirées)' },
+  { in: 'À Lauriol - BAT 2 - 000 / AC / 0130 47120 CAUBON-SAINT-SAUVEUR', attendu: 'a lauriol 47120 caubon saint sauveur', note: '#27 Lauriol BAT2 → même clé' },
+  { in: 'À Lauriol - BAT 3 - 000 / AC / 0130 47120 CAUBON-SAINT-SAUVEUR', attendu: 'a lauriol 47120 caubon saint sauveur', note: '#27 Lauriol BAT3 → même clé' },
+  // Grozeille : parcelles DIFFÉRENTES (0022 vs 0023), même adresse → doivent converger.
+  { in: '36 À Grozeille - 000 / AB / 0022 47120 CAUBON-SAINT-SAUVEUR',       attendu: '36 a grozeille 47120 caubon saint sauveur', note: '#27 Grozeille BAT1 parcelle 0022' },
+  { in: '36 À Grozeille - BAT 2 - 000 / AB / 0023 47120 CAUBON-SAINT-SAUVEUR', attendu: '36 a grozeille 47120 caubon saint sauveur', note: '#27 Grozeille BAT2 parcelle 0023 → même clé' },
+  // Site distinct (autre rue + autre ville/CP) → clé distincte (ne pas sur-fusionner).
+  { in: '2971 Route de La Piotte - 000 / ZD / 0157 33580 SAINT-VIVIEN-DE-MONSÉGUR', attendu: '2971 route de la piotte 33580 saint vivien de monsegur', note: '#27 La Piotte = chantier distinct' },
 ];
 
 let ok = 0;
@@ -162,7 +182,28 @@ for (const cas of CAS_CELLULES) {
   console.log(`${icone} clé "${cas.cle}" → ${res} (attendu ${cas.attendu})  — ${cas.note}`);
 }
 
-const total = CAS.length + CAS_NORM.length + CAS_CELLULES.length;
+// === Cas de test — compareAddress (parcelle IGNORÉE pour la comparaison, ADR-015) ===
+// La parcelle ne doit PAS discriminer (Grozeille 0022 vs 0023 = même chantier) ; les vrais
+// écarts (rue/ville) restent détectés. La donnée parcelle reste vérifiée à part (check_15).
+const CAS_CMP = [
+  { a: '36 À Grozeille - 000 / AB / 0022 47120 CAUBON-SAINT-SAUVEUR',
+    b: '36 À Grozeille - BAT 2 - 000 / AB / 0023 47120 CAUBON-SAINT-SAUVEUR', attendu: true,  note: 'Grozeille 0022 vs 0023 (même rue) → matche' },
+  { a: '36 À Grozeille - 000 / AB / 0022 47120 CAUBON-SAINT-SAUVEUR',
+    b: 'À Lauriol, - 000 / AC / 0130 47120 CAUBON-SAINT-SAUVEUR',                attendu: false, note: 'rues différentes → NON (pas de sur-fusion)' },
+  { a: 'À Lauriol, - 000 / AC / 0130 47120 CAUBON-SAINT-SAUVEUR',
+    b: '2971 Route de La Piotte - 000 / ZD / 0157 33580 SAINT-VIVIEN-DE-MONSÉGUR', attendu: false, note: 'rue+ville différentes → NON' },
+  { a: '541 RUE SAINT-JEAN DES PLEURS BAT 2', b: '541 RUE SAINT-JEAN DES PLEURS', attendu: true, note: 'non-rég COPPIN : BAT vs sans BAT → matche' },
+];
+console.log('\n— compareAddress (parcelle ignorée, rue/ville comparées) —');
+for (const c of CAS_CMP) {
+  const res = compareAddress(c.a, c.b);
+  const pass = res === c.attendu;
+  if (pass) ok++;
+  else echecs.push({ in: `${c.a} ⟷ ${c.b}`, attendu: c.attendu, res });
+  console.log(`${pass ? '✅' : '❌'} ${res} (attendu ${c.attendu})  — ${c.note}`);
+}
+
+const total = CAS.length + CAS_NORM.length + CAS_CELLULES.length + CAS_CMP.length;
 console.log(`\n${ok}/${total} cas OK`);
 if (echecs.length) {
   console.error(`\n❌ ${echecs.length} ÉCHEC(S) :`);
