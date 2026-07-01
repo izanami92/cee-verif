@@ -4843,9 +4843,14 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
         });
 
         // Check 25 : Adresse Audit description
-        // Comparer avec l'adresse du chantier correspondant depuis le CEE
-        const adresseChantierCEE = norm.cee?.attestations?.[auditIndex]?.adresse || norm.cee?.adressesChantiers?.[auditIndex] || '';
-        const adresseMatch = compareAddress(audit.adresse, adresseChantierCEE);
+        // Apparier au CHANTIER CEE par ADRESSE (guichet regroupé + fallback adressesChantiers), jamais
+        // par index brut sur les attestations (grain BÂTIMENT) : sinon audit[i] tombe sur le i-ème
+        // bâtiment ≠ i-ème chantier (bug #27 : Grozeille comparé à « Lauriol BAT 2 »).
+        const adressesChantiersCEE = attestationsRegroupees.map(g => g.adresse)
+          .concat(norm.cee?.adressesChantiers || []);
+        const refCEE = adressesChantiersCEE.find(a => compareAddress(audit.adresse, a));
+        const adresseMatch = !!refCEE;
+        const adresseChantierCEE = refCEE || adressesChantiersCEE.join(' | ') || '';
 
         checks.push({
           id: `check_25${idSuffix}`,
@@ -4853,7 +4858,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
           niveau: adresseMatch ? 'ok' : 'majeur',
           champ: `Adresse Audit description${suffix}`,
           localisation: `Audit${suffix}, description`,
-          detail: 'Vérification adresse',
+          detail: adresseMatch ? 'Vérification adresse' : '❌ Adresse Audit absente des chantiers du CEE',
           valeur_attendue: adresseChantierCEE,
           valeur_trouvee: audit.adresse || '',
           chantierIndex
