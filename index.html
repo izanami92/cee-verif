@@ -3626,6 +3626,8 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
 
     // Comparer deux adresses (ordre flexible, ignore "France", tirets, virgules, etc.)
     function compareAddress(addr1, addr2) {
+      // Principe n°1 : deux adresses vides/nulles ne « matchent » pas (sinon faux conforme silencieux).
+      if (!addr1 || !addr2) return false;
       const clean = (a) => {
         let cleaned = normalize(String(a || ''));
 
@@ -4851,8 +4853,8 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
         const adressesChantiersCEE = attestationsRegroupees.map(g => g.adresse)
           .concat(norm.cee?.adressesChantiers || []);
         const refCEE = adressesChantiersCEE.find(a => compareAddress(audit.adresse, a));
-        const adresseMatch = !!refCEE;
-        const adresseChantierCEE = refCEE || adressesChantiersCEE.join(' | ') || '';
+        const adresseMatch = refCEE !== undefined; // find() → undefined si aucun match (robuste même si adresse falsy)
+        const adresseChantierCEE = refCEE || adressesChantiersCEE.filter(a => a && a.trim()).join(' | ') || '';
 
         checks.push({
           id: `check_25${idSuffix}`,
@@ -5208,6 +5210,15 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
           });
           const sommeAttestationTotale = sumSurfaces(toutesLesSurfaces);
 
+          // Bâtiment de secteur « Autres » (non entrepôt) à cette adresse : sa surface compte dans la
+          // synthèse/audit mais il n'a pas d'attestation entrepôt propre → l'écart somme-attestations vs
+          // surface devient AMBIGU → « à vérifier » (info), jamais majeur (rouge trompeur) ni conforme
+          // silencieux (principe n°1). Détection via detectAutresSecteurs (MÊME logique métier que la
+          // Règle A), et NON via des libellés bruts distincts (2 entrepôts de libellés différents ≠ Autres).
+          const aBatimentAutresSecteur = detectAutresSecteurs(
+            attestationsGroupe.map(a => a.original)
+          ).autresSecteurs.length > 0;
+
           console.log(`\nChantier ${chantierIndex + 1} : ${chantierAdresse}`);
           console.log(`  - Nombre d'attestations pour ce chantier: ${attestationsGroupe.length}`);
           console.log(`  - Surfaces combinées: ${toutesLesSurfaces.join(' + ')} = ${sommeAttestationTotale} m²`);
@@ -5304,12 +5315,14 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
               checks.push({
                 id: `check_45_audit_${chantierIndex}`,
                 categorie: 'audit',
-                niveau: sommesAuditMatch ? 'ok' : 'majeur',
+                niveau: sommesAuditMatch ? 'ok' : (aBatimentAutresSecteur ? 'info' : 'majeur'),
                 champ: `Somme surfaces Audit = Somme attestation${chantierLabel}`,
                 localisation: `Total Audit observations vs Total attestation honneur chantier ${chantierIndex + 1}`,
                 detail: sommesAuditMatch ?
                   `Somme Audit cohérente avec attestation : ${sommeAttestationTotale} m²` :
-                  `Somme Audit (${sommeAudit} m²) différente de l'attestation (${sommeAttestationTotale} m²)`,
+                  (aBatimentAutresSecteur ?
+                    `⚠️ À vérifier : ce chantier contient un bâtiment de secteur différent (« Autres ») dont la surface compte dans l'audit mais pas dans les attestations entrepôt → écart possiblement légitime. Somme Audit ${sommeAudit} m² vs attestations ${sommeAttestationTotale} m².` :
+                    `Somme Audit (${sommeAudit} m²) différente de l'attestation (${sommeAttestationTotale} m²)`),
                 valeur_attendue: surfacesAttestation.join(' + ') + ' = ' + sommeAttestationTotale.toString() + ' m²',
                 valeur_trouvee: surfacesAudit.join(' + ') + ' = ' + sommeAudit.toString() + ' m²',
                 chantierIndex: chantierIndex + 1 // ⭐ Chantier détecté depuis la case d'import
@@ -5368,12 +5381,14 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
               checks.push({
                 id: `check_45_synthese_${chantierIndex}`,
                 categorie: 'synthese',
-                niveau: sommeSyntheseMatch ? 'ok' : 'majeur',
+                niveau: sommeSyntheseMatch ? 'ok' : (aBatimentAutresSecteur ? 'info' : 'majeur'),
                 champ: `Surface Synthèse = Somme attestation${chantierLabel}`,
                 localisation: `Synthèse fiche identité vs Attestation honneur chantier ${chantierIndex + 1}`,
                 detail: sommeSyntheseMatch ?
                   `Surface Synthèse cohérente avec attestation : ${sommeAttestationTotale} m²` :
-                  `Surface Synthèse (${surfaceSyntheseNum} m²) différente de l'attestation (${sommeAttestationTotale} m²)`,
+                  (aBatimentAutresSecteur ?
+                    `⚠️ À vérifier : ce chantier contient un bâtiment de secteur différent (« Autres ») dont la surface compte dans la synthèse mais pas dans les attestations entrepôt → écart possiblement légitime. Surface Synthèse ${surfaceSyntheseNum} m² vs attestations ${sommeAttestationTotale} m².` :
+                    `Surface Synthèse (${surfaceSyntheseNum} m²) différente de l'attestation (${sommeAttestationTotale} m²)`),
                 valeur_attendue: surfacesAttestation.join(' + ') + ' = ' + sommeAttestationTotale.toString() + ' m²',
                 valeur_trouvee: surfaceSyntheseNum.toString() + ' m²',
                 chantierIndex: chantierIndex + 1 // ⭐ Chantier détecté depuis la case d'import

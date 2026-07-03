@@ -193,6 +193,9 @@ const CAS_CMP = [
   { a: 'À Lauriol, - 000 / AC / 0130 47120 CAUBON-SAINT-SAUVEUR',
     b: '2971 Route de La Piotte - 000 / ZD / 0157 33580 SAINT-VIVIEN-DE-MONSÉGUR', attendu: false, note: 'rue+ville différentes → NON' },
   { a: '541 RUE SAINT-JEAN DES PLEURS BAT 2', b: '541 RUE SAINT-JEAN DES PLEURS', attendu: true, note: 'non-rég COPPIN : BAT vs sans BAT → matche' },
+  // #27 vérif adversariale (garde principe n°1) : adresses vides ne matchent JAMAIS (sinon faux conforme).
+  { a: '', b: '', attendu: false, note: 'garde : 2 adresses vides → PAS de faux match' },
+  { a: '4 rue de feuilleres 49000', b: '', attendu: false, note: 'garde : une adresse vide → pas de match' },
 ];
 console.log('\n— compareAddress (parcelle ignorée, rue/ville comparées) —');
 for (const c of CAS_CMP) {
