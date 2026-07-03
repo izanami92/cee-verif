@@ -2,7 +2,7 @@
 
 **Document de référence** pour éviter les erreurs récurrentes et ne pas réintroduire des bugs déjà résolus.
 
-**Dernière mise à jour** : 11 mai 2026
+**Dernière mise à jour** : 3 juillet 2026
 
 ---
 
@@ -407,6 +407,37 @@ addr.replace(/\s*(bat|batiment|batiments)\s*[\d\-]+/gi, '');
 
 ---
 
+### Leçons #27 — découpage/appariement multi-bâtiments (LATRILLE, juillet 2026)
+
+**Contexte** : un chantier = 1 adresse peut contenir plusieurs bâtiments (cellules), dont un de secteur « Autres ».
+Corrections livrées sur `fix/27-decoupage-parcelle` (S0 + Blocs 1/2/3). Leçons à ne pas réapprendre :
+
+1. **Les ≥4 normalisations d'adresse doivent bouger ENSEMBLE.** Un demi-fix (corriger le regroupement sans
+   `compareAddress` + les blocs surface) **a causé une régression** (faux « adresse différente » à chaque chantier)
+   → toujours unifier via le helper partagé (`retirerParcelle` / `normaliserAdresseSansBatiment`) **et tester
+   `compareAddress` au harnais** (`test-batiments.mjs`, il est extractible et déterministe).
+
+2. **Apparier au grain CHANTIER, pas au grain BÂTIMENT par index.** `attestations[auditIndex]` (grain bâtiment,
+   6-7 entrées) désaligné des audits (grain adresse, 3) → comparait Grozeille à « Lauriol BAT 2 ». Toujours passer
+   par le guichet `regrouperAttestationsParAdresse` + `compareAddress`, comme `check_09d`.
+
+3. **`info` (« à vérifier ») n'est PAS un faux conforme.** Rétrograder un check de `majeur` → `info` quand la
+   comparaison est légitimement ambiguë (secteur mixte, bâtiment « Autres » sans attestation) **respecte** le
+   principe n°1 : l'anomalie **surgit** en jaune, elle ne passe pas « vert » en silence. Ne pas confondre.
+
+4. **Détecter un secteur « Autres » par TYPE MÉTIER, pas par libellés bruts.** `[...new Set(libellés)].length > 1`
+   déclenche à tort sur deux entrepôts de libellés différents. Utiliser `detectAutresSecteurs` (logique
+   `mapSecteurActivite`, la même que la Règle A).
+
+5. **`compareAddress` doit rejeter les adresses vides/nulles.** `compareAddress('', '')` retournait `true` → faux
+   match silencieux possible. Garde `if (!addr1 || !addr2) return false` en tête (verrouillée au harnais).
+
+6. **Une vérif adversariale s'ARBITRE, elle ne se recopie pas.** Sur 14 findings « confirmés » par des relecteurs,
+   4 étaient réels (retenus), 10 étaient des faux positifs (relecteurs ignorant les validations métier, ex.
+   « `info` = faux conforme »). Toujours croiser chaque finding avec la règle métier et la preuve terrain.
+
+---
+
 ## ⚠️ APPROCHES ABANDONNÉES
 
 ### Approche abandonnée #1 : Fichier JSON local pour feedback
@@ -539,5 +570,5 @@ grep -C 5 "keyword" /Users/mac/.claude/projects/-Users-mac/*.jsonl
 
 ---
 
-**Dernière révision** : 11 mai 2026
+**Dernière révision** : 3 juillet 2026 (leçons #27 LATRILLE)
 **Prochaine révision** : À chaque bug majeur résolu

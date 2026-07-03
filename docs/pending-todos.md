@@ -3,13 +3,13 @@
 **Document de suivi — ACTIF uniquement.** L'historique clos (TODO terminés, sessions mergées,
 stats datées, sources ADR) est dans `pending-todos-archive.md` (consulté à la demande, pas lu d'office).
 
-**Dernière mise à jour** : 22 juin 2026
+**Dernière mise à jour** : 3 juillet 2026
 
 ---
 
 ## TODOs actifs (index)
 
-- 🔴 **Critiques** : **diagnostic découpage chantiers 5≠3 (LATRILLE) — prérequis #27, PRIORITÉ COURANTE** · #27 (check « attestation entrepôt manquante » : règle figée + Option 1 décidées, **en attente derrière le découpage**) · #22 (modèle Chantier/Cellule, ADR-015) · #29 (alerte 1.4, logique 3 issues)
+- 🔴 **Critiques** : **LED DELEFORTRIE (étape 4b) — PROCHAINE SESSION** · #27 (découpage 5→3 + 3 blocs LATRILLE ✅ résolus non mergés ; check « attestation entrepôt manquante » toujours en attente) · #22 (modèle Chantier/Cellule, ADR-015) · #29 (alerte 1.4, logique 3 issues)
 - 🟡 **Importantes** : #3 (modularisation, reportée) · #4 (tests auto) · #5 (learning auto)
 - 🟢 **Nice to have** : #35 (corps mort + reliquat #31) · #36 (styles grille) · #6/#7/#8 · limite `alert()` · suivi `state.chantiers`
 
@@ -144,26 +144,51 @@ Issu du diagnostic #28 (voir archive).
 
 ---
 
-### TODO #27 : découpage des chantiers (⛔ facette LATRILLE 5≠3, PRIORITÉ) + facette `check_39`
+### TODO #27 : découpage des chantiers (LATRILLE) — ✅ 5→3 + 3 blocs RÉSOLUS (non mergés) + facette `check_39`
 
-**Statut** : 🔴 **PRIORITÉ COURANTE — diagnostic du découpage 5≠3 (LATRILLE)**, prérequis du check « attestation entrepôt manquante ».
+**Statut** : 🟢 **Symptômes LATRILLE résolus** sur `fix/27-decoupage-parcelle` (NON mergée). Reste : LED
+DELEFORTRIE (4b, prochaine session), facette `check_39`, dette adversariale tracée.
 
-#### ⛔ Blocage LATRILLE (run 22/06) — le découpage des chantiers est faux à la racine
+#### ✅ Découpage 5→3 + 3 blocs (01–03/07/2026)
 **LATRILLE** (SIRET `89226144700015`) = **7 bâtiments sur 3 adresses réelles** (Lauriol ×3, 36 Grozeille ×3,
-La Piotte ×1), **6 attestations entrepôt présentes** + **1 chantier secteur « Autres »** (Lauriol BAT 2,
-légitimement sans attestation) — c'était le **cas de test mixte (Entrepôts + Autres)** qui manquait.
-**MAIS en run réel l'outil détecte 5 chantiers au lieu de 3** : le **1er bâtiment de chaque groupe n'a pas de
-mention « BAT »** (« À Lauriol », « 36 À Grozeille ») et porte des **variations de graphie** (virgule traînante
-« À Lauriol, », parcelles différentes 0022 vs 0023 sur Grozeille) que le **dédoublonnage d'adresses**
-(`index.html:2049-2074` + `normaliserAdresseSansBatiment` `index.html:3497`) **ne neutralise pas**. C'est le
-**Bug #27 dans sa forme pure**, démontré en conditions réelles.
-**Conséquence** : tant que le découpage est faux, le **dénominateur du check #27 est cassé à la racine** —
-l'**Option 1 elle-même est compromise** (le `max` inclurait le 5 erroné).
-**Décision IZANAMI** : **diagnostiquer d'abord le découpage 5≠3** (prérequis prioritaire) ; le check
-« attestation entrepôt manquante » **passe en attente derrière**.
-**Question métier OUVERTE (appartient à IZANAMI — NE PAS trancher)** : deux bâtiments à **parcelles différentes**
-mais **même adresse postale** (Grozeille 0022/0023) = **un chantier ou deux** ? Ça change le résultat attendu
-(3 si la parcelle est ignorée).
+La Piotte ×1), dont **Lauriol BAT 2 en secteur « Autres »** (légitimement sans attestation entrepôt) — cas de
+test mixte Entrepôts + Autres. L'outil détectait **5 chantiers au lieu de 3**.
+
+**Question métier TRANCHÉE (IZANAMI)** : **1 adresse = 1 chantier** ; plusieurs bâtiments (cellules) à la même
+adresse restent **1 chantier** (toujours 1 audit + 1 synthèse) ; la **parcelle** (Grozeille 0022/0023) et le
+**secteur** n'entrent **PAS** dans le découpage.
+
+Livrés (ordre `000dfb3` S0 → `499c3fe` → `09abffd` → `dd65b9d`) :
+- **S0 (`000dfb3`)** : helper `retirerParcelle` partagé → parcelle retirée de **toutes** les normalisations
+  d'adresse (regroupement, détection `state.chantiers`, `compareAddress`, 2 blocs surface inline) → **5→3**.
+- **Bloc 1 (`499c3fe`)** : `check_25` (adresse Audit) apparié au chantier CEE **par adresse** (guichet
+  `regrouperAttestationsParAdresse` + fallback `adressesChantiers`), plus par index brut sur `attestations[i]`
+  (grain bâtiment) → fin du « Grozeille comparé à Lauriol BAT 2 ».
+- **Bloc 2 (`09abffd`)** : `check_14_conflict` **majeur → info** (un chantier peut mélanger les secteurs ;
+  `check_14/20/23` principal déjà OK via `compareSecteurEtude`/`isEntrepot`).
+- **Bloc 3 (`dd65b9d`)** : `check_45_audit`/`check_45_synthese` **majeur → info « à vérifier »** quand le chantier
+  contient un bâtiment « Autres » (détecté via `detectAutresSecteurs`, type métier ≠ libellés bruts) dont la
+  surface est dans la synthèse/audit mais pas dans les attestations entrepôt → écart légitime. Vrai écart entre
+  entrepôts reste majeur ; anti sur-signalement (mixte cohérent → ok).
+- **Durcissement (`dd65b9d`, vérif adversariale 26 agents)** : `compareAddress` rejette les adresses vides/nulles
+  (fin du faux match `'' === ''`) ; `check_25` `adresseMatch = refCEE !== undefined` + fallback filtre les vides.
+
+Preuve : banc d'essai `#27` (jetable, `/tmp/scratch-27.mjs`) + harnais `test-batiments` 36/36 & `test-familles`
+70/70. Preview testé OK (LATRILLE + anti-régression COPPIN/DELEFORTRIE/DES LAURIERS). **Non mergé sur main**
+(geste d'IZANAMI).
+
+**Dette adversariale tracée (rejetée/reportée — NE PAS perdre)** :
+- `check_14/20/23` = `ok` en secteur mixte : **conforme** (le mélange surgit une fois via `check_14_conflict`
+  info ; on N'ajoute PAS `check_20/23_conflict`, ce serait redondant). Rejet argumenté.
+- Label `nbChantiers` (`index.html:5210` `attestations.length` vs recalcul `attestationsByChantier.size`) :
+  cosmétique, aucun impact LATRILLE — à corriger un jour.
+- `check_25` fallback `adressesChantiers` quand 0 attestation : préexistant, couvert par `check_43` /
+  `check_attestation_manquante`.
+
+#### ⏭️ PROCHAINE SESSION : LED DELEFORTRIE (étape 4b)
+Vérifier si le « 52 vs 66 » de `check_09d` est réglé par la substitution `ledTotal = Σ ledCellule`
+(`index.html:3609-3616`, commits `1f7c663` + `f05f150`, volet 1/2). Dépend de l'extraction des `cellules[]`
+(LLM non déterministe) ; volet 2/2 **jamais défini**. Diagnostic lecture seule d'abord, sur symptôme réel collé.
 
 #### Facette `check_39` (toujours ouverte)
 Facette « découpage » d'un autre cas **corrigée** (`bd13444` : collapse des espaces, COPPIN « rien »+« BAT 2 »
@@ -234,9 +259,10 @@ Mettre à jour ce fichier : en fin de session ; à chaque évolution proposée ;
 
 ---
 
-**Dernière révision** : 22/06/2026 — diagnostic de faisabilité du check « attestation entrepôt manquante »
-**FAIT** (3 runs DELEFORTRIE/COPPIN ; angle mort C3 + filet prouvé ; **Option 1 « borne haute »** retenue ;
-règle figée *secteur Entrepôt ET NAF 01/02* ; ADR à venir) ; ⛔ **blocage LATRILLE** (découpage 5≠3) découvert
-→ **réordonne les priorités** : diagnostic découpage d'abord, check #27 en attente. Commits doc **poussés sur
-`fix/s4a`, non mergés sur `main`** : housekeeping `a159163`, recalage `compareAddress` `f3bc540`.
-**Prochaine session** : diagnostic du **découpage des chantiers 5≠3** (cas LATRILLE) — prérequis du check #27.
+**Dernière révision** : 03/07/2026 — **#27 LATRILLE résolu** : découpage 5→3 (S0 `000dfb3`) + 3 blocs
+(`499c3fe` check_25 par adresse ; `09abffd` secteur mixte = info ; `dd65b9d` surface « Autres » = à vérifier +
+durcissement `compareAddress`). Règle métier tranchée : **1 adresse = 1 chantier**, parcelle & secteur hors
+découpage. Cartographie (52 checks) + vérif adversariale (26 agents, 4 correctifs retenus / 10 rejetés). Harnais
+36/36 & 70/70. **Poussé sur `fix/27-decoupage-parcelle`, NON mergé sur main.**
+**Prochaine session** : **LED DELEFORTRIE** (étape 4b — « 52 vs 66 » de check_09d) — diagnostic lecture seule sur
+symptôme réel.
