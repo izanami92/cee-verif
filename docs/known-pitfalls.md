@@ -2,7 +2,7 @@
 
 **Document de référence** pour éviter les erreurs récurrentes et ne pas réintroduire des bugs déjà résolus.
 
-**Dernière mise à jour** : 3 juillet 2026
+**Dernière mise à jour** : 6 juillet 2026
 
 ---
 
@@ -438,6 +438,31 @@ Corrections livrées sur `fix/27-decoupage-parcelle` (S0 + Blocs 1/2/3). Leçons
 
 ---
 
+### Leçons 4b — validation LED DELEFORTRIE (juillet 2026)
+
+**Contexte** : validation de la substitution `ledTotal chantier = Σ ledCellule` (étape 4b volet 1/2, ADR-015)
+sur le dossier réel DELEFORTRIE. Aucun code modifié — mais quatre leçons de diagnostic à ne pas réapprendre :
+
+1. **Vérifier la cardinalité d'extraction AVANT de diagnostiquer un « bug » multi-chantiers.** Un import
+   incomplet (2 audits / 1 synthèse) fait zipper par index des documents de chantiers différents
+   (`matchChantiers`) → 09b/09c/09d_synthese/12/44a décrochent en cascade et **miment un bug LED**.
+   Réflexe : lire « Audits extraits: N / Synthèses extraites: N » dans la console F12 en premier.
+
+2. **Ne jamais conclure qu'un check est vert (ou rouge) par inférence.** Les logs console ne montrent que la
+   GÉNÉRATION des checks, jamais leurs niveaux ; seuls l'écran (attendu/trouvé) ou un banc d'essai
+   déterministe font foi. (Erreur commise puis corrigée le 06/07 : 09x déclarés verts par inférence.)
+
+3. **Cinq checks affichent « Attendu 66 / Trouvé 52 » sans être check_09d.** check_19/21 (tableaux synthèse)
+   et check_28/29/30 (états initial/projeté + liste luminaires audit) comparent des valeurs PAR CHANTIER au
+   **total du dossier** — mauvais grain de référence hérité du mono-chantier, libellés trompeurs. Ne pas les
+   confondre avec 09d (qui compare au LED du chantier reconstruit). Dette tracée TODO #22.
+
+4. **La substitution 4b échoue en silence si les `cellules[]` ne sont pas extraites** (LLM non déterministe) :
+   le `ledTotal` brut agrégé l'emporte sans signal. Le majeur 09d qui en résulte reste visible (pas un faux
+   conforme), mais rien n'indique que la reconstruction n'a pas eu lieu — candidat « volet 2/2 » (TODO #22).
+
+---
+
 ## ⚠️ APPROCHES ABANDONNÉES
 
 ### Approche abandonnée #1 : Fichier JSON local pour feedback
@@ -570,5 +595,5 @@ grep -C 5 "keyword" /Users/mac/.claude/projects/-Users-mac/*.jsonl
 
 ---
 
-**Dernière révision** : 3 juillet 2026 (leçons #27 LATRILLE)
+**Dernière révision** : 6 juillet 2026 (leçons 4b DELEFORTRIE)
 **Prochaine révision** : À chaque bug majeur résolu

@@ -3,13 +3,13 @@
 **Document de suivi — ACTIF uniquement.** L'historique clos (TODO terminés, sessions mergées,
 stats datées, sources ADR) est dans `pending-todos-archive.md` (consulté à la demande, pas lu d'office).
 
-**Dernière mise à jour** : 3 juillet 2026
+**Dernière mise à jour** : 6 juillet 2026
 
 ---
 
 ## TODOs actifs (index)
 
-- 🔴 **Critiques** : **LED DELEFORTRIE (étape 4b) — PROCHAINE SESSION** · #27 (découpage 5→3 + 3 blocs LATRILLE ✅ résolus non mergés ; check « attestation entrepôt manquante » toujours en attente) · #22 (modèle Chantier/Cellule, ADR-015) · #29 (alerte 1.4, logique 3 issues)
+- 🔴 **Critiques** : **checks LED hors-4b au mauvais grain (check_19/21/28/29/30) — PROCHAINE SESSION (proposée)** · #27 (découpage 5→3 + 3 blocs LATRILLE ✅ résolus non mergés ; check « attestation entrepôt manquante » toujours en attente) · #22 (modèle Chantier/Cellule, ADR-015 — **4b volet 1/2 ✅ validé run réel 06/07**) · #29 (alerte 1.4, logique 3 issues)
 - 🟡 **Importantes** : #3 (modularisation, reportée) · #4 (tests auto) · #5 (learning auto)
 - 🟢 **Nice to have** : #35 (corps mort + reliquat #31) · #36 (styles grille) · #6/#7/#8 · limite `alert()` · suivi `state.chantiers`
 
@@ -41,14 +41,18 @@ l'ADR-014 est atteint (preuve dossier réel DELEFORTRIE — voir Pivot B).
 | 2 | Filet `check_surface_non_ventilable` (signal dossier `S < A`) | ✅ livrée, non mergée | `feat/s2-filet-surface-non-ventilable-sur-1a` — `de0f36d` |
 | 3 | Grain cellule (révisée Philo 2 : déclencheur = répétition adresse facture, `source="facture"`) | ✅ livrée, non mergée | **version vivante** = `d589c69` (sur `fix/s4a-…`) ; `feat/s3-grain-cellule-led-par-batiment` (tip `c8a61f1`) porte une version **antérieure** (pré-Philo 2, à ignorer). Anchors : DELEFORTRIE→[26,26], COPPIN→[24,12], DES LAURIERS→[] |
 | 4a | `extraireNombreBatiments` refondue (+4a-bis « & », +4a-ter `normaliserAdresseSansBatiment` « & ») | ✅ livrées, non mergées | `fix/s4a-extraire-batiments-accents` — `219b024`,`c8b1244`,`a888308`,`281acac` (auto-test 21/21, `test-batiments.mjs` 13/13) |
-| 4b | Reconstruire `ledTotal` chantier = Σ `ledCellule` (corrige check_09d « 52 vs 66 ») | ✅ volet 1/2 livré ; volet 2/2 à cadrer | `1f7c663` + correctif β `f05f150` |
+| 4b | Reconstruire `ledTotal` chantier = Σ `ledCellule` (corrige check_09d « 52 vs 66 ») | ✅ volet 1/2 livré **+ validé run réel DELEFORTRIE complet 06/07/2026** (preview `lvae9o1nv` : 66 brut → 52 reconstruit, check_09d_audit/synthese conformes 52=52) ; volet 2/2 à cadrer | `1f7c663` + correctif β `f05f150` |
 | 5 | Appariement non silencieux + re-câbler `attestations.length`-as-chantier-count (check_39) | ⏳ Commit 1 livré, reste Commit 2 | `f69d7db` (check_14/15/20/23 multi-chantier, collision/miss→`info` ; helpers S2 réappliqués **sans S1**) |
 | 6 | Règle surface à comptage (S==C / S==A / S<A, cohérence Σ au bon grain) | ⬜ à venir | — |
 
 > ℹ️ **Désambiguïsation « 52/66 »** : le « 52 vs 66 » de l'étape 4b est l'écart **check_09d** (ledTotal
-> chantier reconstruit). Un autre « **compareStrings 52/66 hors-4b** » a été tracé via l'instrumentation
-> `[66-diag]` (`eee731b`, logs retirés `65fa61f`) à 4 checks pré-existants sans rapport avec 4b, classés
-> hors périmètre — pas une dette 4b.
+> chantier reconstruit) — **éteint le 06/07/2026** (validation run réel). Le « **52/66 hors-4b** » (tracé via
+> l'instrumentation `[66-diag]`, `eee731b`, logs retirés `65fa61f`) est désormais **identifié** :
+> **check_19/21** (tableaux synthèse) et **check_28/29/30** (états initial/projeté + liste luminaires audit)
+> comparent des valeurs PAR CHANTIER au **total du dossier** (66) au lieu du total du chantier (52) →
+> 5 faux « majeur 66 vs 52 » par dossier multi-chantiers, libellés trompeurs (ressemblent aux checks 09).
+> Promu **prochain sujet** : re-grainer par chantier (référence via le guichet, comme 09d) — diagnostic
+> + 2-3 approches avant code.
 
 **Ligne de commits (linéaire, non mergée)** : depuis `main` (= `a9a74aa`, ADR-015), **24 commits** mènent
 au tip `fix/s4a-extraire-batiments-accents` (= `b76cd30`). Les noms `fix/a1-collision-check45` (= `a61d343`),
@@ -63,7 +67,11 @@ branches à merger une par une** : merger le tip `fix/s4a-…` embarque déjà 1
 **Dettes ouvertes (tracer, ne pas perdre)** :
 - **Mono-MISS** : check_14/15/20/23 en MONO-chantier introuvable restent sur `references.*` (silencieux) — à décider si à signaler.
 - **Commit 2 (étape 5), non commencé** : check_09d non silencieux + complétion `09d_audit` (le S2 d'origine ne pousse que `09d_synthese`). À re-prioriser vs le recadrage #27.
-- **Volet 2/2 de 4b** : le label « 1/2 » suppose un volet 2/2 non défini → à cadrer (ne pas inventer).
+- **Volet 2/2 de 4b** : non défini → à cadrer. **Candidat identifié le 06/07** (vérif adversariale F3) : quand
+  une adresse multi-bâtiments n'a pas de `cellules[]` extraites (LLM non déterministe), la substitution se tait
+  et le brut agrégé l'emporte **sans signal** (le majeur 09d qui en résulte est visible, mais rien ne dit que la
+  reconstruction n'a pas eu lieu) → signal « LED chantier non reconstruite, à vérifier » à étudier. Chantier
+  connexe : export Google Sheet lit toujours le `ledTotal` brut.
 - **Asymétrie de maille** (check_12/25) : **rétrogradée SECONDAIRE** par le recadrage #27.
 
 #### ⭐ #27 — RECADRAGE (19/06) : le vrai défaut est en AMONT (dossier CEE incomplet)
@@ -146,8 +154,8 @@ Issu du diagnostic #28 (voir archive).
 
 ### TODO #27 : découpage des chantiers (LATRILLE) — ✅ 5→3 + 3 blocs RÉSOLUS (non mergés) + facette `check_39`
 
-**Statut** : 🟢 **Symptômes LATRILLE résolus** sur `fix/27-decoupage-parcelle` (NON mergée). Reste : LED
-DELEFORTRIE (4b, prochaine session), facette `check_39`, dette adversariale tracée.
+**Statut** : 🟢 **Symptômes LATRILLE résolus** sur `fix/27-decoupage-parcelle` (NON mergée). LED DELEFORTRIE
+(4b) ✅ **validé le 06/07/2026**. Reste : facette `check_39`, dette adversariale tracée.
 
 #### ✅ Découpage 5→3 + 3 blocs (01–03/07/2026)
 **LATRILLE** (SIRET `89226144700015`) = **7 bâtiments sur 3 adresses réelles** (Lauriol ×3, 36 Grozeille ×3,
@@ -185,10 +193,14 @@ Preuve : banc d'essai `#27` (jetable, `/tmp/scratch-27.mjs`) + harnais `test-bat
 - `check_25` fallback `adressesChantiers` quand 0 attestation : préexistant, couvert par `check_43` /
   `check_attestation_manquante`.
 
-#### ⏭️ PROCHAINE SESSION : LED DELEFORTRIE (étape 4b)
-Vérifier si le « 52 vs 66 » de `check_09d` est réglé par la substitution `ledTotal = Σ ledCellule`
-(`index.html:3609-3616`, commits `1f7c663` + `f05f150`, volet 1/2). Dépend de l'extraction des `cellules[]`
-(LLM non déterministe) ; volet 2/2 **jamais défini**. Diagnostic lecture seule d'abord, sur symptôme réel collé.
+#### ✅ LED DELEFORTRIE (étape 4b) — VALIDÉ (03–06/07/2026, aucun code modifié)
+Diagnostic lecture seule + vérif adversariale (3 agents, arbitrée) + banc d'essai déterministe
+(`/tmp/scratch-4b.mjs`, vrai code chargé via extractFn, 11/11) + **run réel complet** (preview `lvae9o1nv`,
+2 audits + 2 synthèses + CEE) : la substitution `ledTotal = Σ ledCellule` **fonctionne** — attestation agrégée
+66 → 52 reconstruit, `check_09d_audit` et `check_09d_synthese` **conformes 52=52** à l'écran, 09a/09b/09c verts.
+Le run du 03/07 (27 majeurs) était pollué par un **import incomplet** (2 audits / 1 synthèse zippés par index —
+leçon consignée dans known-pitfalls). Confirmés au passage : MISS 09d **silencieux** du « 6 rue » (seul
+`console.warn`, dette Commit 2 étape 5) et les 5 faux « 66 vs 52 » hors-4b (voir Désambiguïsation, TODO #22).
 
 #### Facette `check_39` (toujours ouverte)
 Facette « découpage » d'un autre cas **corrigée** (`bd13444` : collapse des espaces, COPPIN « rien »+« BAT 2 »
@@ -259,10 +271,11 @@ Mettre à jour ce fichier : en fin de session ; à chaque évolution proposée ;
 
 ---
 
-**Dernière révision** : 03/07/2026 — **#27 LATRILLE résolu** : découpage 5→3 (S0 `000dfb3`) + 3 blocs
-(`499c3fe` check_25 par adresse ; `09abffd` secteur mixte = info ; `dd65b9d` surface « Autres » = à vérifier +
-durcissement `compareAddress`). Règle métier tranchée : **1 adresse = 1 chantier**, parcelle & secteur hors
-découpage. Cartographie (52 checks) + vérif adversariale (26 agents, 4 correctifs retenus / 10 rejetés). Harnais
-36/36 & 70/70. **Poussé sur `fix/27-decoupage-parcelle`, NON mergé sur main.**
-**Prochaine session** : **LED DELEFORTRIE** (étape 4b — « 52 vs 66 » de check_09d) — diagnostic lecture seule sur
-symptôme réel.
+**Dernière révision** : 06/07/2026 — **LED DELEFORTRIE (étape 4b volet 1/2) validé sur run réel** : substitution
+Σ `ledCellule` opérante (66 → 52, check_09d verts à l'écran), **aucun code modifié** (diagnostic lecture seule +
+banc d'essai déterministe + 2 runs preview). Leçons consignées dans known-pitfalls (import incomplet → pollution
+d'index ; 5 faux « 66 vs 52 » hors-4b = check_19/21/28/29/30 au mauvais grain ; jamais conclure un niveau de check
+par inférence). Candidat volet 2/2 identifié (signal de non-substitution). Branche inchangée depuis `f3d730a`
+(hors ce commit doc), **NON mergée sur main**.
+**Prochaine session (proposée)** : **re-grainer check_19/21/28/29/30 par chantier** (référence via le guichet,
+comme 09d) — diagnostic + 2-3 approches avant code.
