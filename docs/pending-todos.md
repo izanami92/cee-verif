@@ -9,8 +9,8 @@ stats datées, sources ADR) est dans `pending-todos-archive.md` (consulté à la
 
 ## TODOs actifs (index)
 
-- 🔴 **Critiques** : **checks LED hors-4b au mauvais grain (check_19/21/28/29/30) — PROCHAINE SESSION (proposée)** · #27 (découpage 5→3 + 3 blocs LATRILLE ✅ résolus non mergés ; check « attestation entrepôt manquante » toujours en attente) · #22 (modèle Chantier/Cellule, ADR-015 — **4b volet 1/2 ✅ validé run réel 06/07**) · #29 (alerte 1.4, logique 3 issues)
-- 🟡 **Importantes** : #3 (modularisation, reportée) · #4 (tests auto) · #5 (learning auto)
+- 🔴 **Critiques** : checks LED hors-4b au mauvais grain (check_19/21/28/29/30) — **REPORTÉ derrière le chantier #3 audit + modularisation** (décision IZANAMI 06/07) · #27 (découpage 5→3 + 3 blocs LATRILLE ✅ **mergés sur main 06/07** ; check « attestation entrepôt manquante » toujours en attente) · #22 (modèle Chantier/Cellule, ADR-015 — **4b volet 1/2 ✅ validé run réel 06/07, mergé**) · #29 (alerte 1.4, logique 3 issues)
+- 🟡 **Importantes** : **#3 (audit complet + modularisation) — 🟠 EN COURS session 06/07 (phase A audit)** · #4 (tests auto) · #5 (learning auto)
 - 🟢 **Nice to have** : #35 (corps mort + reliquat #31) · #36 (styles grille) · #6/#7/#8 · limite `alert()` · suivi `state.chantiers`
 
 > TODO clos & évolutions livrées-mergées → `pending-todos-archive.md`.
@@ -54,13 +54,13 @@ l'ADR-014 est atteint (preuve dossier réel DELEFORTRIE — voir Pivot B).
 > Promu **prochain sujet** : re-grainer par chantier (référence via le guichet, comme 09d) — diagnostic
 > + 2-3 approches avant code.
 
-**Ligne de commits (linéaire, non mergée)** : depuis `main` (= `a9a74aa`, ADR-015), **24 commits** mènent
-au tip `fix/s4a-extraire-batiments-accents` (= `b76cd30`). Les noms `fix/a1-collision-check45` (= `a61d343`),
-`feat/s2-filet-surface-non-ventilable-sur-1a` (= `39464d2`), `feat/s3-grain-cellule-led-par-batiment`
-(= `c8a61f1`) sont des **jalons sur cette même ligne** (tous ancêtres de `fix/s4a-…`, vérifié) — **PAS des
-branches à merger une par une** : merger le tip `fix/s4a-…` embarque déjà 1a → 2 → 3 → 4a/4b → Commit 1
-(étape 5). `feat/s4b-led-chantier-depuis-cellules` reste une branche **gelée/vide** distincte. Merge sur
-`main` quand le chantier est présentable — geste d'IZANAMI.
+**Ligne de commits (linéaire) — ✅ MERGÉE sur `main` le 06/07/2026** : les **35 commits** empilés depuis
+l'ancien `main` (= `a9a74aa`, ADR-015) jusqu'au tip `fix/27-decoupage-parcelle` (= `5043ffa`) ont été mergés
+en **fast-forward** (aucun commit divergent sur `main`, vérifié ; geste délégué par IZANAMI en séance).
+Ce merge embarque 1a → 2 → 3 → 4a/4b → Commit 1 (étape 5) → S0/Blocs #27 → docs. Les jalons
+`fix/a1-collision-check45`, `feat/s2-filet-surface-non-ventilable-sur-1a`, `feat/s3-grain-cellule-led-par-batiment`,
+`fix/s4a-extraire-batiments-accents` sont tous des ancêtres de ce tip.
+`feat/s4b-led-chantier-depuis-cellules` reste une branche **gelée/vide** distincte.
 **Branches s1/s2 abandonnées** (hors ascendance de `fix/s4a-…`, prouvé ; S2 réappliqué sans S1 dans `f69d7db`) — détail en archive.
 **Détail des étapes livrées (4a / 4a-bis / 4a-ter / 4b volet 1/2)** → voir archive.
 
@@ -152,10 +152,10 @@ Issu du diagnostic #28 (voir archive).
 
 ---
 
-### TODO #27 : découpage des chantiers (LATRILLE) — ✅ 5→3 + 3 blocs RÉSOLUS (non mergés) + facette `check_39`
+### TODO #27 : découpage des chantiers (LATRILLE) — ✅ 5→3 + 3 blocs RÉSOLUS (mergés 06/07) + facette `check_39`
 
-**Statut** : 🟢 **Symptômes LATRILLE résolus** sur `fix/27-decoupage-parcelle` (NON mergée). LED DELEFORTRIE
-(4b) ✅ **validé le 06/07/2026**. Reste : facette `check_39`, dette adversariale tracée.
+**Statut** : 🟢 **Symptômes LATRILLE résolus** — `fix/27-decoupage-parcelle` **mergée sur `main` le 06/07/2026**.
+LED DELEFORTRIE (4b) ✅ **validé le 06/07/2026**. Reste : facette `check_39`, dette adversariale tracée.
 
 #### ✅ Découpage 5→3 + 3 blocs (01–03/07/2026)
 **LATRILLE** (SIRET `89226144700015`) = **7 bâtiments sur 3 adresses réelles** (Lauriol ×3, 36 Grozeille ×3,
@@ -182,8 +182,8 @@ Livrés (ordre `000dfb3` S0 → `499c3fe` → `09abffd` → `dd65b9d`) :
   (fin du faux match `'' === ''`) ; `check_25` `adresseMatch = refCEE !== undefined` + fallback filtre les vides.
 
 Preuve : banc d'essai `#27` (jetable, `/tmp/scratch-27.mjs`) + harnais `test-batiments` 36/36 & `test-familles`
-70/70. Preview testé OK (LATRILLE + anti-régression COPPIN/DELEFORTRIE/DES LAURIERS). **Non mergé sur main**
-(geste d'IZANAMI).
+70/70. Preview testé OK (LATRILLE + anti-régression COPPIN/DELEFORTRIE/DES LAURIERS). **Mergé sur main
+le 06/07/2026.**
 
 **Dette adversariale tracée (rejetée/reportée — NE PAS perdre)** :
 - `check_14/20/23` = `ok` en secteur mixte : **conforme** (le mélange surgit une fois via `check_14_conflict`
@@ -215,9 +215,14 @@ LAURIERS, **LATRILLE**. Autres bugs console tracés (réf produit `compareProduc
 
 ## 🟡 PRIORITÉ 2 — IMPORTANTES
 
-### TODO #3 : Modularisation de `index.html` — ⏸️ REPORTÉE
-Tentative ES6 (26-27 mai) échouée (`generateChecks` tronquée). À refaire **module par module**, **APRÈS**
-le cadrage du modèle Chantier/Cellule (#22), en validant contre `SOURCE_DE_VERITE_CHECKS.md`.
+### TODO #3 : Audit complet + modularisation de `index.html` — 🟠 EN COURS (session 06/07/2026)
+Tentative ES6 (26-27 mai) échouée (`generateChecks` tronquée) → big-bang écarté (ADR-015).
+**Phase A (en cours)** : audit complet lecture seule (sécurité, robustesse, qualité, anomalies déjà tracées,
+architecture/couplages) avec vérification adversariale arbitrée ; rapport priorisé validé par IZANAMI, qui
+choisit les correctifs AVANT la phase B. **Phase B (ensuite)** : ADR de découpage (style 014/015) AVANT tout
+code, puis extraction **module par module** (1 module = 1 commit = extraction PURE, fonctions byte-identiques,
+harnais verts + preview à chaque étape, app fonctionnelle à chaque commit), en validant contre
+`SOURCE_DE_VERITE_CHECKS.md`. Anchors anti-régression : COPPIN, DES LAURIERS, LATRILLE, DELEFORTRIE.
 
 ### TODO #4 : Tests automatisés — 💭 EN DISCUSSION
 Pas de tests auto hors harnais `test-familles.mjs` / `test-batiments.mjs`. Cibles prioritaires :
@@ -271,11 +276,9 @@ Mettre à jour ce fichier : en fin de session ; à chaque évolution proposée ;
 
 ---
 
-**Dernière révision** : 06/07/2026 — **LED DELEFORTRIE (étape 4b volet 1/2) validé sur run réel** : substitution
-Σ `ledCellule` opérante (66 → 52, check_09d verts à l'écran), **aucun code modifié** (diagnostic lecture seule +
-banc d'essai déterministe + 2 runs preview). Leçons consignées dans known-pitfalls (import incomplet → pollution
-d'index ; 5 faux « 66 vs 52 » hors-4b = check_19/21/28/29/30 au mauvais grain ; jamais conclure un niveau de check
-par inférence). Candidat volet 2/2 identifié (signal de non-substitution). Branche inchangée depuis `f3d730a`
-(hors ce commit doc), **NON mergée sur main**.
-**Prochaine session (proposée)** : **re-grainer check_19/21/28/29/30 par chantier** (référence via le guichet,
-comme 09d) — diagnostic + 2-3 approches avant code.
+**Dernière révision** : 06/07/2026 (2) — **`fix/27-decoupage-parcelle` (35 commits : 1a→4b + S0/Blocs #27 + docs)
+MERGÉE sur `main` en fast-forward** : base unique rétablie, harnais 70/70 & 36/36 re-vérifiés sur `main` après
+merge. **Chantier en cours** : TODO #3 — phase A (audit complet lecture seule) puis phase B (modularisation,
+ADR avant code). **Re-grain check_19/21/28/29/30** (référence au total du dossier au lieu du total du chantier,
+5 faux « majeur 66 vs 52 » par dossier multi-chantiers) : **REPORTÉ derrière #3** (décision IZANAMI 06/07) —
+diagnostic + 2-3 approches avant code, à ne pas perdre.
