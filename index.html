@@ -3941,6 +3941,13 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
       }, 0);
     }
 
+    // Conformité LED : deux valeurs RÉELLES > 0 et écart toléré. Une LED absente / non extraite
+    // (parseFloat(...)||0 → 0) ne passe JAMAIS pour conforme : 0 vs 0 doit surgir, pas passer vert
+    // (principe n°1 — M3, audit phase A). Tolérance <0.1 inchangée (l'anomalie A4 est un sujet distinct).
+    function ledConforme(a, b) {
+      return a > 0 && b > 0 && Math.abs(a - b) < 0.1;
+    }
+
     // Helpers pour compatibilité : accès au premier document (pour checks non-multi-chantiers)
     function getFirstAudit(norm) {
       return norm.audits[0] || {};
@@ -4365,7 +4372,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
       const totalCEE = parseFloat(String(references.totalLed || norm.cee?.totalLed || 0).replace(/\s+/g, '')) || 0;
 
       // Check 9a : Somme audits = Total CEE
-      const sommeAuditsOk = Math.abs(sommeAudits - totalCEE) < 0.1;
+      const sommeAuditsOk = ledConforme(sommeAudits, totalCEE);
       checks.push({
         id: 'check_09a',
         portee: 'global-cee',
@@ -4381,7 +4388,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
       });
 
       // Check 9b : Somme synthèses = Total CEE
-      const sommeSynthesesOk = Math.abs(sommeSyntheses - totalCEE) < 0.1;
+      const sommeSynthesesOk = ledConforme(sommeSyntheses, totalCEE);
       checks.push({
         id: 'check_09b',
         portee: 'global-cee',
@@ -4404,7 +4411,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
           if (chantier.audit && chantier.synthese) {
             const ledAudit = parseFloat(String(chantier.audit.ledTotal || 0).replace(/\s+/g, '')) || 0;
             const ledSynthese = parseFloat(String(chantier.synthese.ledTotal || 0).replace(/\s+/g, '')) || 0;
-            const coherent = Math.abs(ledAudit - ledSynthese) < 0.1;
+            const coherent = ledConforme(ledAudit, ledSynthese);
             const chantierIndex = index + 1; // ⭐ Index du chantier
 
             checks.push({
@@ -4470,7 +4477,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
 
             // Vérifier cohérence Audit vs CEE
             if (ledAudit !== null) {
-              const auditOk = Math.abs(ledAudit - ledCEE) < 0.1;
+              const auditOk = ledConforme(ledAudit, ledCEE);
               checks.push({
                 id: `check_09d_audit_${adresseCEE.replace(/[^a-z0-9]/gi, '_')}`,
                 categorie: 'synthese',
@@ -4488,7 +4495,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
 
             // Vérifier cohérence Synthèse vs CEE
             if (ledSynthese !== null) {
-              const syntheseOk = Math.abs(ledSynthese - ledCEE) < 0.1;
+              const syntheseOk = ledConforme(ledSynthese, ledCEE);
               checks.push({
                 id: `check_09d_synthese_${adresseCEE.replace(/[^a-z0-9]/gi, '_')}`,
                 categorie: 'synthese',
