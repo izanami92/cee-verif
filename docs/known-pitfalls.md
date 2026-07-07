@@ -466,8 +466,11 @@ sur le dossier réel DELEFORTRIE. Aucun code modifié — mais quatre leçons de
 ### Leçons Audit phase A (06-07/07/2026)
 
 **Contexte** : audit complet lecture seule de tout le code (6 axes, 76 agents multi-agents, 0 finding réfuté)
-préalable à la modularisation (TODO #3). Findings priorisés dans `pending-todos.md` §TODO #3. Leçons durables
-(pièges à ne pas réintroduire / faits établis) :
+préalable à la modularisation (TODO #3). Findings priorisés dans `pending-todos.md` §TODO #3.
+
+> **État au 07/07/2026** : **LOT 1 sécurité** (points 1 ci-dessous — auth) et **LOT 2 faux-conforme** (points 2/3/4 — comparateurs vides, LED 0=0, bannière) sont **CORRIGÉS et mergés sur `main`** (`c197376`, `41a8f48`). Les leçons restent valables comme **pièges à ne pas réintroduire** lors de la modularisation (phase B) : ne pas ré-ouvrir un faux conforme en déplaçant `compareStrings`/`ledConforme`/le calcul de bannière. Reste ouvert : point 5 (`generateChecks` monstre = objet de la phase B).
+
+Leçons durables (pièges à ne pas réintroduire / faits établis) :
 
 1. **Les 5 routes API n'ont AUCUNE authentification** (`grep APP_PASSWORD|password|401 api/` = 0). Retrait
    volontaire (commit `5a26ff0`, 06/05/2026) mais **jamais arbitré**, et CLAUDE.md « sécurité non négociable »,

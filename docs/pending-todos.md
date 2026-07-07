@@ -233,21 +233,22 @@ Un `docs/architecture-actuelle.md` (26/05, obsolète : `generateChecks` y est à
 
 #### 📋 Findings de l'audit phase A — backlog priorisé (ordre de traitement choisi : sécurité d'abord)
 
-> Provenance : ✔️ vérifié adversarialement · 🔍 re-vérifié sur le code par la session. Lignes = état sur `main` `c28b323`.
-> **✅ LOT 1 sécurité MERGÉ sur `main` le 07/07/2026 (`c197376`, fast-forward)** : K1 + K2 + M7 + suppression `extract-cee`. Validé preview (7 tests : login bloquant, mauvais/bon mdp, SIRET, analyse, session, `/api/fetchSheet` → 401 sans login). `APP_PASSWORD` configuré Vercel (Prod + Preview). **Prochain : LOT 2 faux-conforme.**
+> Provenance : ✔️ vérifié adversarialement · 🔍 re-vérifié sur le code par la session. ⚠️ **Les numéros de ligne des findings NON FAITS (M1, M4, M5, mineurs) sont ceux de `c28b323`, AVANT LOT 1 (+~78 l. auth) et LOT 2 (+~40 l.) → décalés d'environ +120 lignes sur `main` actuel. RE-GREP les fonctions/motifs, ne pas se fier aux numéros.**
+> **✅ LOT 1 sécurité MERGÉ sur `main` le 07/07/2026 (`c197376`, fast-forward)** : K1 + K2 + M7 + suppression `extract-cee`. Validé preview (7 tests : login bloquant, mauvais/bon mdp, SIRET, analyse, session, `/api/fetchSheet` → 401 sans login). `APP_PASSWORD` configuré Vercel (Prod + Preview).
+> **✅ LOT 2 faux-conforme MERGÉ sur `main` le 07/07/2026 (`41a8f48`, fast-forward)** : K3 + M2 + M3 + M6. Prouvés au banc d'essai sur le vrai code (K3 4/4, M2 13/13, M3 7/7) + harnais 70/70 & 36/36 + non-régression preview (COPPIN/DES LAURIERS/LATRILLE/DELEFORTRIE). **Prochain : LOT 3 — M1 (XSS innerHTML) + M4 (MISS 09d, déjà tracé) + M5 (Promise.all extraction), puis phase B (modularisation, ADR avant code).**
 
 **🔴 CRITIQUES (3)**
 - **K1 — Aucune auth sur les 5 routes API** ✔️ **✅ FAIT (LOT 1, `c197376`)** : `lib/auth.js` (`requireAuth`, header `Authorization` Bearer, fail-closed si `APP_PASSWORD` absent) + `/api/login` (validation sans appel LLM — fin du piège de l'ancien login) + `requireAuth` en premier sur les 5 routes ; login front restauré + `apiFetch` (header + 401→login). Le mdp vit uniquement dans la variable Vercel `APP_PASSWORD`.
 - **K2 — `/api/fetchSheet` dump tout le Sheet à un GET anonyme** ✔️ **✅ FAIT (`c197376`)** : `requireAuth` sur `fetchSheet` ; 401 sans login prouvé en preview.
-- **K3 — Bannière page de garde sur `checks.slice(0,3)`** ✔️ (`index.html:3045-3046`) — **seul faux conforme sur le signal bloquant**. (1) multi-chantiers : bloquant chantier 2+ ignoré ; (2) 0 audit : bannière verte sans aucune vérif page de garde. Effort S-M. **→ LOT 2 (faux-conforme) — EN COURS.**
+- **K3 — Bannière page de garde sur `checks.slice(0,3)`** ✔️ **✅ FAIT (LOT 2, `b55adb7`, mergé `41a8f48`)** : `filter(c => c.categorie === 'garde')` (tous chantiers, `check_01/02/03` par audit) + `length > 0` (exige ≥1 audit vérifié). Banc `/tmp/test-k3.mjs` 4/4 (ancienne = 3 feux verts faux). Non-régression preview OK.
 
 **🟠 MAJEURS (8)**
-- **M1 — XSS `innerHTML` sur données extraites** ✔️ (requalifié critique→majeur). `createCheckCard:5958-5967` + noms de fichiers uploadés `1814` + adresses `2088/2379/6507` + SIRET `1726` + saisie manuelle `5573`. Aucune `escapeHtml` globale (seul `escAttr` local `6899`). Effort M.
-- **M2 — Comparateurs « 2 côtés vides = conforme »** 🔍 (requalifié critique→majeur). `compareStrings:3326`/`compareSIRET:3728`/`compareDate:3370`/`compareParcelles:3240`/`compareSecteurEtude:3269` : `''===''`→true. `dd65b9d` (#27) n'a corrigé QUE `compareAddress`. Patron sûr existant : `pushContactCheck`→info. Effort M. **→ LOT 2.**
-- **M3 — `parseFloat(...)||0` des 2 côtés LED** 🔍 (requalifié critique→majeur). `4265/4268/4284/4307` : `|0-0|<0.1`→vert « 0 LED ». Court-circuite R05. Effort S. **→ LOT 2.**
-- **M4 — MISS `check_09d` silencieux** ✔️ (`4406-4409`). Déjà tracé (Commit 2 étape 5). Effort S.
-- **M5 — `Promise.all` extractions PDF** ✔️ (`2649`). 1 PDF illisible tue toute l'analyse (viole « continuer avec les autres »). `allSettled`. Effort S.
-- **M6 — `s.adresse.substring()` sans garde** ✔️ (`2810-2813`, `detectAutresSecteurs:4066`). TypeError → analyse avortée. Seul site oublié. Effort S. **→ LOT 2.**
+- **M1 — XSS `innerHTML` sur données extraites** ✔️ (requalifié critique→majeur) **→ LOT 3 (prochain)**. `createCheckCard` + noms de fichiers uploadés + adresses (value/title) + résultats SIRET + saisie manuelle. **Aucune `escapeHtml` globale** (seul `escAttr` local). Fix cible : une fonction `escapeHtml` + application aux sinks. Effort M. (Re-grep `innerHTML` et `createCheckCard`.)
+- **M2 — Comparateurs « 2 côtés vides = conforme »** 🔍 **✅ FAIT partiellement (LOT 2, `aa78333`)** : garde `if(!a||!b) return false` sur `compareStrings` + `compareSIRET` + `compareDate` (double-vide → check échoue à son niveau naturel : bloquant page de garde, majeur ailleurs). Banc `/tmp/test-m2.mjs` 13/13. **RESTE (reporté, sujets délicats)** : `compareParcelles` **exclu** (dossier sans parcelle = normal, ex. DELEFORTRIE → un guard le casserait) ; `compareSecteurEtude` **exclu** (logique #27 secteurs mixtes → re-test LATRILLE requis). À traiter dans une étape dédiée si besoin.
+- **M3 — `parseFloat(...)||0` des 2 côtés LED** 🔍 **✅ FAIT (LOT 2, `0b44449`)** : helper top-level `ledConforme(a,b) = a>0 && b>0 && Math.abs(a-b)<0.1` remplace les 5 comparaisons LED (check_09a/09b/09c/09d audit+synthèse). Logique & tolérance inchangées pour toute valeur réelle ; seul 0 vs 0 surgit. Banc `/tmp/test-m3.mjs` 7/7. **Note** : tolérance `<0.1` conservée → l'anomalie A4 (règle zéro stricte) reste un mineur distinct.
+- **M4 — MISS `check_09d` silencieux** ✔️ **→ LOT 3**. Guichet par adresse sans correspondance = `console.warn` seul, aucun check poussé. Déjà tracé (Commit 2 étape 5, §TODO #22). Effort S. (Re-grep `Aucune attestation CEE trouvée`.)
+- **M5 — `Promise.all` extractions PDF** ✔️ **→ LOT 3**. 1 PDF illisible tue toute l'analyse (viole « continuer avec les autres »). Fix : `Promise.allSettled` + signaler quel fichier a échoué. Effort S. (Re-grep `Promise.all(extractionPromises)`.)
+- **M6 — `s.adresse.substring()` sans garde** ✔️ **✅ FAIT (LOT 2, `41a8f48`)** : fallback `(x.adresse || '')` sur l'alerte « Autres secteurs » (site fautif) + le `console.log` debug jumeau ; le 3ᵉ site était déjà un ternaire gardé. Fin de la TypeError qui avortait l'analyse.
 - **M7 — CORS `*` + `Allow-Credentials:true` + 0 header sécurité** ✔️ (`vercel.json:12-18`). Aggrave K1/K2. **✅ FAIT (`c197376`)** : bloc CORS retiré (app same-origin).
 - **M8 — `generateChecks` 1390 l. (`4100-5489`) + 20 fonctions >50 l. + 2 handlers inline géants** ✔️ = **le cœur de ce TODO #3 / phase B**. Ne pas scinder pendant l'extraction. Effort L.
 
@@ -305,9 +306,19 @@ Mettre à jour ce fichier : en fin de session ; à chaque évolution proposée ;
 
 ---
 
-**Dernière révision** : 06/07/2026 (2) — **`fix/27-decoupage-parcelle` (35 commits : 1a→4b + S0/Blocs #27 + docs)
-MERGÉE sur `main` en fast-forward** : base unique rétablie, harnais 70/70 & 36/36 re-vérifiés sur `main` après
-merge. **Chantier en cours** : TODO #3 — phase A (audit complet lecture seule) puis phase B (modularisation,
-ADR avant code). **Re-grain check_19/21/28/29/30** (référence au total du dossier au lieu du total du chantier,
-5 faux « majeur 66 vs 52 » par dossier multi-chantiers) : **REPORTÉ derrière #3** (décision IZANAMI 06/07) —
-diagnostic + 2-3 approches avant code, à ne pas perdre.
+**Dernière révision** : 07/07/2026 — **TODO #3 : phase A (audit) FAITE + LOT 1 (sécurité) & LOT 2 (faux-conforme)
+MERGÉS sur `main`.** État complet pour reprise en nouvelle session :
+
+**Fait & mergé sur `main` (tip `41a8f48`)** :
+- **Audit phase A** : 6 axes, 76 agents, 0 finding réfuté → backlog priorisé §TODO #3 ci-dessus.
+- **LOT 1 sécurité** (`c197376`) : K1 auth (`lib/auth.js` `requireAuth` + `/api/login` + garde sur 5 routes + login front `apiFetch`), K2 (`fetchSheet` protégé), M7 (CORS `*` retiré), `extract-cee` supprimé. `APP_PASSWORD` dans Vercel (Prod+Preview).
+- **LOT 2 faux-conforme** (`41a8f48`) : K3 (bannière page de garde tous chantiers + ≥1 audit), M2 (comparateurs nom/SIRET/date vide≠conforme), M3 (LED 0 vs 0 ≠ conforme, helper `ledConforme`), M6 (garde `substring`). Bancs `/tmp/test-{k3,m2,m3}.mjs` (jetables, à recréer si besoin — modèle `test-batiments.mjs` `extractFn`).
+
+**RESTE À FAIRE (ordre proposé)** :
+1. **LOT 3** : M1 (XSS `innerHTML` — fonction `escapeHtml` globale + sinks), M4 (MISS 09d non silencieux, déjà tracé Commit 2 étape 5), M5 (`Promise.all`→`allSettled`).
+2. **Mineurs** : A4 (tolérance LED stricte), 9 `alert()`, fuite `state.chantiers`, `check_23` id nu, label `nbChantiers`, A3 doc §6 périmée (fusion `check_47_global` déjà faite), routage `check_47_global` sans `portee`, 5 normalisations d'adresse, 2 systèmes de routage, code mort (`renderChecksByFamille` #35), ~122 `console.log`, erreurs relayées au client, `.env.example` désync, pas de CSP/SRI, fetch sans timeout.
+3. **Extensions M2 différées** : `compareParcelles` (attention DELEFORTRIE sans parcelle), `compareSecteurEtude` (#27).
+4. **Phase B modularisation** : ADR de découpage AVANT code (plan 6 modules `window.*` §TODO #3), extraction module par module (1 module = 1 commit PUR + harnais + preview). Invariant ADR-014 (getCheckProvenance/etatCellule/resolveFamille jamais touchés hors sujet).
+5. **Re-grain check_19/21/28/29/30** (5 faux « 66 vs 52 » multi-chantiers, référence au total dossier au lieu du chantier) — **REPORTÉ derrière #3**, diagnostic + 2-3 approches avant code.
+
+**Méthode de travail confirmée cette session** : diagnostic lecture seule cité `fichier:ligne` → 2-3 approches + reco → validation IZANAMI → banc d'essai node (charge le vrai code via `extractFn`) → diff verbatim + STOP → preview testé par IZANAMI → merge (geste délégué à Claude quand IZANAMI dit « merge »). ⚠️ **Modèle métier** : Dossier → Chantiers → Cellules(=bâtiments) ; une adresse peut regrouper plusieurs bâtiments comptés variablement (grain non fiable = cœur du #27/Pivot B). `api/analyze.js` = couche LLM, jamais touchée avec du JS dans le même commit.
