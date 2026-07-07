@@ -3133,9 +3133,12 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
             }
           }
 
-          // Vérifier page de garde (checks 1-3)
-          const pageGardeChecks = checks.slice(0, 3);
-          const pageGardeOk = pageGardeChecks.every(c => c.niveau === 'ok');
+          // Vérifier la page de garde Audit (seul signal bloquant, SOURCE_DE_VERITE §1).
+          // Filtre sur categorie 'garde' (= check_01/02/03, émis PAR audit → TOUS les chantiers,
+          // pas seulement le 1er via slice(0,3)) ET exige au moins un check présent : si aucun
+          // audit n'a été vérifié (0 audit extrait), la bannière n'est JAMAIS verte (K3, audit phase A).
+          const pageGardeChecks = checks.filter(c => c.categorie === 'garde');
+          const pageGardeOk = pageGardeChecks.length > 0 && pageGardeChecks.every(c => c.niveau === 'ok');
 
           // Construire le message auditeur
           const messageAuditeur = buildMessageAuditeur(checks);
