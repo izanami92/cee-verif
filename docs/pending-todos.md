@@ -217,12 +217,40 @@ LAURIERS, **LATRILLE**. Autres bugs console tracés (réf produit `compareProduc
 
 ### TODO #3 : Audit complet + modularisation de `index.html` — 🟠 EN COURS (session 06/07/2026)
 Tentative ES6 (26-27 mai) échouée (`generateChecks` tronquée) → big-bang écarté (ADR-015).
-**Phase A (en cours)** : audit complet lecture seule (sécurité, robustesse, qualité, anomalies déjà tracées,
-architecture/couplages) avec vérification adversariale arbitrée ; rapport priorisé validé par IZANAMI, qui
-choisit les correctifs AVANT la phase B. **Phase B (ensuite)** : ADR de découpage (style 014/015) AVANT tout
-code, puis extraction **module par module** (1 module = 1 commit = extraction PURE, fonctions byte-identiques,
-harnais verts + preview à chaque étape, app fonctionnelle à chaque commit), en validant contre
-`SOURCE_DE_VERITE_CHECKS.md`. Anchors anti-régression : COPPIN, DES LAURIERS, LATRILLE, DELEFORTRIE.
+**Phase A ✅ FAITE (06-07/07/2026)** : audit complet lecture seule (6 axes) via 2 workflows multi-agents
+(76 agents) + vérification adversariale arbitrée + re-lecture code des findings load-bearing. **0 finding
+réfuté**. Rapport priorisé ci-dessous, validé par IZANAMI. **Phase B (ensuite)** : ADR de découpage (style
+014/015) AVANT tout code, puis extraction **module par module** (1 module = 1 commit = extraction PURE,
+fonctions byte-identiques, harnais verts + preview à chaque étape, app fonctionnelle à chaque commit), en
+validant contre `SOURCE_DE_VERITE_CHECKS.md`. Anchors anti-régression : COPPIN, DES LAURIERS, LATRILLE,
+DELEFORTRIE. Plan de découpage proposé (validé par l'axe archi, 6 modules `window.*` du plus pur au plus
+couplé) : 1) `utils-comparaison.js` (compare*/normalize/parse*, déjà testé par `test-batiments.mjs`) →
+2) `regroupement.js` → 3) `detecteurs-alertes.js` → 4) `io.js` (extractTextFromPDF + fetch, **point
+d'insertion unique pour réintégrer l'auth K1**) → 5) `moteur-checks.js` (`generateChecks` entier, **ne pas
+scinder pendant l'extraction**, invariant 3-surfaces ADR-014) → 6) reste (rendu + handler `btnAnalyze`
+orchestrateur mince, encapsuler d'abord les 4 globales `currentChecks/currentExtractedData/activeFilter/activeView`).
+Un `docs/architecture-actuelle.md` (26/05, obsolète : `generateChecks` y est à 1250 l., aujourd'hui 1390) porte un plan antérieur.
+
+#### 📋 Findings de l'audit phase A — backlog priorisé (ordre de traitement choisi : sécurité d'abord)
+
+> Provenance : ✔️ vérifié adversarialement · 🔍 re-vérifié sur le code par la session. Lignes = état sur `main` `c28b323`.
+
+**🔴 CRITIQUES (3)**
+- **K1 — Aucune auth sur les 5 routes API** ✔️ (`api/analyze.js:19` + 4 autres). Proxy LLM ouvert sur `OPENROUTER_API_KEY` + endpoints publics. Retrait volontaire (`5a26ff0`) jamais arbitré ; CLAUDE.md/README/`.env.example` affirment le contraire. **Décision IZANAMI : réimplémenter l'auth** (diagnostiquer d'abord *pourquoi* l'ancienne échouait). Effort M. **→ LOT 1 (en cours).**
+- **K2 — `/api/fetchSheet` dump tout le Sheet à un GET anonyme** ✔️ (`fetchSheet.js:78-83`). PII bénéficiaires + montants CEE. Effort S. **→ LOT 1.**
+- **K3 — Bannière page de garde sur `checks.slice(0,3)`** ✔️ (`index.html:3045-3046`) — **seul faux conforme sur le signal bloquant**. (1) multi-chantiers : bloquant chantier 2+ ignoré ; (2) 0 audit : bannière verte sans aucune vérif page de garde. Effort S-M. **→ LOT 2 (faux-conforme).**
+
+**🟠 MAJEURS (8)**
+- **M1 — XSS `innerHTML` sur données extraites** ✔️ (requalifié critique→majeur). `createCheckCard:5958-5967` + noms de fichiers uploadés `1814` + adresses `2088/2379/6507` + SIRET `1726` + saisie manuelle `5573`. Aucune `escapeHtml` globale (seul `escAttr` local `6899`). Effort M.
+- **M2 — Comparateurs « 2 côtés vides = conforme »** 🔍 (requalifié critique→majeur). `compareStrings:3326`/`compareSIRET:3728`/`compareDate:3370`/`compareParcelles:3240`/`compareSecteurEtude:3269` : `''===''`→true. `dd65b9d` (#27) n'a corrigé QUE `compareAddress`. Patron sûr existant : `pushContactCheck`→info. Effort M. **→ LOT 2.**
+- **M3 — `parseFloat(...)||0` des 2 côtés LED** 🔍 (requalifié critique→majeur). `4265/4268/4284/4307` : `|0-0|<0.1`→vert « 0 LED ». Court-circuite R05. Effort S. **→ LOT 2.**
+- **M4 — MISS `check_09d` silencieux** ✔️ (`4406-4409`). Déjà tracé (Commit 2 étape 5). Effort S.
+- **M5 — `Promise.all` extractions PDF** ✔️ (`2649`). 1 PDF illisible tue toute l'analyse (viole « continuer avec les autres »). `allSettled`. Effort S.
+- **M6 — `s.adresse.substring()` sans garde** ✔️ (`2810-2813`, `detectAutresSecteurs:4066`). TypeError → analyse avortée. Seul site oublié. Effort S. **→ LOT 2.**
+- **M7 — CORS `*` + `Allow-Credentials:true` + 0 header sécurité** ✔️ (`vercel.json:12-18`). Aggrave K1/K2. Effort S. **→ LOT 1.**
+- **M8 — `generateChecks` 1390 l. (`4100-5489`) + 20 fonctions >50 l. + 2 handlers inline géants** ✔️ = **le cœur de ce TODO #3 / phase B**. Ne pas scinder pendant l'extraction. Effort L.
+
+**🔵 MINEURS** (dédupliqués ; beaucoup déjà tracés) : A4 tolérance LED `<0.1` (5 occ. `4268/4284/4307/4373/4391`) · 9 `alert()` (`2153…7854`) · fuite `state.chantiers` · `check_23` id nu (`4803-4828`) · label `nbChantiers` (`5228` vs `5686`) · A3 `check_47_global` fusionné mais SOURCE_DE_VERITE §6 périmé · routage `check_47_global` sans `portee` · `api/extract-cee.js` route morte (2ᵉ proxy LLM, **à supprimer en LOT 1**) · 5 normalisations d'adresse divergentes (dont `compareSheet.js:306`) · 2 systèmes de routage coexistants (`getGroupeForCheck` legacy vs `resolveFamille`) · code mort ~430 l. (dont `renderChecksByFamille` = filet #35) · ~122 `console.log` fuitant des données métier · erreurs internes relayées au client · `.env.example` désync · commentaire « vérifie le mot de passe » mensonger · pas de CSP/SRI · fetch client sans timeout · `displayResults` dans `setTimeout` hors try/catch · CLAUDE.md désync (tailles fichiers, env vars).
 
 ### TODO #4 : Tests automatisés — 💭 EN DISCUSSION
 Pas de tests auto hors harnais `test-familles.mjs` / `test-batiments.mjs`. Cibles prioritaires :

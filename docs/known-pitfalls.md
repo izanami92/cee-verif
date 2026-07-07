@@ -463,6 +463,46 @@ sur le dossier réel DELEFORTRIE. Aucun code modifié — mais quatre leçons de
 
 ---
 
+### Leçons Audit phase A (06-07/07/2026)
+
+**Contexte** : audit complet lecture seule de tout le code (6 axes, 76 agents multi-agents, 0 finding réfuté)
+préalable à la modularisation (TODO #3). Findings priorisés dans `pending-todos.md` §TODO #3. Leçons durables
+(pièges à ne pas réintroduire / faits établis) :
+
+1. **Les 5 routes API n'ont AUCUNE authentification** (`grep APP_PASSWORD|password|401 api/` = 0). Retrait
+   volontaire (commit `5a26ff0`, 06/05/2026) mais **jamais arbitré**, et CLAUDE.md « sécurité non négociable »,
+   README.md:123, DoD « Login 401 », `.env.example` (`APP_PASSWORD` fantôme) affirment tous le contraire →
+   **fausse assurance de sécurité documentaire**. Décision (06/07) : réimplémenter l'auth ; comprendre POURQUOI
+   l'ancienne échouait avant de recoder (ne pas remettre l'ancien code tel quel).
+
+2. **`compareStrings/compareSIRET/compareDate/compareParcelles/compareSecteurEtude` renvoient `true` quand les
+   DEUX côtés sont vides** (`''===''`). Le durcissement #27 (`dd65b9d`) a corrigé **UNIQUEMENT `compareAddress`** ;
+   les 5 autres comparateurs portent le même faux conforme (dont `check_01` bloquant). Même classe que la Leçon #27
+   point 5 — le patron sûr existe déjà (`pushContactCheck` → `info` si vide). ⚠️ Un fix « ajouter la garde `!a||!b`
+   partout » doit vérifier au cas par cas l'atteignabilité (quand le CEE est vide, `check_cee_incomplet` couvre
+   certains cas) pour ne pas transformer des verts en rouges à tort.
+
+3. **Faux conforme LED « 0 = 0 »** : `parseFloat(...)||0` des deux côtés (`check_09a/b/c`, `4265-4307`) → `|0-0|<0.1`
+   passe **vert** quand rien n'est extrait. Court-circuite R05 (tolérance zéro). Même principe que le point 2 (fallback
+   silencieux vers 0, interdit par le principe n°5).
+
+4. **La bannière page de garde (le SEUL signal bloquant) est calculée sur `checks.slice(0,3)`** (`3045-3046`) :
+   ne couvre QUE le chantier 1 (multi-chantiers : bloquant chantier 2+ ignoré) et devient **verte sans aucune vérif
+   page de garde si 0 audit extrait**. Confirmé **critique** (faux conforme sur `page_garde_ok`). Ne pas confondre
+   « alerte non bloquante » (voulu, §1) avec ce trou.
+
+5. **`generateChecks` = 1390 lignes (`4100-5489`), 20 autres fonctions > 50 l., 2 handlers inline géants**
+   (`btnAnalyze` 565 l., `btnExtractFromCEE` 253 l.). C'est le terrain de la phase B. Rappel du précédent d'échec :
+   **ne JAMAIS scinder `generateChecks` pendant une extraction de module** (le big-bang ES6 des 26-27 mai l'a tronquée) —
+   l'extraire entière d'abord, la scinder dans un chantier séparé. Invariant ADR-014 (3 surfaces d'id de check) à
+   respecter à chaque module.
+
+6. **Une vérif adversariale multi-agents s'ARBITRE (rappel Leçon #27 point 6, re-confirmé)** : sur ~49 findings, la
+   plupart des « critiques » des finders ont été **requalifiés majeur/mineur** à l'arbitrage (XSS d'un outil interne,
+   dettes déjà tracées avec décision). Aucun réfuté, mais la gravité brute d'un finder n'est jamais le mot final.
+
+---
+
 ## ⚠️ APPROCHES ABANDONNÉES
 
 ### Approche abandonnée #1 : Fichier JSON local pour feedback
