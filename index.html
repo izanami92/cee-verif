@@ -1110,8 +1110,24 @@
 </head>
 <body>
 
+  <!-- ========== ÉCRAN DE LOGIN ========== -->
+  <div id="loginScreen">
+    <div class="login-card">
+      <h1>CEE Vérif</h1>
+      <p>Vérification des dossiers CEE LED — BAT-EQ-127</p>
+      <form id="loginForm">
+        <div class="form-group">
+          <label for="passwordInput">Mot de passe</label>
+          <input type="password" id="passwordInput" placeholder="Entrez le mot de passe" autocomplete="current-password">
+        </div>
+        <button type="submit" class="btn-primary">Se connecter</button>
+        <div id="loginError" class="error-message"></div>
+      </form>
+    </div>
+  </div>
+
   <!-- ========== ÉCRAN PRINCIPAL ========== -->
-  <div id="appScreen" class="show">
+  <div id="appScreen">
 
     <!-- SIDEBAR -->
     <aside class="sidebar">
@@ -1481,6 +1497,7 @@
 
     // ========== ÉTAT DE L'APPLICATION ==========
     const state = {
+      appPassword: null,   // mot de passe partagé saisi au login (jamais en dur dans le code)
       files: {
         // betool: null,        // Capture Betool (image) - DÉSACTIVÉ
         dossier: null,       // 1 seul Dossier CEE
@@ -1505,6 +1522,12 @@
 
     // ========== ÉLÉMENTS DOM ==========
     const elements = {
+      loginScreen: document.getElementById('loginScreen'),
+      appScreen: document.getElementById('appScreen'),
+      loginForm: document.getElementById('loginForm'),
+      passwordInput: document.getElementById('passwordInput'),
+      loginError: document.getElementById('loginError'),
+
       siretSearch: document.getElementById('siretSearch'),
       searchResults: document.getElementById('searchResults'),
 
@@ -1575,6 +1598,75 @@
       googleSheetStatusText: document.getElementById('googleSheetStatusText')
     };
 
+    // ========== AUTHENTIFICATION (mot de passe partagé) ==========
+    // Le mot de passe n'est JAMAIS dans le code : il est saisi ici et vérifié côté serveur
+    // (variable Vercel APP_PASSWORD). Chaque appel /api/* porte le header Authorization ;
+    // un 401 renvoie à l'écran de connexion.
+    function showApp() {
+      elements.loginScreen.style.display = 'none';
+      elements.appScreen.classList.add('show');
+    }
+    function showLogin() {
+      elements.appScreen.classList.remove('show');
+      elements.loginScreen.style.display = 'flex';
+    }
+    function showLoginError(message) {
+      elements.loginError.textContent = message;
+      elements.loginError.classList.add('show');
+    }
+
+    // Enveloppe de fetch pour les routes /api/* : ajoute le header d'auth et rebascule
+    // au login sur 401 (mot de passe invalide ou session expirée).
+    async function apiFetch(url, options = {}) {
+      const headers = Object.assign({}, options.headers, {
+        'Authorization': 'Bearer ' + (state.appPassword || '')
+      });
+      const response = await fetch(url, Object.assign({}, options, { headers }));
+      if (response.status === 401) {
+        state.appPassword = null;
+        sessionStorage.removeItem('app_password');
+        showLogin();
+        showLoginError('Session expirée ou mot de passe invalide. Reconnectez-vous.');
+        throw new Error('Non authentifié (401)');
+      }
+      return response;
+    }
+
+    elements.loginForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const password = elements.passwordInput.value.trim();
+      elements.loginError.classList.remove('show');
+      if (!password) { showLoginError('Veuillez entrer un mot de passe.'); return; }
+
+      const submitBtn = elements.loginForm.querySelector('button[type="submit"]');
+      submitBtn.disabled = true;
+      try {
+        // Valide le mot de passe SANS lancer d'analyse (route /api/login légère, pas d'appel Claude).
+        const response = await fetch('/api/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + password }
+        });
+        if (response.status === 401) { showLoginError('Mot de passe incorrect.'); return; }
+        if (!response.ok) { showLoginError('Erreur de connexion. Réessayez.'); return; }
+        // OK : on mémorise le mot de passe pour la durée de la session et on ouvre l'app.
+        state.appPassword = password;
+        sessionStorage.setItem('app_password', password);
+        showApp();
+      } catch (error) {
+        console.error('Erreur login:', error);
+        showLoginError('Erreur de connexion. Vérifiez votre connexion internet.');
+      } finally {
+        submitBtn.disabled = false;
+      }
+    });
+
+    // Restaure une session déjà ouverte (mot de passe mémorisé). L'app reste inutilisable
+    // si ce mot de passe n'est plus valide : le premier appel /api/* renverra 401 → login.
+    (function restoreSession() {
+      const saved = sessionStorage.getItem('app_password');
+      if (saved) { state.appPassword = saved; showApp(); }
+    })();
+
     // ========== GOOGLE SHEET VERIFICATION ==========
     elements.toggleGoogleSheet.addEventListener('change', async (e) => {
       const enabled = e.target.checked;
@@ -1588,7 +1680,7 @@
 
         try {
           // Appeler l'API pour récupérer les données du sheet
-          const response = await fetch('/api/fetchSheet');
+          const response = await apiFetch('/api/fetchSheet');
 
           if (!response.ok) {
             throw new Error('Erreur lors de la récupération du Google Sheet');
@@ -1652,7 +1744,7 @@
         };
 
         // Appeler l'API de comparaison
-        const response = await fetch('/api/compareSheet', {
+        const response = await apiFetch('/api/compareSheet', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -1702,7 +1794,7 @@
 
     async function searchSiret(query) {
       try {
-        const response = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
+        const response = await apiFetch(`/api/search?q=${encodeURIComponent(query)}`);
 
         if (!response.ok) {
           console.error('Erreur recherche SIRET');
@@ -1923,7 +2015,7 @@
         const ceeText = await extractTextFromPDF(state.files.dossier);
 
         // Appeler l'API pour extraire les références
-        const response = await fetch('/api/analyze', {
+        const response = await apiFetch('/api/analyze', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -2519,7 +2611,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
         console.log('🔍 SIRET détecté, récupération automatique du code NAF...');
         const siret = extractedData.cee.siret;
         console.log('   SIRET utilisé:', siret);
-        const nafResponse = await fetch(`/api/search?q=${encodeURIComponent(siret)}`);
+        const nafResponse = await apiFetch(`/api/search?q=${encodeURIComponent(siret)}`);
 
         console.log('   Statut réponse API:', nafResponse.status, nafResponse.statusText);
 
@@ -2697,7 +2789,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
         }
 
         // Appeler l'API d'extraction
-        const response = await fetch('/api/analyze', {
+        const response = await apiFetch('/api/analyze', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({

@@ -1,6 +1,8 @@
 // Route API : GET /api/search
 // Relaie la recherche SIRET vers l'API gouvernementale (résout le problème CORS)
 
+import { requireAuth } from '../lib/auth.js';
+
 export default async function handler(req, res) {
   // Gérer les requêtes OPTIONS (CORS preflight)
   if (req.method === 'OPTIONS') {
@@ -11,6 +13,9 @@ export default async function handler(req, res) {
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Méthode non autorisée. Utilisez GET.' });
   }
+
+  // SÉCURITÉ : vérifier le mot de passe EN PREMIER (via header Authorization ; écrit 401/500 si invalide).
+  if (!requireAuth(req, res)) return;
 
   try {
     const { q } = req.query;

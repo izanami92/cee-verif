@@ -2,6 +2,7 @@
 // Lit le Google Sheet et retourne toutes les lignes
 
 import { google } from 'googleapis';
+import { requireAuth } from '../lib/auth.js';
 
 export const config = {
   maxDuration: 60,
@@ -17,6 +18,9 @@ export default async function handler(req, res) {
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Méthode non autorisée. Utilisez GET.' });
   }
+
+  // SÉCURITÉ : vérifier le mot de passe EN PREMIER (via header Authorization ; écrit 401/500 si invalide).
+  if (!requireAuth(req, res)) return;
 
   try {
     // Vérifier que les variables d'environnement sont configurées

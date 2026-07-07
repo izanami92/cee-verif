@@ -1,5 +1,7 @@
 // Route API : POST /api/analyze
-// Vérifie le mot de passe, appelle Claude pour analyser les documents CEE, retourne le JSON d'analyse
+// Vérifie le mot de passe (requireAuth), appelle Claude pour analyser les documents CEE, retourne le JSON d'analyse
+
+import { requireAuth } from '../lib/auth.js';
 
 export const config = {
   maxDuration: 60, // Timeout de 60 secondes (maximum Vercel gratuit)
@@ -15,6 +17,9 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Méthode non autorisée. Utilisez POST.' });
   }
+
+  // SÉCURITÉ : vérifier le mot de passe EN PREMIER (écrit 401/500 et s'arrête si invalide).
+  if (!requireAuth(req, res)) return;
 
   try {
     const { messages, system, references } = req.body;

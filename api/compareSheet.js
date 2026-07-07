@@ -1,6 +1,8 @@
 // Route API : POST /api/compareSheet
 // Compare les données CEE extraites avec les lignes du Google Sheet
 
+import { requireAuth } from '../lib/auth.js';
+
 export const config = {
   maxDuration: 60,
 };
@@ -13,6 +15,9 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Méthode non autorisée. Utilisez POST.' });
   }
+
+  // SÉCURITÉ : vérifier le mot de passe EN PREMIER (écrit 401/500 et s'arrête si invalide).
+  if (!requireAuth(req, res)) return;
 
   try {
     const { ceeData, sheetData } = req.body;
