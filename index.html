@@ -2901,7 +2901,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
             if (autresSecteurs.length > 0) {
               const msg = `⚠️ ATTENTION : Secteur d'activité "Autres secteurs" détecté\n\n` +
                 autresSecteurs.map(s =>
-                  `Chantier ${s.index} : "${s.secteur}"\n${s.adresse.substring(0, 50)}...`
+                  `Chantier ${s.index} : "${s.secteur}"\n${(s.adresse || '').substring(0, 50)}...`
                 ).join('\n\n') +
                 `\n\n⚠️ Normalement, les dossiers CEE LED doivent avoir le secteur "Entrepôts".\n\n` +
                 `Êtes-vous sûr que ce(s) chantier(s) ${autresSecteurs.length > 1 ? 'sont' : 'est'} bien éligible${autresSecteurs.length > 1 ? 's' : ''} ?\n\n` +
@@ -7532,7 +7532,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
       const { bloquants, majeurs, infos, conformes, cee, chantiers } = groupChecksByHierarchy(checks);
 
       console.log('🔍 APRÈS groupChecksByHierarchy - Nombre de chantiers créés:', chantiers.length);
-      console.log('🔍 Chantiers détails:', chantiers.map(ch => ({ index: ch.index, audit: ch.audit.length, synthese: ch.synthese.length, adresse: ch.adresse.substring(0, 30) })));
+      console.log('🔍 Chantiers détails:', chantiers.map(ch => ({ index: ch.index, audit: ch.audit.length, synthese: ch.synthese.length, adresse: (ch.adresse || '').substring(0, 30) })));
 
       let html = '';
 
