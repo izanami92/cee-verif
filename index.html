@@ -3419,6 +3419,9 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
     }
 
     function compareStrings(val1, val2) {
+      // Deux valeurs absentes ne sont PAS « conformes » : une donnée manquante doit surgir,
+      // jamais passer vert par '' === '' (principe n°1 ; même garde que compareAddress #27 — M2).
+      if (!val1 || !val2) return false;
       const norm1 = normalize(val1);
       const norm2 = normalize(val2);
 
@@ -3463,6 +3466,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
 
     // Comparer deux dates (gère les formats JJ/MM/AAAA et AAAA-MM-JJ)
     function compareDate(date1, date2) {
+      if (!date1 || !date2) return false; // M2 : date absente des 2 côtés ≠ conforme (jamais '' === '')
       // Nettoyer : supprimer espaces
       const clean = (d) => String(d || '').replace(/\s+/g, '');
       let clean1 = clean(date1);
@@ -3821,6 +3825,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
 
     // Comparer SIRET (14 chiffres, ignore espaces et caractères non numériques)
     function compareSIRET(siret1, siret2) {
+      if (!siret1 || !siret2) return false; // M2 : SIRET absent des 2 côtés ≠ conforme (jamais '' === '')
       const clean = (s) => String(s || '').replace(/[^\d]/g, '');  // Garder seulement chiffres
       const clean1 = clean(siret1);
       const clean2 = clean(siret2);
