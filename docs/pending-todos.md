@@ -234,11 +234,12 @@ Un `docs/architecture-actuelle.md` (26/05, obsolète : `generateChecks` y est à
 #### 📋 Findings de l'audit phase A — backlog priorisé (ordre de traitement choisi : sécurité d'abord)
 
 > Provenance : ✔️ vérifié adversarialement · 🔍 re-vérifié sur le code par la session. Lignes = état sur `main` `c28b323`.
+> **✅ LOT 1 sécurité MERGÉ sur `main` le 07/07/2026 (`c197376`, fast-forward)** : K1 + K2 + M7 + suppression `extract-cee`. Validé preview (7 tests : login bloquant, mauvais/bon mdp, SIRET, analyse, session, `/api/fetchSheet` → 401 sans login). `APP_PASSWORD` configuré Vercel (Prod + Preview). **Prochain : LOT 2 faux-conforme.**
 
 **🔴 CRITIQUES (3)**
-- **K1 — Aucune auth sur les 5 routes API** ✔️ (`api/analyze.js:19` + 4 autres). Proxy LLM ouvert sur `OPENROUTER_API_KEY` + endpoints publics. Retrait volontaire (`5a26ff0`) jamais arbitré ; CLAUDE.md/README/`.env.example` affirment le contraire. **Décision IZANAMI : réimplémenter l'auth** (diagnostiquer d'abord *pourquoi* l'ancienne échouait). Effort M. **→ LOT 1 (en cours).**
-- **K2 — `/api/fetchSheet` dump tout le Sheet à un GET anonyme** ✔️ (`fetchSheet.js:78-83`). PII bénéficiaires + montants CEE. Effort S. **→ LOT 1.**
-- **K3 — Bannière page de garde sur `checks.slice(0,3)`** ✔️ (`index.html:3045-3046`) — **seul faux conforme sur le signal bloquant**. (1) multi-chantiers : bloquant chantier 2+ ignoré ; (2) 0 audit : bannière verte sans aucune vérif page de garde. Effort S-M. **→ LOT 2 (faux-conforme).**
+- **K1 — Aucune auth sur les 5 routes API** ✔️ **✅ FAIT (LOT 1, `c197376`)** : `lib/auth.js` (`requireAuth`, header `Authorization` Bearer, fail-closed si `APP_PASSWORD` absent) + `/api/login` (validation sans appel LLM — fin du piège de l'ancien login) + `requireAuth` en premier sur les 5 routes ; login front restauré + `apiFetch` (header + 401→login). Le mdp vit uniquement dans la variable Vercel `APP_PASSWORD`.
+- **K2 — `/api/fetchSheet` dump tout le Sheet à un GET anonyme** ✔️ **✅ FAIT (`c197376`)** : `requireAuth` sur `fetchSheet` ; 401 sans login prouvé en preview.
+- **K3 — Bannière page de garde sur `checks.slice(0,3)`** ✔️ (`index.html:3045-3046`) — **seul faux conforme sur le signal bloquant**. (1) multi-chantiers : bloquant chantier 2+ ignoré ; (2) 0 audit : bannière verte sans aucune vérif page de garde. Effort S-M. **→ LOT 2 (faux-conforme) — EN COURS.**
 
 **🟠 MAJEURS (8)**
 - **M1 — XSS `innerHTML` sur données extraites** ✔️ (requalifié critique→majeur). `createCheckCard:5958-5967` + noms de fichiers uploadés `1814` + adresses `2088/2379/6507` + SIRET `1726` + saisie manuelle `5573`. Aucune `escapeHtml` globale (seul `escAttr` local `6899`). Effort M.
@@ -247,10 +248,10 @@ Un `docs/architecture-actuelle.md` (26/05, obsolète : `generateChecks` y est à
 - **M4 — MISS `check_09d` silencieux** ✔️ (`4406-4409`). Déjà tracé (Commit 2 étape 5). Effort S.
 - **M5 — `Promise.all` extractions PDF** ✔️ (`2649`). 1 PDF illisible tue toute l'analyse (viole « continuer avec les autres »). `allSettled`. Effort S.
 - **M6 — `s.adresse.substring()` sans garde** ✔️ (`2810-2813`, `detectAutresSecteurs:4066`). TypeError → analyse avortée. Seul site oublié. Effort S. **→ LOT 2.**
-- **M7 — CORS `*` + `Allow-Credentials:true` + 0 header sécurité** ✔️ (`vercel.json:12-18`). Aggrave K1/K2. Effort S. **→ LOT 1.**
+- **M7 — CORS `*` + `Allow-Credentials:true` + 0 header sécurité** ✔️ (`vercel.json:12-18`). Aggrave K1/K2. **✅ FAIT (`c197376`)** : bloc CORS retiré (app same-origin).
 - **M8 — `generateChecks` 1390 l. (`4100-5489`) + 20 fonctions >50 l. + 2 handlers inline géants** ✔️ = **le cœur de ce TODO #3 / phase B**. Ne pas scinder pendant l'extraction. Effort L.
 
-**🔵 MINEURS** (dédupliqués ; beaucoup déjà tracés) : A4 tolérance LED `<0.1` (5 occ. `4268/4284/4307/4373/4391`) · 9 `alert()` (`2153…7854`) · fuite `state.chantiers` · `check_23` id nu (`4803-4828`) · label `nbChantiers` (`5228` vs `5686`) · A3 `check_47_global` fusionné mais SOURCE_DE_VERITE §6 périmé · routage `check_47_global` sans `portee` · `api/extract-cee.js` route morte (2ᵉ proxy LLM, **à supprimer en LOT 1**) · 5 normalisations d'adresse divergentes (dont `compareSheet.js:306`) · 2 systèmes de routage coexistants (`getGroupeForCheck` legacy vs `resolveFamille`) · code mort ~430 l. (dont `renderChecksByFamille` = filet #35) · ~122 `console.log` fuitant des données métier · erreurs internes relayées au client · `.env.example` désync · commentaire « vérifie le mot de passe » mensonger · pas de CSP/SRI · fetch client sans timeout · `displayResults` dans `setTimeout` hors try/catch · CLAUDE.md désync (tailles fichiers, env vars).
+**🔵 MINEURS** (dédupliqués ; beaucoup déjà tracés) : A4 tolérance LED `<0.1` (5 occ. `4268/4284/4307/4373/4391`) · 9 `alert()` (`2153…7854`) · fuite `state.chantiers` · `check_23` id nu (`4803-4828`) · label `nbChantiers` (`5228` vs `5686`) · A3 `check_47_global` fusionné mais SOURCE_DE_VERITE §6 périmé · routage `check_47_global` sans `portee` · `api/extract-cee.js` route morte **✅ SUPPRIMÉE (`c197376`)** · 5 normalisations d'adresse divergentes (dont `compareSheet.js:306`) · 2 systèmes de routage coexistants (`getGroupeForCheck` legacy vs `resolveFamille`) · code mort ~430 l. (dont `renderChecksByFamille` = filet #35) · ~122 `console.log` fuitant des données métier · erreurs internes relayées au client · `.env.example` désync · commentaire « vérifie le mot de passe » mensonger · pas de CSP/SRI · fetch client sans timeout · `displayResults` dans `setTimeout` hors try/catch · CLAUDE.md désync (tailles fichiers, env vars).
 
 ### TODO #4 : Tests automatisés — 💭 EN DISCUSSION
 Pas de tests auto hors harnais `test-familles.mjs` / `test-batiments.mjs`. Cibles prioritaires :
