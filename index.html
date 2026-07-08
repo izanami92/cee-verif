@@ -1637,7 +1637,23 @@
       const headers = Object.assign({}, options.headers, {
         'Authorization': 'Bearer ' + (state.appPassword || '')
       });
-      const response = await fetch(url, Object.assign({}, options, { headers }));
+      // Timeout anti-pendage : borne l'attente si le réseau/serveur ne répond pas (défaut 30 s).
+      // L'analyse (/api/analyze) passe un délai plus long (options.timeoutMs) car elle est lente
+      // côté serveur ; on ne veut jamais couper une analyse légitime.
+      const timeoutMs = options.timeoutMs || 30000;
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), timeoutMs);
+      let response;
+      try {
+        response = await fetch(url, Object.assign({}, options, { headers, signal: controller.signal }));
+      } catch (error) {
+        if (error.name === 'AbortError') {
+          throw new Error(`Délai dépassé (${Math.round(timeoutMs / 1000)} s) : le serveur ne répond pas. Vérifiez votre connexion et réessayez.`);
+        }
+        throw error;
+      } finally {
+        clearTimeout(timer);
+      }
       if (response.status === 401) {
         state.appPassword = null;
         sessionStorage.removeItem('app_password');
@@ -1658,10 +1674,19 @@
       submitBtn.disabled = true;
       try {
         // Valide le mot de passe SANS lancer d'analyse (route /api/login légère, pas d'appel Claude).
-        const response = await fetch('/api/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + password }
-        });
+        // Timeout 30 s (fetch direct, hors apiFetch) : l'AbortError est capté par le catch ci-dessous.
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 30000);
+        let response;
+        try {
+          response = await fetch('/api/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + password },
+            signal: controller.signal
+          });
+        } finally {
+          clearTimeout(timer);
+        }
         if (response.status === 401) { showLoginError('Mot de passe incorrect.'); return; }
         if (!response.ok) { showLoginError('Erreur de connexion. Réessayez.'); return; }
         // OK : on mémorise le mot de passe pour la durée de la session et on ouvre l'app.
@@ -2033,6 +2058,7 @@
         // Appeler l'API pour extraire les références
         const response = await apiFetch('/api/analyze', {
           method: 'POST',
+          timeoutMs: 120000, // analyse lente (extraction LLM) : délai large, ne jamais couper un appel légitime
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             messages: [
@@ -2833,6 +2859,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
         // Appeler l'API d'extraction
         const response = await apiFetch('/api/analyze', {
           method: 'POST',
+          timeoutMs: 120000, // analyse lente (extraction LLM) : délai large, ne jamais couper un appel légitime
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             messages: [
