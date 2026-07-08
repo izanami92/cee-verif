@@ -2698,47 +2698,73 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
 
         updateProgress(10, 'Extraction des PDFs en cours...');
 
-        // NOUVELLE ARCHITECTURE : Extraire les textes par chantier
-        const extractionPromises = [];
+        // NOUVELLE ARCHITECTURE : Extraire les textes par chantier.
+        // M5 : chaque extraction est étiquetée et on passe par Promise.allSettled (jamais rejeté en
+        // bloc), pour qu'UN PDF illisible ne fasse plus tout échouer d'un coup avec un message opaque.
+        // Documents « critiques » (Dossier CEE = référence absolue §0 ; Audit/Synthèse = leur absence
+        // décale l'appariement des chantiers par index → faux résultats, cf. piège « import incomplet »)
+        // → on ARRÊTE proprement en nommant le fichier. Fiche technique = secondaire → on CONTINUE en
+        // le signalant (règle « continuer avec les autres » là où c'est sûr).
+        const extractionTasks = [];
 
-        // Dossier CEE (déjà extrait lors de la détection)
+        // Dossier CEE (déjà extrait lors de la détection) — CRITIQUE (référence absolue)
         if (state.files.dossier && !state.extractedTexts.dossier) {
-          extractionPromises.push(
-            extractTextFromPDF(state.files.dossier).then(text => {
+          extractionTasks.push({ label: 'Dossier CEE', critique: true,
+            promise: extractTextFromPDF(state.files.dossier).then(text => {
               state.extractedTexts.dossier = text;
             })
-          );
+          });
         }
 
-        // Fiche technique (GLOBALE - une seule pour tout le dossier)
+        // Fiche technique (GLOBALE - une seule pour tout le dossier) — SECONDAIRE
         if (state.files.ficheTechnique && !state.extractedTexts.ficheTechnique) {
-          extractionPromises.push(
-            extractTextFromPDF(state.files.ficheTechnique).then(text => {
+          extractionTasks.push({ label: 'Fiche technique', critique: false,
+            promise: extractTextFromPDF(state.files.ficheTechnique).then(text => {
               state.extractedTexts.ficheTechnique = text;
             })
-          );
+          });
         }
 
-        // Extraire les textes pour chaque chantier
+        // Extraire les textes pour chaque chantier — Audit/Synthèse CRITIQUES (appariement par index)
         state.chantiers.forEach((chantier, index) => {
           if (chantier.audit) {
-            extractionPromises.push(
-              extractTextFromPDF(chantier.audit).then(text => {
+            extractionTasks.push({ label: `Audit chantier ${index + 1}`, critique: true,
+              promise: extractTextFromPDF(chantier.audit).then(text => {
                 state.chantiers[index].auditText = text;
               })
-            );
+            });
           }
 
           if (chantier.synthese) {
-            extractionPromises.push(
-              extractTextFromPDF(chantier.synthese).then(text => {
+            extractionTasks.push({ label: `Synthèse chantier ${index + 1}`, critique: true,
+              promise: extractTextFromPDF(chantier.synthese).then(text => {
                 state.chantiers[index].syntheseText = text;
               })
-            );
+            });
           }
         });
 
-        await Promise.all(extractionPromises);
+        const resultatsExtraction = await Promise.allSettled(extractionTasks.map(t => t.promise));
+        const echecsExtraction = resultatsExtraction
+          .map((r, i) => ({ statut: r.status, label: extractionTasks[i].label, critique: extractionTasks[i].critique }))
+          .filter(x => x.statut === 'rejected');
+        const echecsCritiques = echecsExtraction.filter(x => x.critique);
+
+        if (echecsCritiques.length > 0) {
+          // Document indispensable illisible → arrêt propre (continuer fausserait les comparaisons).
+          const liste = echecsCritiques.map(x => x.label).join(', ');
+          console.error('❌ Extraction impossible (document indispensable) :', liste);
+          updateProgress(0, `Erreur : document illisible (${liste})`);
+          alert(`Extraction impossible pour : ${liste}.\n\nCe document est indispensable à l'analyse (référence CEE ou appariement des chantiers). Vérifiez ce PDF et réimportez-le. Analyse arrêtée.`);
+          return;
+        }
+
+        if (echecsExtraction.length > 0) {
+          // Seuls des documents secondaires (fiche technique) ont échoué → on continue en le signalant.
+          const liste = echecsExtraction.map(x => x.label).join(', ');
+          console.warn('⚠️ Extraction impossible (document secondaire) :', liste);
+          alert(`Extraction impossible pour : ${liste}.\n\nL'analyse continue sans ce document ; les vérifications correspondantes n'ont pas pu être faites.`);
+        }
 
         updateProgress(50, 'Analyse en cours avec Claude...');
 
