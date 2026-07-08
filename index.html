@@ -10,8 +10,12 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300;1,400;1,500&family=Syne:wght@400..800&display=swap" rel="stylesheet">
 
-  <!-- pdf.js depuis CDN -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <!-- pdf.js depuis CDN — SRI : le navigateur refuse le script si le CDN le sert altéré.
+       Hash officiel cdnjs (vérifié par recalcul local). Le worker (workerSrc) n'a pas de balise
+       script → pas de SRI possible simplement (limite connue). -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"
+          integrity="sha512-q+4liFwdPC/bNdhUpZx6aXDx/h77yEQtn4I1slHydcbZK34nLaR3cAeYSJshoxIOq3mjEf7xJE8YWIUHMn+oCQ=="
+          crossorigin="anonymous"></script>
 
   <style>
     /* ========== VARIABLES CSS ========== */
