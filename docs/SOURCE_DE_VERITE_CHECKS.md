@@ -133,6 +133,9 @@ Déclencheur actif — Délais de travaux (dates du dossier CEE). Implémenté l
 | `check_09b` | Somme LED synthèses = Total CEE | 🟠 | UNIQUE |
 | `check_09c_chN` | LED Audit = LED Synthèse | 🟠 | × CHANTIER (multi) |
 | `check_09d_*` | LED Audit/Synthèse = LED attestation CEE | 🟠 | SI ATTEST. |
+| `check_09d_miss_cN` | Contrôle LED chantier vs CEE **impossible** (aucune attestation CEE appariée à l'adresse) | 🔵 info | × CHANTIER (si MISS) |
+
+> ℹ️ **`check_09d_miss_cN` (M4, `0e28ee2`, 08/07/2026)** : filet anti-faux-conforme côté LED. Quand le guichet par adresse ne trouve **aucune** attestation CEE pour un chantier (audit+synthèse présents), le contrôle `check_09d` ne peut pas être fait ; au lieu de se taire (`console.warn` seul), un check **`info`** « à vérifier » **surgit** (principe n°1). **Jamais majeur** : l'absence peut être légitime (bâtiment « Autres » sans attestation entrepôt). Symétrique côté LED de `check_surface_non_ventilable` (§7bis). Routé famille 5 (`familles-config.js`), provenance Méthode 0 (`categorie:'synthese'`+`chantierIndex`). Limite assumée : léger sur-signalement `info` possible sur un chantier « Autres » d'un dossier multi-chantiers (distinction fine Entrepôt/Autres au grain chantier = TODO #27).
 
 ### Fiche identité / périmètre SYNTHÈSE
 | ID | Vérifie | Niveau | Portée |
