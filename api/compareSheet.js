@@ -77,8 +77,7 @@ export default async function handler(req, res) {
   } catch (error) {
     console.error('Erreur lors de la comparaison:', error);
     return res.status(500).json({
-      error: 'Erreur lors de la comparaison',
-      details: error.message
+      error: 'Erreur lors de la comparaison'
     });
   }
 }

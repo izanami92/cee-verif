@@ -40,9 +40,9 @@ export default async function handler(req, res) {
     if (!response.ok) {
       const errorData = await response.text();
       console.error('Erreur API gouvernementale:', errorData);
+      // Détail loggé côté serveur uniquement (ci-dessus) — jamais renvoyé au client (fuite d'info).
       return res.status(response.status).json({
-        error: `Erreur API recherche entreprises (${response.status})`,
-        details: errorData
+        error: `Erreur API recherche entreprises (${response.status})`
       });
     }
 
@@ -66,8 +66,7 @@ export default async function handler(req, res) {
   } catch (error) {
     console.error('Erreur serveur:', error);
     return res.status(500).json({
-      error: 'Erreur interne du serveur',
-      details: error.message
+      error: 'Erreur interne du serveur'
     });
   }
 }

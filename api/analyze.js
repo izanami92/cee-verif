@@ -67,9 +67,9 @@ export default async function handler(req, res) {
     if (!response.ok) {
       const errorData = await response.text();
       console.error('Erreur API OpenRouter:', errorData);
+      // Détail loggé côté serveur uniquement (ci-dessus) — jamais renvoyé au client (fuite d'info).
       return res.status(response.status).json({
-        error: `Erreur API OpenRouter (${response.status})`,
-        details: errorData
+        error: `Erreur API OpenRouter (${response.status})`
       });
     }
 
@@ -110,12 +110,13 @@ export default async function handler(req, res) {
     } catch (parseError) {
       console.error('❌ ERREUR DE PARSING JSON:', parseError);
       // En cas d'erreur de parsing, retourner le texte brut
+      // parseError loggé côté serveur (ci-dessus) — non renvoyé au client. raw_response reste
+      // volontairement exposé (robustesse : afficher le texte brut si le JSON est invalide).
       analysisResult = {
         checks: [],
         page_garde_ok: false,
         message_auditeur: content,
-        raw_response: content,
-        parse_error: parseError.message
+        raw_response: content
       };
     }
 
@@ -127,8 +128,7 @@ export default async function handler(req, res) {
   } catch (error) {
     console.error('Erreur serveur:', error);
     return res.status(500).json({
-      error: 'Erreur interne du serveur',
-      details: error.message
+      error: 'Erreur interne du serveur'
     });
   }
 }
