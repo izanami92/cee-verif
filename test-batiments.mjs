@@ -1,8 +1,9 @@
 /**
  * test-batiments.mjs — Auto-test isolé de extraireNombreBatiments (ADR-015 étape 4a-bis).
  *
- * Prouve la fonction SANS navigateur ni app : on lit le VRAI code de index.html
- * (pas une copie) et on extrait normalize() + extraireNombreBatiments() par
+ * Prouve la fonction SANS navigateur ni app : on lit le VRAI code de utils-comparaison.js
+ * (module 1, ADR-016 — les 6 fonctions y ont été extraites byte-identiques d'index.html)
+ * et on extrait normalize() + extraireNombreBatiments() par
  * comptage d'accolades, puis on les évalue en portée globale (même esprit que
  * test-familles.mjs). Lancer :  node test-batiments.mjs
  * Sort en code ≠ 0 au moindre KO (vrai garde-fou pré-commit).
@@ -11,8 +12,8 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import process from 'node:process';
 
-const htmlPath = fileURLToPath(new URL('./index.html', import.meta.url));
-const src = readFileSync(htmlPath, 'utf8');
+const modulePath = fileURLToPath(new URL('./utils-comparaison.js', import.meta.url));
+const src = readFileSync(modulePath, 'utf8');
 
 // Extrait `function NAME(...) { ... }` par comptage d'accolades à partir de la 1re « { ».
 // OK ici : les seules accolades dans les corps visés sont des quantificateurs regex
@@ -20,7 +21,7 @@ const src = readFileSync(htmlPath, 'utf8');
 function extractFn(name) {
   const sig = `function ${name}(`;
   const start = src.indexOf(sig);
-  if (start === -1) throw new Error(`Fonction ${name} introuvable dans index.html`);
+  if (start === -1) throw new Error(`Fonction ${name} introuvable dans utils-comparaison.js`);
   let depth = 0, started = false;
   for (let j = src.indexOf('{', start); j < src.length; j++) {
     const c = src[j];
@@ -48,25 +49,25 @@ const code = extractFn('normalize') + '\n'
 
 const extraireNombreBatiments = globalThis.__extraireNombreBatiments;
 if (typeof extraireNombreBatiments !== 'function') {
-  console.error('❌ extraireNombreBatiments non extraite depuis index.html');
+  console.error('❌ extraireNombreBatiments non extraite depuis utils-comparaison.js');
   process.exit(1);
 }
 
 const normaliserAdresseSansBatiment = globalThis.__normaliserAdresseSansBatiment;
 if (typeof normaliserAdresseSansBatiment !== 'function') {
-  console.error('❌ normaliserAdresseSansBatiment non extraite depuis index.html');
+  console.error('❌ normaliserAdresseSansBatiment non extraite depuis utils-comparaison.js');
   process.exit(1);
 }
 
 const sommerCellulesParAdresse = globalThis.__sommerCellulesParAdresse;
 if (typeof sommerCellulesParAdresse !== 'function') {
-  console.error('❌ sommerCellulesParAdresse non extraite depuis index.html');
+  console.error('❌ sommerCellulesParAdresse non extraite depuis utils-comparaison.js');
   process.exit(1);
 }
 
 const compareAddress = globalThis.__compareAddress;
 if (typeof compareAddress !== 'function') {
-  console.error('❌ compareAddress non extraite depuis index.html');
+  console.error('❌ compareAddress non extraite depuis utils-comparaison.js');
   process.exit(1);
 }
 
