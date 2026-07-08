@@ -1473,6 +1473,22 @@
     // ========== CONFIGURATION PDF.JS ==========
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
+    // ========== SÉCURITÉ : échappement HTML (M1 — anti-XSS) ==========
+    // Neutralise les données non sûres (texte extrait des PDF par le LLM, noms de fichiers uploadés,
+    // résultats de l'API SIRET) AVANT toute insertion via innerHTML. Échappe les 5 caractères qui ont
+    // un sens en HTML, donc sûr en contexte TEXTE et en contexte ATTRIBUT double-quote (les onclick de
+    // l'app n'interpolent que des index numériques → pas de contexte JS inline à couvrir).
+    // À appliquer À L'AFFICHAGE uniquement (jamais au stockage : les valeurs brutes servent aux
+    // comparaisons métier). Fonction déclarée (hoistée) → visible dans tout le <script>.
+    function escapeHtml(value) {
+      return String(value == null ? '' : value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
     // ========== FICHES TECHNIQUES LED ==========
     const FICHES_TECHNIQUES = {
       DAEWOO: {
@@ -1816,10 +1832,10 @@
       }
 
       elements.searchResults.innerHTML = results.map(result => `
-        <div class="search-result-item" data-nom="${result.nom}" data-siret="${result.siret}" data-adresse="${result.adresse}" data-codenaf="${result.codeNaf || ''}">
-          <div class="search-result-name">${result.nom}</div>
-          <div class="search-result-siret">SIRET: ${result.siret}</div>
-          <div class="search-result-naf" style="font-size: 12px; color: #666; margin-top: 4px;">NAF: ${result.codeNaf || 'Non disponible'}</div>
+        <div class="search-result-item" data-nom="${escapeHtml(result.nom)}" data-siret="${escapeHtml(result.siret)}" data-adresse="${escapeHtml(result.adresse)}" data-codenaf="${escapeHtml(result.codeNaf || '')}">
+          <div class="search-result-name">${escapeHtml(result.nom)}</div>
+          <div class="search-result-siret">SIRET: ${escapeHtml(result.siret)}</div>
+          <div class="search-result-naf" style="font-size: 12px; color: #666; margin-top: 4px;">NAF: ${escapeHtml(result.codeNaf || 'Non disponible')}</div>
         </div>
       `).join('');
 
@@ -1903,7 +1919,7 @@
         // Afficher la liste des fichiers
         const fileNames = state.files[fileKey].map(f => f.name).join('\n');
         filenameElement.innerHTML = `
-          <span class="upload-zone-filename-text">${state.files[fileKey].length} fichier(s) :\n${fileNames}</span>
+          <span class="upload-zone-filename-text">${state.files[fileKey].length} fichier(s) :\n${escapeHtml(fileNames)}</span>
           <button class="btn-remove-file" onclick="removeFile('${fileKey}', this)">× Retirer</button>
         `;
         filenameElement.style.whiteSpace = 'pre-line';
@@ -1916,7 +1932,7 @@
         // saute la ré-extraction tant que le texte est présent) → données périmées.
         state.extractedTexts[fileKey] = '';
         filenameElement.innerHTML = `
-          <span class="upload-zone-filename-text">${files[0].name}</span>
+          <span class="upload-zone-filename-text">${escapeHtml(files[0].name)}</span>
           <button class="btn-remove-file" onclick="removeFile('${fileKey}', this)">× Retirer</button>
         `;
       }
@@ -2178,7 +2194,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
             elements.detectionCount.textContent = state.chantiers.length;
             elements.manualChantierCount.value = state.chantiers.length;
             elements.detectionAddresses.innerHTML = state.chantiers
-              .map((ch, i) => `<div style="margin-top: 0.25rem;">Chantier ${i + 1}: ${ch.adresse}</div>`)
+              .map((ch, i) => `<div style="margin-top: 0.25rem;">Chantier ${i + 1}: ${escapeHtml(ch.adresse)}</div>`)
               .join('');
 
             // Générer les zones d'import par chantier
@@ -2299,7 +2315,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
         elements.detectionCount.textContent = state.chantiers.length;
         elements.manualChantierCount.value = state.chantiers.length;
         elements.detectionAddresses.innerHTML = state.chantiers
-          .map((ch, i) => `<div style="margin-top: 0.25rem;">Chantier ${i + 1}: ${ch.adresse}</div>`)
+          .map((ch, i) => `<div style="margin-top: 0.25rem;">Chantier ${i + 1}: ${escapeHtml(ch.adresse)}</div>`)
           .join('');
 
         // Générer les zones d'import par chantier
@@ -2468,7 +2484,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
               <input
                 type="text"
                 id="adresseChantier${index}"
-                value="${chantier.adresse}"
+                value="${escapeHtml(chantier.adresse)}"
                 style="
                   width: 100%;
                   padding: 0.5rem;
@@ -2563,7 +2579,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
 
       // Afficher le nom du fichier avec bouton retirer
       filenameElement.innerHTML = `
-        <span class="upload-zone-filename-text">${file.name}</span>
+        <span class="upload-zone-filename-text">${escapeHtml(file.name)}</span>
         <button class="btn-remove-file" onclick="removeChantierFile(${chantierIndex}, '${fileType}', this)">× Retirer</button>
       `;
       zoneElement.classList.add('loaded');
@@ -5717,7 +5733,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
         const inputHTML = `
           <div style="background: white; padding: 1rem; border-radius: 4px; margin-bottom: 0.75rem;">
             <div style="font-weight: 600; margin-bottom: 0.5rem;">
-              📍 Chantier ${chantierIndex} : ${attestation.adresse || 'Adresse inconnue'}
+              📍 Chantier ${chantierIndex} : ${escapeHtml(attestation.adresse || 'Adresse inconnue')}
             </div>
             <div style="display: flex; gap: 1rem; align-items: center;">
               <label style="flex: 0 0 150px;">Surface totale (m²) :</label>
@@ -5733,7 +5749,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
               Raison : ${attestation.surfaceManuelle ?
                 (attestation.secteurActivite?.toLowerCase().includes('autres') ?
                   'Secteur "Autres"' :
-                  `Code NAF non agricole (${window.selectedCodeNaf || 'N/A'})`)
+                  `Code NAF non agricole (${escapeHtml(window.selectedCodeNaf || 'N/A')})`)
                 : ''}
             </div>
           </div>
@@ -6084,21 +6100,21 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
       let valuesHTML = '';
 
       if (check.niveau === 'ok') {
-        valuesHTML = `<span class="check-chip conforme">✓ ${check.valeur_trouvee || check.valeur_attendue || 'Conforme'}</span>`;
+        valuesHTML = `<span class="check-chip conforme">✓ ${escapeHtml(check.valeur_trouvee || check.valeur_attendue || 'Conforme')}</span>`;
       } else if (check.niveau === 'info') {
         // Pour les infos : afficher seulement ce qui est trouvé (pas d'attendu pour les optionnels)
         if (check.valeur_trouvee !== undefined && check.valeur_trouvee !== '') {
-          valuesHTML += `<span class="check-chip found">Trouvé: ${check.valeur_trouvee}</span>`;
+          valuesHTML += `<span class="check-chip found">Trouvé: ${escapeHtml(check.valeur_trouvee)}</span>`;
         }
       } else {
         // Pour les erreurs/majeurs : TOUJOURS afficher Attendu ET Trouvé (même si vide)
         if (check.valeur_attendue !== undefined) {
           const attenduDisplay = check.valeur_attendue || '(vide)';
-          valuesHTML += `<span class="check-chip expected">Attendu: ${attenduDisplay}</span>`;
+          valuesHTML += `<span class="check-chip expected">Attendu: ${escapeHtml(attenduDisplay)}</span>`;
         }
         if (check.valeur_trouvee !== undefined) {
           const trouveDisplay = check.valeur_trouvee || '(vide)';
-          valuesHTML += `<span class="check-chip found">Trouvé: ${trouveDisplay}</span>`;
+          valuesHTML += `<span class="check-chip found">Trouvé: ${escapeHtml(trouveDisplay)}</span>`;
         }
       }
 
@@ -6106,10 +6122,10 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
         <div class="check-card ${check.niveau}">
           <div class="check-header">
             <span class="check-badge ${check.niveau}">${badgeText}</span>
-            <div class="check-field">${check.champ}</div>
+            <div class="check-field">${escapeHtml(check.champ)}</div>
           </div>
-          ${check.localisation ? `<div style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--color-text-light); margin-bottom: 0.5rem; padding-left: 0.25rem; border-left: 2px solid var(--color-border);">📍 ${check.localisation}</div>` : ''}
-          <div class="check-detail">${check.detail}</div>
+          ${check.localisation ? `<div style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--color-text-light); margin-bottom: 0.5rem; padding-left: 0.25rem; border-left: 2px solid var(--color-border);">📍 ${escapeHtml(check.localisation)}</div>` : ''}
+          <div class="check-detail">${escapeHtml(check.detail)}</div>
           ${valuesHTML ? `<div class="check-values">${valuesHTML}</div>` : ''}
         </div>
       `;
@@ -6633,7 +6649,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
           <div class="grille-ligne" style="margin-bottom: 4px; border: 1px solid var(--color-conforme); border-radius: var(--radius-sm); overflow: hidden;">
             <div style="padding: var(--spacing-sm); cursor: pointer; display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.03);"
                  onclick="this.parentElement.querySelector('.grille-ligne-content').classList.toggle('collapsed')">
-              <span style="font-weight: 600; color: var(--color-conforme);">${etiquette} — conforme ✓</span>
+              <span style="font-weight: 600; color: var(--color-conforme);">${escapeHtml(etiquette)} — conforme ✓</span>
               <span class="toggle-icon">▼</span>
             </div>
             <div class="grille-ligne-content collapsed" style="padding: var(--spacing-sm);">${toutesCartes}</div>
@@ -6651,7 +6667,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
       return `
         <div class="grille-ligne-wrap">
           <div class="grille-row${aDetail ? ' grille-row-clickable' : ''}"${clic}>
-            <div class="grille-etiquette" title="${etiquette}">${aDetail ? '▾ ' : ''}${etiquette}</div>
+            <div class="grille-etiquette" title="${escapeHtml(etiquette)}">${aDetail ? '▾ ' : ''}${escapeHtml(etiquette)}</div>
             ${cellulesHTML}
           </div>
           ${detailHTML}
@@ -6943,7 +6959,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
           <div class="grille-ligne" style="margin-bottom: 4px; border: 1px solid var(--color-conforme); border-radius: var(--radius-sm); overflow: hidden;">
             <div style="padding: var(--spacing-sm); cursor: pointer; display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.03);"
                  onclick="this.parentElement.querySelector('.grille-ligne-content').classList.toggle('collapsed')">
-              <span style="font-weight: 600; color: var(--color-conforme);">${etiquette} — conforme ✓</span>
+              <span style="font-weight: 600; color: var(--color-conforme);">${escapeHtml(etiquette)} — conforme ✓</span>
               <span class="toggle-icon">▼</span>
             </div>
             <div class="grille-ligne-content collapsed" style="padding: var(--spacing-sm);">${toutesCartes}</div>
@@ -6957,7 +6973,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
       return `
         <div class="grille-ligne-wrap">
           <div class="grille-row-chantier${aDetail ? ' grille-row-clickable' : ''}"${clic}>
-            <div class="grille-etiquette" title="${etiquette}">${aDetail ? '▾ ' : ''}${etiquette}</div>
+            <div class="grille-etiquette" title="${escapeHtml(etiquette)}">${aDetail ? '▾ ' : ''}${escapeHtml(etiquette)}</div>
             ${cellulesHTML}
           </div>
           ${detailHTML}
@@ -7774,7 +7790,7 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
           <div id="view-${viewKey}" class="view-panel" style="${activeView === viewKey ? '' : 'display: none;'}">
             <h3 style="margin-bottom: var(--spacing-md); color: var(--color-text); font-size: 1.25rem; display: flex; align-items: center; gap: var(--spacing-sm);">
               <span>🏢</span>
-              <span>${adresseDisplay}</span>
+              <span>${escapeHtml(adresseDisplay)}</span>
             </h3>
         `;
 
