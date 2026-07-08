@@ -4511,8 +4511,22 @@ Si une information n'est pas trouvée, mets null. Retourne UNIQUEMENT le JSON, s
               });
             }
           } else {
-            // Attestation CEE non trouvée pour ce chantier
+            // Attestation CEE non appariée à ce chantier → le contrôle LED de ce chantier face
+            // au CEE (check_09d) ne peut PAS être fait. Ne pas le taire (principe n°1) : filet
+            // 'info' « à vérifier ». Jamais majeur : l'absence peut être légitime (bâtiment
+            // « Autres » sans attestation entrepôt). Symétrique côté LED du filet surface
+            // check_surface_non_ventilable. Routé par getCheckProvenance Méthode 0 (categorie
+            // 'synthese' + chantierIndex) ; famille 5 via familles-config.js (check_09d_miss_c\d+).
             console.warn(`⚠️ Aucune attestation CEE trouvée pour l'adresse : ${chantier.adresse}`);
+            checks.push({
+              id: `check_09d_miss_c${chantierIndex}`,
+              categorie: 'synthese',
+              niveau: 'info',
+              champ: `LED chantier ${chantierIndex} : contrôle vs CEE impossible`,
+              localisation: `Chantier ${chantierIndex} (${chantier.adresse || 'adresse non trouvée'})`,
+              detail: `Aucune attestation CEE n'a pu être appariée à cette adresse : le contrôle du nombre de LED de ce chantier face au CEE n'a pas pu être effectué. À vérifier manuellement.`,
+              chantierIndex
+            });
           }
         });
       }

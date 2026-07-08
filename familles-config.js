@@ -72,6 +72,7 @@
     [/^check_09c_ch\d+$/,    '5'],
     [/^check_09d_audit_/,    '5'],
     [/^check_09d_synthese_/, '5'],
+    [/^check_09d_miss_c\d+$/, '5'], // filet 'info' : contrôle LED vs CEE impossible (attestation non appariée)
     [/^check_18(_c\d+)?$/,   '5'],
     [/^check_22(_c\d+)?$/,   '5'],
     [/^check_19$/,           '5'],

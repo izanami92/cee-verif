@@ -77,6 +77,7 @@ const CAS_POSITIFS = [
   { id: 'check_29',    champ: 'État projeté nombre LED Audit',  attendu: '5' },
   { id: 'check_30',    champ: 'Pce total liste luminaires Audit', attendu: '5' },
   { id: 'check_17',    champ: 'Nombre de bâtiments Synthèse',   attendu: '5' },
+  { id: 'check_09d_miss_c2', champ: 'LED chantier 2 : contrôle vs CEE impossible', attendu: '5' }, // filet MISS (M4)
 
   // --- 6 — Parcelles ---
   { id: 'check_15',    champ: 'Parcelles cadastrales Synthèse fiche identité',            attendu: '6' },
