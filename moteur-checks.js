@@ -44,6 +44,14 @@
       const nbChantiers = norm.cee?.attestations?.length || norm.audits.length || 1;
       const chantierSuffix = nbChantiers > 1 ? ' (chantier 1)' : '';
 
+      // Cardinalité DOCUMENTAIRE (1 chantier = 1 couple audit/synthèse — ADR-011/#27), pour les
+      // gardes mono-chantier des checks 19/21/28/29/30. Ne PAS réutiliser nbChantiers ci-dessus :
+      // il compte les attestations en premier → faux « mono » quand l'attestation est repliée
+      // (type DELEFORTRIE : 5 faux majeurs « 66 vs 52 »), faux « multi » quand un chantier a
+      // plusieurs attestations (type COPPIN : les 5 checks éteints à tort). Même source que le
+      // filet surface (nbChantiersAttendus).
+      const nbChantiersDocumentaires = matchChantiers(norm.audits, norm.syntheses).length;
+
       // Log détaillé des données extraites pour debug
       console.log('\n=== DONNÉES EXTRAITES PAR CLAUDE ===');
       console.log('Audits extraits:', norm.audits.length);
@@ -592,7 +600,7 @@
       });
 
       // Check 19 : Désactivé en multi-chantiers (déjà vérifié par checks globaux)
-      if (nbChantiers === 1) {
+      if (nbChantiersDocumentaires === 1) {
         const totalLedInitialOk = compareStrings(firstSynthese.totalLedInitial, references.totalLed);
         checks.push({
           id: 'check_19',
@@ -679,7 +687,7 @@
 
       // ========== SYNTHÈSE - Inventaire état projeté (21-23) ==========
       // Check 21 : Désactivé en multi-chantiers (déjà vérifié par checks globaux)
-      if (nbChantiers === 1) {
+      if (nbChantiersDocumentaires === 1) {
         const totalLedProjeteOk = compareStrings(firstSynthese.totalLedProjete, references.totalLed);
         checks.push({
           id: 'check_21',
@@ -849,7 +857,7 @@
       });
 
       // Check 28-29 : Désactivés en multi-chantiers (déjà vérifiés par checks globaux)
-      if (nbChantiers === 1) {
+      if (nbChantiersDocumentaires === 1) {
         const ledInitialOk = compareStrings(firstAudit.ledInitial, references.totalLed);
         checks.push({
           id: 'check_28',
@@ -877,7 +885,7 @@
 
       // ========== AUDIT - Liste luminaires (30) ==========
       // Check 30 : Désactivé en multi-chantiers (déjà vérifié par checks globaux)
-      if (nbChantiers === 1) {
+      if (nbChantiersDocumentaires === 1) {
         const pceLuminairesOk = compareStrings(firstAudit.pceLuminaires, references.totalLed);
         checks.push({
           id: 'check_30',

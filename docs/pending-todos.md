@@ -51,8 +51,16 @@ l'ADR-014 est atteint (preuve dossier réel DELEFORTRIE — voir Pivot B).
 > **check_19/21** (tableaux synthèse) et **check_28/29/30** (états initial/projeté + liste luminaires audit)
 > comparent des valeurs PAR CHANTIER au **total du dossier** (66) au lieu du total du chantier (52) →
 > 5 faux « majeur 66 vs 52 » par dossier multi-chantiers, libellés trompeurs (ressemblent aux checks 09).
-> Promu **prochain sujet** : re-grainer par chantier (référence via le guichet, comme 09d) — diagnostic
-> + 2-3 approches avant code.
+> **Diagnostic 09/07/2026 (cause racine trouvée)** : ces 5 checks sont GATÉS mono-chantier
+> (`if (nbChantiers === 1)`, intention « couvert par les checks globaux en multi ») ; or le compteur
+> `nbChantiers` (moteur-checks.js) compte les ATTESTATIONS en premier → faux « mono » sur attestation
+> repliée (DELEFORTRIE : les 5 faux majeurs) ET faux « multi » sur multi-attestations (COPPIN : les 5
+> checks éteints à tort = MISS silencieux). **Fix A livré** (branche `fix/gates-mono-19-30`) :
+> cardinalité documentaire `matchChantiers(audits, syntheses).length` sur les 4 gardes SEULES (les 10
+> autres consommateurs de `nbChantiers` non touchés) ; banc 7/7 avant/après sur le vrai moteur.
+> **Option B tracée, non prioritaire** : re-grain complet par chantier via le guichet (patron 09d) —
+> seule à attraper une coquille INTERNE d'un document en multi (ex. compensation entre chantiers) ;
+> nouveaux ids `check_19_cN` → ripple 3 surfaces ADR-014 ; à cadrer en sujet dédié si le besoin émerge.
 
 **Ligne de commits (linéaire) — ✅ MERGÉE sur `main` le 06/07/2026** : les **35 commits** empilés depuis
 l'ancien `main` (= `a9a74aa`, ADR-015) jusqu'au tip `fix/27-decoupage-parcelle` (= `5043ffa`) ont été mergés
@@ -353,6 +361,9 @@ extraction FAITE (ADR-016).** État complet pour reprise en nouvelle session :
    (cible B)** — inclut l'encapsulation des 4 globales d'affichage (étape 6) + orchestrateur mince (étape 7) ;
    **CSP stricte** (après retrait des `onclick` générés) ; **« règles métier en configuration »** (objectif
    produit multi-clients).
-6. **Re-grain check_19/21/28/29/30** (5 faux « 66 vs 52 » multi-chantiers, référence au total dossier au lieu du chantier) — **REPORTÉ derrière #3**, diagnostic + 2-3 approches avant code.
+6. ~~**Re-grain check_19/21/28/29/30**~~ **✅ Fix A livré (09/07/2026, branche `fix/gates-mono-19-30`)** :
+   cause racine = garde mono sur `nbChantiers` (attestations comptées en premier) → cardinalité
+   documentaire sur les 4 gardes. **Option B (re-grain complet par chantier, guichet 09d) tracée non
+   prioritaire** — détail dans la note « Désambiguïsation 52/66 » du §TODO #22.
 
 **Méthode de travail confirmée cette session** : diagnostic lecture seule cité `fichier:ligne` → 2-3 approches + reco → validation IZANAMI → banc d'essai node (charge le vrai code via `extractFn`) → diff verbatim + STOP → preview testé par IZANAMI → merge (geste délégué à Claude quand IZANAMI dit « merge »). ⚠️ **Modèle métier** : Dossier → Chantiers → Cellules(=bâtiments) ; une adresse peut regrouper plusieurs bâtiments comptés variablement (grain non fiable = cœur du #27/Pivot B). `api/analyze.js` = couche LLM, jamais touchée avec du JS dans le même commit.
