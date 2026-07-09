@@ -1,7 +1,7 @@
 # ADR 016 — Découpage d'index.html en 6 modules de scripts classiques (phase B, TODO #3)
 
 **Date** : 08/07/2026
-**Statut** : 🟡 Proposé — en attente de validation IZANAMI
+**Statut** : ✅ Accepté (08/07/2026) — extraction M1→M5 réalisée et validée preview (09/07/2026) ; étapes 6/7 différées à la cible B (voir §Réalisation)
 **TODO lié** : #3 (audit complet + modularisation) — phase B
 **Principe directeur** : jamais de faux conforme silencieux ; extraction PURE (fonctions byte-identiques), app fonctionnelle à chaque commit
 
@@ -188,6 +188,35 @@ commit = retour arrière propre) ; prérequis posé pour le chantier « règles 
 documentaire jusqu'à la conversion B) ; cycle M4→index.html (`apiFetch`→`showLogin`) assumé jusqu'à B
 (callback injectable à ce moment-là) ; 6-7 previews à tester par IZANAMI ; le banc d'identité ne
 couvre pas les balises `<script>` ajoutées (relecture manuelle du diff index.html à chaque commit).
+
+## Réalisation (08-09/07/2026)
+
+Extraction réalisée sur `feat/phase-b-modularisation`, validée en preview à chaque commit
+(anchors COPPIN / DES LAURIERS / LATRILLE / DELEFORTRIE, console F12 propre) :
+
+| Commit | Module | Contenu | Preuve |
+|--------|--------|---------|--------|
+| `bdbff3a` | M1 `utils-comparaison.js` (532 l.) | 21 fonctions + re-routage `test-batiments.mjs` même commit | banc 21/21 |
+| `bb24f75` | M2 `regroupement.js` (188 l.) | 5 fonctions | banc 5/5 |
+| `449246c` | M3 `detecteurs-alertes.js` (245 l.) | 9 fonctions (3 blocs, `computeAvertissementsCEE` incluse) | banc 9/9 |
+| `2f99ccb` | M4 `io.js` (163 l.) | 4 fonctions async ; `workerSrc` + `searchSiret` restés (gardes au banc) | banc 4/4 |
+| `73b5566` | M5 `moteur-checks.js` (1472 l.) | `generateChecks` ENTIÈRE + `buildMessageAuditeur` + `FICHES_TECHNIQUES` | rejeu intégral |
+
+`index.html` : **8204 → 5669 lignes**. Harnais 36/36 + 71/71 verts à chaque commit. Auto-deploy Vercel
+re-fonctionnel sur toute la série.
+
+**Décisions de clôture (IZANAMI, 09/07/2026)** :
+- **Étape 6 (encapsulation des 4 globales d'affichage) : DIFFÉRÉE à la conversion ES6 (cible B).**
+  Un `let` top-level devient automatiquement privé au module ES6 — l'encapsulation manuelle (~30 sites
+  réécrits dans 13 fonctions, hors preuve byte-identique) n'apporte pas assez pour son risque.
+- **Étape 7 (orchestrateur mince `btnAnalyze`) : DIFFÉRÉE** — sujet dédié futur (probablement avec la cible B).
+- CSP stricte : inchangée (après retrait des `onclick` générés, sujet dédié).
+
+**Leçons de banc (réutilisables — détail dans known-pitfalls §Leçons phase B)** : preuve d'extraction
+pure = **rejeu de la transformation** (fichiers entiers byte-identiques), pas diff ligne-à-ligne
+(ambigu aux bords de blocs) ; toujours vérifier l'absence de **copie résiduelle** dans index.html
+(elle écraserait le module, chargé avant) ; extracteur d'accolades : apparier d'abord les parenthèses
+de la signature (piège `options = {}`) et inclure le préfixe `async`.
 
 ## Sources
 

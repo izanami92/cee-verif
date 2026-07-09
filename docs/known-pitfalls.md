@@ -506,6 +506,31 @@ Leçons durables (pièges à ne pas réintroduire / faits établis) :
 
 ---
 
+### Leçons phase B — extraction en modules (08-09/07/2026)
+
+**Contexte** : découpage d'index.html en 5 modules de scripts classiques (ADR-016), extraction PURE
+byte-identique, commits M1→M5 sur `feat/phase-b-modularisation`. Leçons à réutiliser pour tout
+déplacement de code futur (dont la conversion ES6, cible B) :
+
+1. **Preuve d'extraction pure = REJEU de la transformation, pas diff ligne-à-ligne.** Un diff
+   (difflib/git) est AMBIGU aux bords de blocs quand les lignes de bord sont identiques (lignes vides,
+   `}` fermantes) → fausses alertes d'alignement. Le banc fiable : ré-appliquer les coupes sur
+   `git show HEAD:index.html` et exiger l'égalité byte-à-byte des fichiers ENTIERS (module + index.html).
+2. **Toujours vérifier « aucune copie résiduelle »** : une fonction oubliée dans index.html écraserait
+   SILENCIEUSEMENT celle du module (le script principal charge APRÈS les modules) — le banc doit tester
+   l'absence de `function nom(` dans index.html, pas seulement la présence dans le module.
+3. **Extracteur par comptage d'accolades : apparier d'abord les PARENTHÈSES de la signature** (piège
+   `options = {}` — le comptage naïf s'arrête au `{}` du paramètre par défaut) et inclure le préfixe
+   `async` s'il existe.
+4. **`test-batiments.mjs` lit désormais `utils-comparaison.js`** (plus index.html) — tout déplacement
+   futur de ses 6 fonctions doit re-router le harnais DANS LE MÊME COMMIT.
+5. **Un écart de comportement post-déplacement se diagnostique par ÉLIMINATION** : JS prouvé
+   byte-identique + `api/` intouché ⇒ seule variable restante = l'extraction LLM (non déterministe).
+   Vu sur DELEFORTRIE (nom Synthèse « (vide) » un run sur deux) : c'est le filet LOT 2 qui fait
+   surgir l'absence en majeur — comportement voulu, pas une régression.
+
+---
+
 ## ⚠️ APPROCHES ABANDONNÉES
 
 ### Approche abandonnée #1 : Fichier JSON local pour feedback
@@ -638,5 +663,5 @@ grep -C 5 "keyword" /Users/mac/.claude/projects/-Users-mac/*.jsonl
 
 ---
 
-**Dernière révision** : 6 juillet 2026 (leçons 4b DELEFORTRIE)
+**Dernière révision** : 9 juillet 2026 (leçons phase B — extraction en modules)
 **Prochaine révision** : À chaque bug majeur résolu

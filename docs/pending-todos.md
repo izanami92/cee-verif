@@ -10,7 +10,7 @@ stats datées, sources ADR) est dans `pending-todos-archive.md` (consulté à la
 ## TODOs actifs (index)
 
 - 🔴 **Critiques** : checks LED hors-4b au mauvais grain (check_19/21/28/29/30) — **REPORTÉ derrière le chantier #3 audit + modularisation** (décision IZANAMI 06/07) · #27 (découpage 5→3 + 3 blocs LATRILLE ✅ **mergés sur main 06/07** ; check « attestation entrepôt manquante » toujours en attente) · #22 (modèle Chantier/Cellule, ADR-015 — **4b volet 1/2 ✅ validé run réel 06/07, mergé**) · #29 (alerte 1.4, logique 3 issues)
-- 🟡 **Importantes** : **#3 (audit complet + modularisation) — 🟠 EN COURS session 06/07 (phase A audit)** · #4 (tests auto) · #5 (learning auto)
+- 🟡 **Importantes** : **#3 (audit complet + modularisation) — 🟢 phase B extraction FAITE (ADR-016, 5 modules, branche `feat/phase-b-modularisation` à merger)** · #4 (tests auto) · #5 (learning auto)
 - 🟢 **Nice to have** : #35 (corps mort + reliquat #31) · #36 (styles grille) · #6/#7/#8 · limite `alert()` · suivi `state.chantiers`
 
 > TODO clos & évolutions livrées-mergées → `pending-todos-archive.md`.
@@ -215,7 +215,22 @@ LAURIERS, **LATRILLE**. Autres bugs console tracés (réf produit `compareProduc
 
 ## 🟡 PRIORITÉ 2 — IMPORTANTES
 
-### TODO #3 : Audit complet + modularisation de `index.html` — 🟠 EN COURS (session 06/07/2026)
+### TODO #3 : Audit complet + modularisation de `index.html` — 🟢 PHASE B EXTRACTION FAITE (09/07/2026, reste merge)
+
+**Phase B ✅ EXTRACTION FAITE (08-09/07/2026)** : ADR-016 validé puis réalisé sur `feat/phase-b-modularisation`
+(`4fc6153` ADR → `bdbff3a` M1 `utils-comparaison.js` 21 fonctions + harnais re-routé → `bb24f75` M2
+`regroupement.js` 5 fonctions → `449246c` M3 `detecteurs-alertes.js` 9 fonctions → `2f99ccb` M4 `io.js`
+4 fonctions async → `73b5566` M5 `moteur-checks.js` avec `generateChecks` ENTIÈRE). **index.html
+8204 → 5669 l.** Chaque commit : banc d'identité byte-à-byte (rejeu intégral pour M5) + harnais 36/36
+& 71/71 + preview validée IZANAMI (anchors ; 1 écart DELEFORTRIE « nom Synthèse (vide) » = non-déterminisme
+d'extraction prouvé par élimination — api/ intouché, JS byte-identique — géré correctement par le filet
+LOT 2). Décisions IZANAMI 08-09/07 : technique A scripts classiques maintenant + **conversion ES6 = cible B**
+(chantier futur, motivé par l'objectif produit « personnalisable/vendable » → passera aussi par un chantier
+« règles métier en configuration ») ; **étapes 6 (encapsulation 4 globales) & 7 (orchestrateur mince)
+DIFFÉRÉES à la cible B** ; escapeHtml immobile ; code mort intact (#35). **RESTE : merge (geste IZANAMI).**
+Détail → ADR-016 §Réalisation.
+
+*(Historique phase A + plan d'origine ci-dessous.)*
 Tentative ES6 (26-27 mai) échouée (`generateChecks` tronquée) → big-bang écarté (ADR-015).
 **Phase A ✅ FAITE (06-07/07/2026)** : audit complet lecture seule (6 axes) via 2 workflows multi-agents
 (76 agents) + vérification adversariale arbitrée + re-lecture code des findings load-bearing. **0 finding
@@ -310,13 +325,18 @@ Mettre à jour ce fichier : en fin de session ; à chaque évolution proposée ;
 
 ---
 
-**Dernière révision** : 07/07/2026 — **TODO #3 : phase A (audit) FAITE + LOT 1 (sécurité) & LOT 2 (faux-conforme)
-MERGÉS sur `main`.** État complet pour reprise en nouvelle session :
+**Dernière révision** : 09/07/2026 — **TODO #3 : LOTs 1-4 MERGÉS sur `main` (tip `dda6670`) + phase B
+extraction FAITE (ADR-016).** État complet pour reprise en nouvelle session :
 
-**Fait & LIVRÉ sur la branche `fix/m4-led-miss-signal` (non mergé — tip `e6ab7ed`, 6 commits au-dessus de `main` `c1d8b81`), validé preview le 08/07/2026** :
+**Fait & LIVRÉ sur `feat/phase-b-modularisation` (non mergée), validé preview le 09/07/2026** :
+- **ADR-016** (`4fc6153`) + extraction PURE M1→M5 (`bdbff3a`, `bb24f75`, `449246c`, `2f99ccb`, `73b5566`)
+  + doc de clôture. index.html 8204 → 5669 l. Voir bloc « Phase B ✅ » en tête du §TODO #3.
+- **En attente : merge (geste IZANAMI).** Auto-deploy Vercel re-fonctionnel sur toute la série phase B
+  (08-09/07) ; garder le réflexe de vérifier après chaque push.
+
+**Antérieur — LOT 3 + LOT 4 mergés sur `main` le 08/07/2026 (tip `dda6670`)** :
 - **LOT 3** : M4 (`0e28ee2`, filet `check_09d_miss`), M5 (`e5937be`, extraction résiliente), M1 (`910d5bb`, `escapeHtml` anti-XSS).
 - **LOT 4 durcissement** : 4.1 erreurs non renvoyées au client (`424509d`), 4.2 timeout `AbortController` (`351eb6f`), 4.3 SRI pdf.js + en-têtes HTTP (`e6ab7ed`).
-- **En attente : merge (geste IZANAMI).** Auto-deploy Vercel à la traîne → prévoir `vercel deploy --prod` manuel après merge si besoin.
 
 **Antérieur — Fait & mergé sur `main` (tip `41a8f48`)** :
 - **Audit phase A** : 6 axes, 76 agents, 0 finding réfuté → backlog priorisé §TODO #3 ci-dessus.
@@ -328,7 +348,11 @@ MERGÉS sur `main`.** État complet pour reprise en nouvelle session :
 2. **MERGE de la branche `fix/m4-led-miss-signal` vers `main`** (geste IZANAMI) + `vercel deploy --prod` manuel si l'auto-deploy est toujours à la traîne.
 3. **Mineurs restants** (cosmétique/doc, faible valeur — beaucoup deviendront caducs avec la phase B) : A4 (tolérance LED stricte), 9 `alert()`, fuite `state.chantiers`, `check_23` id nu, label `nbChantiers`, A3 doc §6 périmée, routage `check_47_global` sans `portee`, 5 normalisations d'adresse, 2 systèmes de routage, code mort (`renderChecksByFamille`/`createErrorGroupCard`/`autoDetectChantiers` #35), ~122 `console.log`, `.env.example` désync, CLAUDE.md désync.
 4. **Extensions M2 différées** : `compareParcelles` (attention DELEFORTRIE sans parcelle), `compareSecteurEtude` (#27).
-5. **Phase B modularisation** : ADR de découpage AVANT code (plan 6 modules `window.*` §TODO #3), extraction module par module (1 module = 1 commit PUR + harnais + preview). Invariant ADR-014 (getCheckProvenance/etatCellule/resolveFamille jamais touchés hors sujet). **CSP stricte à intégrer ici** (retrait des `onclick` inline).
+5. ~~**Phase B modularisation**~~ **✅ EXTRACTION FAITE (ADR-016, 08-09/07/2026)** — reste : **MERGE de
+   `feat/phase-b-modularisation`** (geste IZANAMI). Suites différées (chantiers futurs) : **conversion ES6
+   (cible B)** — inclut l'encapsulation des 4 globales d'affichage (étape 6) + orchestrateur mince (étape 7) ;
+   **CSP stricte** (après retrait des `onclick` générés) ; **« règles métier en configuration »** (objectif
+   produit multi-clients).
 6. **Re-grain check_19/21/28/29/30** (5 faux « 66 vs 52 » multi-chantiers, référence au total dossier au lieu du chantier) — **REPORTÉ derrière #3**, diagnostic + 2-3 approches avant code.
 
 **Méthode de travail confirmée cette session** : diagnostic lecture seule cité `fichier:ligne` → 2-3 approches + reco → validation IZANAMI → banc d'essai node (charge le vrai code via `extractFn`) → diff verbatim + STOP → preview testé par IZANAMI → merge (geste délégué à Claude quand IZANAMI dit « merge »). ⚠️ **Modèle métier** : Dossier → Chantiers → Cellules(=bâtiments) ; une adresse peut regrouper plusieurs bâtiments comptés variablement (grain non fiable = cœur du #27/Pivot B). `api/analyze.js` = couche LLM, jamais touchée avec du JS dans le même commit.
