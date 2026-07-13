@@ -447,7 +447,7 @@
               `Secteur d'activité Synthèse${suffixS2}`, `Synthèse${suffixS2}, fiche identité du site`,
               `⚠️ À vérifier manuellement : ${nbCoChantiersS2(synthese.adresse)} chantiers à la même adresse « ${synthese.adresse || ''} » — secteur non réconciliable automatiquement (1 chantier = 1 adresse non garanti).`,
               syntheseIndex + 1);
-          } else if (!attestation && nbChantiers > 1) {
+          } else if (!attestation && nbChantiersDocumentaires > 1) {
             // S2 : multi-chantier, aucune attestation appariée → 'info' (mono garde le fallback references.*).
             pushApparInfoS2(`check_14${idSuffixS2}`,
               `Secteur d'activité Synthèse${suffixS2}`, `Synthèse${suffixS2}, fiche identité du site`,
@@ -537,7 +537,7 @@
             `Parcelles cadastrales Synthèse fiche identité${suffix}`, `Synthèse${suffix}, fiche identité du site`,
             `⚠️ À vérifier manuellement : ${nbCoChantiersS2(synthese.adresse)} chantiers à la même adresse « ${synthese.adresse || ''} » — parcelles non réconciliables automatiquement (1 chantier = 1 adresse non garanti).`,
             chantierIndex);
-        } else if (!attestationCorrespondante && nbChantiers > 1) {
+        } else if (!attestationCorrespondante && nbChantiersDocumentaires > 1) {
           // S2 : multi-chantier, aucune attestation appariée → 'info' (mono garde le fallback references.parcelles).
           pushApparInfoS2(`check_15${idSuffix}`,
             `Parcelles cadastrales Synthèse fiche identité${suffix}`, `Synthèse${suffix}, fiche identité du site`,
@@ -630,7 +630,7 @@
               `Secteur étude indicateurs${suffixS2}`, `Synthèse${suffixS2}, indicateurs éclairage intérieur état initial`,
               `⚠️ À vérifier manuellement : ${nbCoChantiersS2(synthese.adresse)} chantiers à la même adresse « ${synthese.adresse || ''} » — secteur non réconciliable automatiquement (1 chantier = 1 adresse non garanti).`,
               syntheseIndex + 1);
-          } else if (!attestation && nbChantiers > 1) {
+          } else if (!attestation && nbChantiersDocumentaires > 1) {
             // S2 : multi-chantier, aucune attestation appariée → 'info' (mono garde le fallback references.*).
             pushApparInfoS2(`check_20${idSuffixS2}`,
               `Secteur étude indicateurs${suffixS2}`, `Synthèse${suffixS2}, indicateurs éclairage intérieur état initial`,
@@ -735,7 +735,7 @@
               `Activité bâtiment état projeté${suffixS2}`, `Synthèse${suffixS2}, inventaire état projeté (2e tableau)`,
               `⚠️ À vérifier manuellement : ${nbCoChantiersS2(synthese.adresse)} chantiers à la même adresse « ${synthese.adresse || ''} » — secteur non réconciliable automatiquement (1 chantier = 1 adresse non garanti).`,
               syntheseIndex + 1);
-          } else if (!attestation && nbChantiers > 1) {
+          } else if (!attestation && nbChantiersDocumentaires > 1) {
             // S2 : multi-chantier, aucune attestation appariée → 'info' (mono garde le fallback existant).
             pushApparInfoS2(`check_23${idSuffixS2}`,
               `Activité bâtiment état projeté${suffixS2}`, `Synthèse${suffixS2}, inventaire état projeté (2e tableau)`,
@@ -759,21 +759,24 @@
               valeur_trouvee: synthese.activiteBatiment || '',
               chantierIndex: syntheseIndex + 1
             });
-          } else if (nbChantiers === 1) {
-            // Fallback mono-chantier
+          } else if (nbChantiersDocumentaires === 1) {
+            // Fallback mono-chantier (id suffixé + chantierIndex : fin de l'« id nu » qui pouvait
+            // entrer en collision et se rattacher au mauvais chantier — dette D1/#5 ; en mono
+            // 1 synthèse, idSuffixS2 = '' → id 'check_23' inchangé).
             checks.push({
-              id: 'check_23',
+              id: `check_23${idSuffixS2}`,
               categorie: 'synthese',
               niveau: compareSecteurEtude(synthese.activiteBatiment, references.typeLocal) ? 'ok' : 'majeur',
-              champ: 'Activité bâtiment état projeté (2e tableau)',
-              localisation: 'Synthèse, inventaire état projeté',
+              champ: `Activité bâtiment état projeté (2e tableau)${suffixS2}`,
+              localisation: `Synthèse${suffixS2}, inventaire état projeté`,
               detail: 'Vérification activité bâtiment',
               valeur_attendue: references.typeLocal || '',
-              valeur_trouvee: synthese.activiteBatiment || ''
+              valeur_trouvee: synthese.activiteBatiment || '',
+              chantierIndex: syntheseIndex + 1
             });
           }
         });
-      } else if (nbChantiers === 1) {
+      } else if (nbChantiersDocumentaires === 1) {
         checks.push({
           id: 'check_23',
           categorie: 'synthese',
@@ -1043,17 +1046,26 @@
       const nbSyntheses = norm.syntheses.length;
       const nbAttestations = (norm.cee?.attestations || []).length;
       const nbChantiersCoherent = (nbAudits === nbSyntheses) && (nbSyntheses === nbAttestations);
+      // #27 : ne JAMAIS regrouper les attestations avant de compter (masquerait une vraie collision
+      // d'adresses = faux conforme silencieux). Mais un SURPLUS d'attestations qui se replie
+      // proprement sur les chantiers documentaires (plusieurs bâtiments à la même adresse, ex.
+      // COPPIN 2 attestations / 1 chantier) est une ambiguïté LÉGITIME → 'info' « à vérifier »
+      // (jamais vert), plus un faux « majeur ». Un manque (DELEFORTRIE) reste majeur.
+      const surplusReplieProprement = !nbChantiersCoherent && (nbAudits === nbSyntheses)
+        && nbAttestations > nbAudits && attestationsRegroupees.length === nbAudits;
 
       checks.push({
         id: 'check_39',
         portee: 'global-cee',
         categorie: 'global',
-        niveau: nbChantiersCoherent ? 'ok' : 'majeur',
+        niveau: nbChantiersCoherent ? 'ok' : (surplusReplieProprement ? 'info' : 'majeur'),
         champ: 'Cohérence nombre de chantiers',
         localisation: 'Global - Audits / Synthèses / Attestations CEE',
         detail: nbChantiersCoherent ?
           `Nombre cohérent : ${nbAudits} chantier(s) détecté(s)` :
-          `⚠️ Incohérence détectée : ${nbAudits} audit(s), ${nbSyntheses} synthèse(s), ${nbAttestations} attestation(s) CEE`,
+          (surplusReplieProprement ?
+            `⚠️ À vérifier : ${nbAttestations} attestation(s) CEE pour ${nbAudits} chantier(s) (audits = synthèses) — plusieurs bâtiments par chantier possibles (${attestationsRegroupees.length} adresse(s) après regroupement)` :
+            `⚠️ Incohérence détectée : ${nbAudits} audit(s), ${nbSyntheses} synthèse(s), ${nbAttestations} attestation(s) CEE`),
         valeur_attendue: `${nbAudits} = ${nbSyntheses} = ${nbAttestations}`,
         valeur_trouvee: nbChantiersCoherent ? 'Cohérent ✓' : `Audits: ${nbAudits}, Synthèses: ${nbSyntheses}, CEE: ${nbAttestations}`
       });
@@ -1184,7 +1196,9 @@
 
           const surfacesAttestation = toutesLesSurfaces;
 
-          const nbChantiers = norm.cee?.attestations?.length || 0;
+          // Grain CHANTIER (adresses regroupées), pas attestations brutes : COPPIN a 2 attestations
+          // mais 1 seul chantier → pas de libellé « (Chantier 1 : …) » trompeur (dette D1/#6).
+          const nbChantiers = attestationsByChantier.size;
           const chantierLabel = nbChantiers > 1 ?
             ` (Chantier ${chantierIndex + 1} : ${chantierAdresse.substring(0, 30)}...)` :
             '';
